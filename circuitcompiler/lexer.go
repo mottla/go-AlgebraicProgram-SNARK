@@ -1,0 +1,185 @@
+package circuitcompiler
+
+import (
+	"bufio"
+	"bytes"
+	"io"
+)
+
+type OperatorSymbol int
+type Token int
+
+const (
+	ILLEGAL Token = 1 << iota
+	WS
+	EOF
+	FUNC
+	IDENT // val
+	IN
+	VAR      // var
+	CONST    // const value
+	EQ       // =
+	PLUS     // +
+	MINUS    // -
+	MULTIPLY // *
+	DIVIDE   // /
+	EXP      // ^
+	OUT
+)
+
+func (ch Token) String() string {
+	switch ch {
+	case EQ:
+		return "="
+	case PLUS:
+		return "+"
+	case MINUS:
+		return "-"
+	case MULTIPLY:
+		return "*"
+	case DIVIDE:
+		return "/"
+	case EXP:
+		return "^"
+	case FUNC:
+		return "def"
+	case IN:
+		return "In"
+	case CONST:
+		return "Const"
+	default:
+		return "unknown Token"
+
+	}
+
+}
+
+var eof = rune(0)
+
+func isWhitespace(ch rune) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n'
+}
+
+func isLetter(ch rune) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+func isDigit(ch rune) bool {
+	return (ch >= '0' && ch <= '9')
+}
+
+// Scanner holds the bufio.Reader
+type Scanner struct {
+	r *bufio.Reader
+}
+
+// NewScanner creates a new Scanner with the given io.Reader
+func NewScanner(r io.Reader) *Scanner {
+	return &Scanner{r: bufio.NewReader(r)}
+}
+
+func (s *Scanner) read() rune {
+	ch, _, err := s.r.ReadRune()
+	if err != nil {
+		return eof
+	}
+	return ch
+}
+
+func (s *Scanner) unread() {
+	_ = s.r.UnreadRune()
+}
+
+// Scan returns the Token and literal string of the current value
+func (s *Scanner) scan() (tok Token, lit string) {
+	ch := s.read()
+
+	if isWhitespace(ch) {
+		// space
+		s.unread()
+		return s.scanWhitespace()
+	} else if isLetter(ch) {
+		// letter
+		s.unread()
+		return s.scanIndent()
+	} else if isDigit(ch) {
+		s.unread()
+		return s.scanIndent()
+	}
+
+	switch ch {
+	case eof:
+		return EOF, ""
+	case '=':
+		return EQ, "="
+	case '+':
+		return PLUS, "+"
+	case '-':
+		return MINUS, "-"
+	case '*':
+		return MULTIPLY, "*"
+	case '/':
+		return DIVIDE, "/"
+	case '^':
+		return EXP, "^"
+		//case '(':
+		//	return EXP, "func"
+	}
+
+	return ILLEGAL, string(ch)
+}
+
+func (s *Scanner) scanWhitespace() (token Token, lit string) {
+	var buf bytes.Buffer
+	buf.WriteRune(s.read())
+
+	for {
+		if ch := s.read(); ch == eof {
+			break
+		} else if !isWhitespace(ch) {
+			s.unread()
+			break
+		} else {
+			_, _ = buf.WriteRune(ch)
+		}
+	}
+	return WS, buf.String()
+}
+
+func (s *Scanner) scanIndent() (tok Token, lit string) {
+	var buf bytes.Buffer
+	buf.WriteRune(s.read())
+	tok = IDENT
+	for {
+		if ch := s.read(); ch == eof {
+			break
+		} else if ch == '(' {
+			tok = FUNC
+			_, _ = buf.WriteRune(ch)
+		} else if ch == ',' && tok == FUNC {
+			_, _ = buf.WriteRune(ch)
+		} else if isWhitespace(ch) && tok == FUNC {
+			continue
+		} else if ch == ')' && tok == FUNC {
+			_, _ = buf.WriteRune(ch)
+			break
+		} else if !isLetter(ch) && !isDigit(ch) {
+			s.unread()
+			break
+		} else {
+			_, _ = buf.WriteRune(ch)
+		}
+	}
+
+	switch buf.String() {
+	case "var":
+		return VAR, buf.String()
+	}
+
+	if len(buf.String()) == 1 {
+		return Token(rune(buf.String()[0])), buf.String()
+	}
+	if buf.String() == "out" {
+		return OUT, buf.String()
+	}
+	return IDENT, buf.String()
+}
