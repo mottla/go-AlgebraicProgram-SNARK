@@ -28,6 +28,12 @@ func (fq Fq) One() *big.Int {
 	return big.NewInt(int64(1))
 }
 
+//given [b,a] returns bigInt(b* a^-1) on the finite field
+func (f Fq) FractionToField(in [2]int) *big.Int {
+	return f.Mul(big.NewInt(int64(in[0])), f.Inverse(big.NewInt(int64(in[1]))))
+
+}
+
 // Add performs an addition on the Fq
 func (fq Fq) Add(a, b *big.Int) *big.Int {
 	r := new(big.Int).Add(a, b)
@@ -99,6 +105,10 @@ func (fq Fq) Exp(base *big.Int, e *big.Int) *big.Int {
 		rem = new(big.Int).Rsh(rem, 1)
 	}
 	return res
+}
+
+func BigIsOdd(n *big.Int) bool {
+	return n.Bit(0) == 1
 }
 
 func (fq Fq) Rand() (*big.Int, error) {

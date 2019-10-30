@@ -22,6 +22,7 @@ func panicErr(err error) {
 	}
 }
 
+//TODO EVERYTHING
 var commands = []cli.Command{
 	{
 		Name:    "compile",
@@ -98,15 +99,15 @@ func CompileCircuit(context *cli.Context) error {
 	panicErr(err)
 	fmt.Println("\nwitness", w)
 
-	// flat code to R1CS
-	fmt.Println("\ngenerating R1CS from flat code")
+	// flat code to ER1CS
+	fmt.Println("\ngenerating ER1CS from flat code")
 	a, b, c := circuit.GenerateR1CS()
-	fmt.Println("\nR1CS:")
+	fmt.Println("\nER1CS:")
 	fmt.Println("a:", a)
 	fmt.Println("b:", b)
 	fmt.Println("c:", c)
 
-	// R1CS to QAP
+	// ER1CS to QAP
 	alphas, betas, gammas, zx := snark.Utils.PF.R1CSToQAP(a, b, c)
 	fmt.Println("qap")
 	fmt.Println(alphas)
@@ -140,7 +141,7 @@ func CompileCircuit(context *cli.Context) error {
 		panic(errors.New("hx != div"))
 	}
 	// assert.Equal(t, hx, div)
-	// assert.Equal(t, rem, r1csqap.ArrayOfBigZeros(4))
+	// assert.Equal(t, rem, extendedR1CS.ArrayOfBigZeros(4))
 	for _, r := range rem {
 		if !bytes.Equal(r.Bytes(), big.NewInt(int64(0)).Bytes()) {
 			panic(errors.New("error:error:  px/zx rem not equal to zeros"))
@@ -187,7 +188,7 @@ func TrustedSetup(context *cli.Context) error {
 	w, err := circuit.CalculateWitness(inputs.Private, inputs.Public)
 	panicErr(err)
 
-	// R1CS to QAP
+	// ER1CS to QAP
 	alphas, betas, gammas, _ := snark.Utils.PF.R1CSToQAP(circuit.R1CS.A, circuit.R1CS.B, circuit.R1CS.C)
 	fmt.Println("qap")
 	fmt.Println(alphas)
@@ -252,11 +253,11 @@ func GenerateProofs(context *cli.Context) error {
 	panicErr(err)
 	fmt.Println("witness", w)
 
-	// flat code to R1CS
+	// flat code to ER1CS
 	a := circuit.R1CS.A
 	b := circuit.R1CS.B
 	c := circuit.R1CS.C
-	// R1CS to QAP
+	// ER1CS to QAP
 	alphas, betas, gammas, _ := snark.Utils.PF.R1CSToQAP(a, b, c)
 	_, _, _, px := snark.Utils.PF.CombinePolynomials(w, alphas, betas, gammas)
 	hx := snark.Utils.PF.DivisorPolynomial(px, trustedsetup.Pk.Z)

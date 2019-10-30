@@ -1,18 +1,46 @@
-package circuitcompiler
+package zkSNARK
 
 import (
 	"fmt"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"github.com/stretchr/testify/assert"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
 )
 
+type InOut struct {
+	inputs []*big.Int
+	result *big.Int
+}
+
+type TraceCorrectnessTest struct {
+	code string
+	io   []InOut
+}
+
+var correctnessEAPTests = []TraceCorrectnessTest{
+	{
+		io: []InOut{{
+			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
+			result: big.NewInt(int64(456533)),
+		}},
+		code: `
+	def main( x  ,  z ) :
+		a= x * z
+		b = a * a
+		out = a * b
+	`,
+	},
+}
+
 func TestGenerateAndVerifyProof(t *testing.T) {
 
 	for _, test := range correctnessEAPTests {
-		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram()
+		parser := circuitcompiler.NewParser(strings.NewReader(test.code))
+		program := circuitcompiler.NewProgram(bn256.Order)
 		err := parser.Parse(program)
 
 		if err != nil {
@@ -22,10 +50,8 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		fmt.Println(test.code)
 
 		program.BuildConstraintTrees()
-		for k, v := range program.functions {
-			fmt.Println(k)
-			PrintTree(v.root)
-		}
+
+		program.PrintContraintTrees()
 
 		fmt.Println("\nReduced gates")
 		//PrintTree(froots["mul"])
@@ -34,7 +60,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			fmt.Printf("\n %v", g)
 		}
 
-		fmt.Println("\n generating R1CS")
+		fmt.Println("\n generating ER1CS")
 		r1cs := program.GenerateReducedR1CS(gates)
 		trasposedR1Cs := r1cs.Transpose()
 		fmt.Println(r1cs.L)
@@ -45,16 +71,16 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		fmt.Println(trasposedR1Cs.R)
 		fmt.Println(trasposedR1Cs.E)
 		fmt.Println(trasposedR1Cs.O)
-		// R1CS to QAP
-		l, r, e, o, _ := Utils.PF.ER1CSToEAP(trasposedR1Cs)
-		setup, err := GenerateTrustedSetup(len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
+		// ER1CS to QAP
+		l, r, e, o, _ := r1cs.ER1CSToEAP(program.Fields)
+		setup, err := GenerateTrustedSetup(program.Fields, len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
 		fmt.Println(l)
 		fmt.Println(r)
 		fmt.Println(e)
 		fmt.Println(o)
 		for _, io := range test.io {
 			inputs := io.inputs
-			w := CalculateWitness(inputs, r1cs)
+			w := r1cs.CalculateWitness(inputs, program.Fields)
 
 			fmt.Println("input")
 			fmt.Println(inputs)
@@ -62,14 +88,14 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			fmt.Println(w)
 			assert.Equal(t, io.result, w[len(w)-1])
 
-			_, px := CombinePolynomials(w, trasposedR1Cs)
+			_, px := CombinePolynomials(program.Fields, w, trasposedR1Cs)
 			fmt.Println("Px Polynomial")
 			fmt.Println(px)
 
 			//assert.Equal(t, Utils.PF.Mul(l,r)
 
 			before := time.Now()
-			proof, err := GenerateProofs(len(r1cs.L[0]), 2, setup.Pk, w, px)
+			proof, err := GenerateProofs(program.Fields, len(r1cs.L[0]), 2, setup.Pk, w, px)
 
 			fmt.Println("proof generation time elapsed:", time.Since(before))
 			assert.Nil(t, err)

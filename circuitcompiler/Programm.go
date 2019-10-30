@@ -3,16 +3,14 @@ package circuitcompiler
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/mottla/go-AlgebraicProgram-SNARK/fields"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/google"
-	"github.com/mottla/go-AlgebraicProgram-SNARK/r1csqap"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
 	"math/big"
 	"sync"
 )
 
-type utils struct {
+type Fields struct {
 	FqR fields.Fq
-	PF  r1csqap.PolynomialField
+	PF  fields.PolynomialField
 }
 
 type MultiplicationGateSignature struct {
@@ -21,10 +19,10 @@ type MultiplicationGateSignature struct {
 }
 
 type Program struct {
-	functions             map[string]*Circuit
-	globalInputs          []string
-	globalOutput          map[string]bool
-	arithmeticEnvironment utils //find a better name
+	functions    map[string]*Circuit
+	globalInputs []string
+	globalOutput map[string]bool
+	Fields       Fields //find a better name
 
 	//key 1: the hash chain indicating from where the variable is called H( H(main(a,b)) , doSomething(x,z) ), where H is a hash function.
 	//value 1 : map
@@ -41,12 +39,24 @@ type Program struct {
 	computedFactors map[string]MultiplicationGateSignature
 }
 
-func NewProgram() (p *Program) {
+func prepareUtils(order *big.Int) Fields {
+	// new Finite Field
+	fqR := fields.NewFq(order)
+	// new Polynomial Field
+	pf := fields.NewPolynomialField(fqR)
+
+	return Fields{
+		FqR: fqR,
+		PF:  pf,
+	}
+}
+
+func NewProgram(order *big.Int) (p *Program) {
 	p = &Program{
-		functions:             map[string]*Circuit{},
-		globalInputs:          []string{"one"},
-		globalOutput:          map[string]bool{}, // map[string]bool{"main": false},
-		arithmeticEnvironment: prepareUtils(),
+		functions:    map[string]*Circuit{},
+		globalInputs: []string{"one"},
+		globalOutput: map[string]bool{}, // map[string]bool{"main": false},
+		Fields:       prepareUtils(order),
 	}
 
 	//	p.functions["g"]=&Circuit{Name:"Exp"}
@@ -64,6 +74,13 @@ func (p *Program) GlobalOutputCount() int {
 }
 
 func (p *Program) PrintContraintTrees() {
+	for k, v := range p.functions {
+		fmt.Println(k)
+		PrintTree(v.root)
+	}
+}
+
+func (p *Program) PrintConstaintTree() {
 	for k, v := range p.functions {
 		fmt.Println(k)
 		PrintTree(v.root)
@@ -263,18 +280,6 @@ func (p *Program) getMainCircuit() *Circuit {
 	return p.functions["main"]
 }
 
-func prepareUtils() utils {
-	// new Finite Field
-	fqR := fields.NewFq(bn256.Order)
-	// new Polynomial Field
-	pf := r1csqap.NewPolynomialField(fqR)
-
-	return utils{
-		FqR: fqR,
-		PF:  pf,
-	}
-}
-
 func (p *Program) extendedFunctionRenamer(contextCircuit *Circuit, constraint *Constraint) (nextContext *Circuit) {
 
 	if constraint.Op != FUNC {
@@ -326,9 +331,9 @@ func (p *Program) extendedFunctionRenamer(contextCircuit *Circuit, constraint *C
 	return nil
 }
 
-// GenerateR1CS generates the R1CS polynomials from the Circuit
-func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS r1csqap.R1CS) {
-	// from flat code to R1CS
+// GenerateR1CS generates the ER1CS polynomials from the Circuit
+func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS ER1CS) {
+	// from flat code to ER1CS
 
 	offset := len(p.globalInputs)
 	//  one + in1 +in2+... + gate1 + gate2 .. + out
@@ -354,7 +359,7 @@ func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS r1csqap.R1CS) {
 				panic(fmt.Sprintf("%v index not found!!!", val.name))
 			}
 		}
-		value := new(big.Int).Add(new(big.Int), fractionToField(val.multiplicative))
+		value := new(big.Int).Add(new(big.Int), p.Fields.FqR.FractionToField(val.multiplicative))
 		if val.negate {
 			value.Neg(value)
 		}
@@ -365,10 +370,10 @@ func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS r1csqap.R1CS) {
 	for _, g := range mGates {
 
 		if g.OperationType() == MULTIPLY {
-			aConstraint := r1csqap.ArrayOfBigZeros(size)
-			bConstraint := r1csqap.ArrayOfBigZeros(size)
-			eConstraint := r1csqap.ArrayOfBigZeros(size)
-			cConstraint := r1csqap.ArrayOfBigZeros(size)
+			aConstraint := fields.ArrayOfBigZeros(size)
+			bConstraint := fields.ArrayOfBigZeros(size)
+			eConstraint := fields.ArrayOfBigZeros(size)
+			cConstraint := fields.ArrayOfBigZeros(size)
 
 			for _, val := range g.leftIns {
 				insertValue(val, aConstraint)
@@ -391,10 +396,10 @@ func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS r1csqap.R1CS) {
 			r1CS.O = append(r1CS.O, cConstraint)
 
 		} else if g.gateType == egate {
-			aConstraint := r1csqap.ArrayOfBigZeros(size)
-			bConstraint := r1csqap.ArrayOfBigZeros(size)
-			eConstraint := r1csqap.ArrayOfBigZeros(size)
-			cConstraint := r1csqap.ArrayOfBigZeros(size)
+			aConstraint := fields.ArrayOfBigZeros(size)
+			bConstraint := fields.ArrayOfBigZeros(size)
+			eConstraint := fields.ArrayOfBigZeros(size)
+			cConstraint := fields.ArrayOfBigZeros(size)
 
 			for _, val := range g.expoIns {
 				insertValue(val, eConstraint)
@@ -413,96 +418,6 @@ func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS r1csqap.R1CS) {
 		} else {
 			panic("not a m gate")
 		}
-	}
-
-	return
-}
-
-var Utils = prepareUtils()
-
-func fractionToField(in [2]int) *big.Int {
-	return Utils.FqR.Mul(big.NewInt(int64(in[0])), Utils.FqR.Inverse(big.NewInt(int64(in[1]))))
-
-}
-
-//Calculates the witness (program trace) given some input
-//asserts that R1CS has been computed and is stored in the program p memory calling this function
-func CalculateWitness(input []*big.Int, r1cs r1csqap.R1CS) (witness []*big.Int) {
-
-	witness = r1csqap.ArrayOfBigZeros(len(r1cs.L[0]))
-	set := make([]bool, len(witness))
-	witness[0] = big.NewInt(int64(1))
-	set[0] = true
-
-	for i := range input {
-		witness[i+1] = input[i]
-		set[i+1] = true
-	}
-
-	zero := big.NewInt(int64(0))
-
-	for i := 0; i < len(r1cs.L); i++ {
-		gatesLeftInputs := r1cs.L[i]
-		gatesRightInputs := r1cs.R[i]
-		gatesExpInputs := r1cs.E[i]
-		gatesOutputs := r1cs.O[i]
-
-		sumLeft := big.NewInt(int64(0))
-		sumRight := big.NewInt(int64(0))
-		sumExp := big.NewInt(int64(0))
-		sumOut := big.NewInt(int64(0))
-
-		index := -1
-		division := false
-		for j, val := range gatesLeftInputs {
-			if val.Cmp(zero) != 0 {
-				if !set[j] {
-					index = j
-					division = true
-					break
-				}
-				sumLeft.Add(sumLeft, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-		for j, val := range gatesRightInputs {
-			if val.Cmp(zero) != 0 {
-				sumRight.Add(sumRight, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-		for j, val := range gatesExpInputs {
-			if val.Cmp(zero) != 0 {
-				sumExp.Add(sumExp, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-
-		for j, val := range gatesOutputs {
-			if val.Cmp(zero) != 0 {
-				if !set[j] {
-					if index != -1 {
-						panic("invalid R1CS form")
-					}
-
-					index = j
-					break
-				}
-				sumOut.Add(sumOut, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-
-		if !division {
-			set[index] = true
-
-			s := Utils.FqR.Mul(sumLeft, sumRight)
-			exp := new(bn256.G1).ScalarBaseMult(sumExp)
-			witness[index] = Utils.FqR.Add(s, exp.X())
-			s.Add(s, new(big.Int).Exp(new(big.Int).SetInt64(2), sumExp, nil))
-
-		} else {
-			set[index] = true
-			witness[index] = Utils.FqR.Div(sumOut, sumRight)
-			//Utils.FqR.Mul(sumOut, Utils.FqR.Inverse(sumRight))
-		}
-
 	}
 
 	return

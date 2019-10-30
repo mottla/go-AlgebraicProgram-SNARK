@@ -1,16 +1,8 @@
-package r1csqap
+package fields
 
 import (
-	"github.com/mottla/go-AlgebraicProgram-SNARK/fields"
 	"math/big"
 )
-
-type R1CS struct {
-	L [][]*big.Int
-	R [][]*big.Int
-	E [][]*big.Int
-	O [][]*big.Int
-}
 
 var bigZero = big.NewInt(int64(0))
 
@@ -51,11 +43,11 @@ func BigArraysEqual(a, b []*big.Int) bool {
 
 // PolynomialField is the Polynomial over a Finite Field where the polynomial operations are performed
 type PolynomialField struct {
-	F fields.Fq
+	F Fq
 }
 
 // NewPolynomialField creates a new PolynomialField with the given FiniteField
-func NewPolynomialField(f fields.Fq) PolynomialField {
+func NewPolynomialField(f Fq) PolynomialField {
 	return PolynomialField{
 		f,
 	}
@@ -185,55 +177,3 @@ func (pf PolynomialField) LagrangeInterpolation(v []*big.Int) []*big.Int {
 	//
 	return r
 }
-
-func (er1cs *R1CS) Transpose() (transposed R1CS) {
-
-	transposed.L = Transpose(er1cs.L)
-	transposed.R = Transpose(er1cs.R)
-	transposed.E = Transpose(er1cs.E)
-	transposed.O = Transpose(er1cs.O)
-	return
-}
-
-// R1CSToQAP converts the R1CS* values to the EAP values
-//it uses Lagrange interpolation to to fit a polynomial through each slice. The x coordinate
-//is simply a linear increment starting at 1
-//within this process, the polynomial is evaluated at position 0
-//so an alpha/beta/gamma value is the polynomial evaluated at 0
-// the domain polynomial therefor is (-1+x)(-2+x)...(-n+x)
-func (pf PolynomialField) ER1CSToEAP(er1cs R1CS) (lPoly, rPoly, ePoly, oPoly [][]*big.Int, domain []*big.Int) {
-
-	lT := er1cs.L
-	rT := er1cs.R
-	eT := er1cs.E
-	oT := er1cs.O
-	for i := 0; i < len(lT); i++ {
-		lPoly = append(lPoly, pf.LagrangeInterpolation(lT[i]))
-
-		rPoly = append(rPoly, pf.LagrangeInterpolation(rT[i]))
-
-		ePoly = append(ePoly, pf.LagrangeInterpolation(eT[i]))
-
-		oPoly = append(oPoly, pf.LagrangeInterpolation(oT[i]))
-	}
-
-	z := []*big.Int{big.NewInt(int64(1))}
-	for i := 1; i < len(lT); i++ {
-		z = pf.Mul(
-			z,
-			[]*big.Int{
-				pf.F.Neg(
-					big.NewInt(int64(i))),
-				big.NewInt(int64(1)),
-			})
-	}
-	domain = z
-	return
-}
-
-//for i := 1; i < len(lT); i++ {
-//lT[0] = pf.Add(lT[i], lT[0])
-//rT[0] = pf.Add(rT[i], rT[0])
-//eT[0] = pf.Add(eT[i], eT[0])
-//oT[0] = pf.Add(oT[i], oT[0])
-//}

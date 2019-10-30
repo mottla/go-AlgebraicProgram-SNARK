@@ -1,0 +1,9 @@
+*.Backup
+cli/compiledcircuit.json
+cli/privateInputs.json
+cli/publicInputs.json
+cli/proofs.json
+cli/test.circuit
+cli/trustedsetup.json
+tmp
+tmpBackup

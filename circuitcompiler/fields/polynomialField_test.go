@@ -1,8 +1,7 @@
-package r1csqap
+package fields
 
 import (
 	"bytes"
-	"github.com/mottla/go-AlgebraicProgram-SNARK/fields"
 	"math/big"
 	"testing"
 
@@ -50,7 +49,7 @@ func TestPol(t *testing.T) {
 	// new Finite Field
 	r, ok := new(big.Int).SetString("21888242871839275222246405745257275088548364400416034343698204186575808495617", 10)
 	assert.True(nil, ok)
-	f := fields.NewFq(r)
+	f := NewFq(r)
 
 	// new Polynomial Field
 	pf := NewPolynomialField(f)
@@ -98,7 +97,7 @@ func TestLagrangeInterpolation(t *testing.T) {
 	// new Finite Field
 	r, ok := new(big.Int).SetString("21888242871839275222246405745257275088548364400416034343698204186575808495617", 10)
 	assert.True(nil, ok)
-	f := fields.NewFq(r)
+	f := NewFq(r)
 	// new Polynomial Field
 	pf := NewPolynomialField(f)
 

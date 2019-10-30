@@ -2,6 +2,7 @@ package circuitcompiler
 
 import (
 	"fmt"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"strings"
@@ -152,7 +153,7 @@ func TestCorrectness(t *testing.T) {
 
 	for _, test := range correctnessTest {
 		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram()
+		program := NewProgram(bn256.Order)
 		err := parser.Parse(program)
 
 		if err != nil {
@@ -174,7 +175,7 @@ func TestCorrectness(t *testing.T) {
 			fmt.Printf("\n %v", g)
 		}
 
-		fmt.Println("\n generating R1CS")
+		fmt.Println("\n generating ER1CS")
 		r1cs := program.GenerateReducedR1CS(gates)
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
@@ -184,7 +185,7 @@ func TestCorrectness(t *testing.T) {
 			inputs := io.inputs
 			fmt.Println("input")
 			fmt.Println(inputs)
-			w := CalculateWitness(inputs, r1cs)
+			w := r1cs.CalculateWitness(inputs, program.Fields)
 			fmt.Println("witness")
 			fmt.Println(w)
 			assert.Equal(t, io.result, w[program.GlobalInputCount()])
@@ -198,7 +199,7 @@ func TestEAP(t *testing.T) {
 
 	for _, test := range correctnessEAPTests {
 		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram()
+		program := NewProgram(bn256.Order)
 		err := parser.Parse(program)
 
 		if err != nil {
@@ -220,7 +221,7 @@ func TestEAP(t *testing.T) {
 			fmt.Printf("\n %v", g)
 		}
 
-		fmt.Println("\n generating R1CS")
+		fmt.Println("\n generating ER1CS")
 		r1cs := program.GenerateReducedR1CS(gates)
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
@@ -231,7 +232,7 @@ func TestEAP(t *testing.T) {
 			inputs := io.inputs
 			fmt.Println("input")
 			fmt.Println(inputs)
-			w := CalculateWitness(inputs, r1cs)
+			w := r1cs.CalculateWitness(inputs, program.Fields)
 			fmt.Println("witness")
 			fmt.Println(w)
 			assert.Equal(t, io.result, w[program.GlobalInputCount()])

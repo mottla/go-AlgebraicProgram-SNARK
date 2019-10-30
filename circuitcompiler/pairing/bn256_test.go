@@ -160,8 +160,8 @@ func TestCurveImpl(t *testing.T) {
 }
 
 func TestOrderG1(t *testing.T) {
-	g := new(G1).ScalarBaseMult(new(big.Int).SetInt64(1))
-	fmt.Println(g.String())
+	g := new(G1).ScalarBaseMult(new(big.Int).SetInt64(123))
+	//fmt.Println(g.String())
 	g = g.ScalarBaseMult(Order)
 	fmt.Println(g.String())
 	if !g.p.IsInfinity() {

@@ -1,10 +1,10 @@
-package circuitcompiler
+package zkSNARK
 
 import (
 	"bytes"
 	"fmt"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/google"
-	"github.com/mottla/go-AlgebraicProgram-SNARK/r1csqap"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 
 	"math/big"
 )
@@ -14,7 +14,8 @@ type Pk struct {
 
 	Domain            []*big.Int
 	eGH, eGHalphaBeta *bn256.GT
-	G1                struct {
+
+	G1 struct {
 		RLEO_Delta           []*bn256.G1 // {( αRi(x)+βLi(x)+βEi(x)+Oi(x) ) / δ } from l+1 to m
 		Alpha                *bn256.G1
 		Beta                 *bn256.G1
@@ -69,46 +70,10 @@ type Proof struct {
 	PiF *bn256.G1
 }
 
-//// CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-//func CombinePolynomials(witness []*big.Int, lPoly, rPoly, ePoly, oPoly [][]*big.Int) ( []*big.Int) {
-//	pf := Utils.PF
-//	var ax []*big.Int
-//	for i := 0; i < len(witness); i++ {
-//		m := pf.Mul([]*big.Int{witness[i]}, lPoly[i])
-//		ax = pf.Add(ax, m)
-//	}
-//	var bx []*big.Int
-//	for i := 0; i < len(witness); i++ {
-//		m := pf.Mul([]*big.Int{witness[i]}, rPoly[i])
-//		bx = pf.Add(bx, m)
-//	}
-//
-//	var ex []*big.Int
-//	for i := 0; i < len(witness); i++ {
-//		m := pf.Mul([]*big.Int{witness[i]}, ePoly[i])
-//		ex = pf.Add(ex, m)
-//	}
-//
-//	var mG_points []*big.Int
-//	for i := 0; i < len(ex); i++ {
-//		eval := pf.Eval(ex, new(big.Int).SetInt64(int64(i)))
-//		mG_points = append(mG_points, Utils.Bn.G1.Affine(Utils.Bn.G1.MulScalar(Utils.Bn.G1.G, eval))[0])
-//	}
-//	mG_points = pf.LagrangeInterpolation(mG_points)
-//
-//	var cx []*big.Int
-//	for i := 0; i < len(witness); i++ {
-//		m := pf.Mul([]*big.Int{witness[i]}, oPoly[i])
-//		cx = pf.Add(cx, m)
-//	}
-//
-//	return pf.Sub(pf.Add(pf.Mul(ax, bx), mG_points), cx)
-//}
-
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials(witness []*big.Int, TransposedR1cs r1csqap.R1CS) (Gx, Px []*big.Int) {
+func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CS) (Gx, Px []*big.Int) {
 
-	pf := Utils.PF
+	pf := fields.PF
 
 	scalarProduct := func(vec [][]*big.Int) (poly []*big.Int) {
 		var ax []*big.Int
@@ -148,30 +113,30 @@ func g2ScalarBaseMultiply(in *big.Int) *bn256.G2 {
 }
 
 // GenerateTrustedSetup generates the Trusted Setup from a compiled Circuit. The Setup.Toxic sub data structure must be destroyed
-func GenerateTrustedSetup(witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (Setup, error) {
+func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (Setup, error) {
 	var setup Setup
 	var err error
 
 	// generate random t value
-	setup.Toxic.x, err = Utils.FqR.Rand()
+	setup.Toxic.x, err = fields.FqR.Rand()
 	if err != nil {
 		return Setup{}, err
 	}
 	//setup.Toxic.x = new(big.Int).SetInt64(1)
 
-	setup.Toxic.Kalpha, err = Utils.FqR.Rand()
+	setup.Toxic.Kalpha, err = fields.FqR.Rand()
 	if err != nil {
 		return Setup{}, err
 	}
-	setup.Toxic.Kbeta, err = Utils.FqR.Rand()
+	setup.Toxic.Kbeta, err = fields.FqR.Rand()
 	if err != nil {
 		return Setup{}, err
 	}
-	setup.Toxic.Kgamma, err = Utils.FqR.Rand()
+	setup.Toxic.Kgamma, err = fields.FqR.Rand()
 	if err != nil {
 		return Setup{}, err
 	}
-	setup.Toxic.Kdelta, err = Utils.FqR.Rand()
+	setup.Toxic.Kdelta, err = fields.FqR.Rand()
 	if err != nil {
 		return Setup{}, err
 	}
@@ -181,22 +146,22 @@ func GenerateTrustedSetup(witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi
 
 	//(x)(x-1)(x-2)..
 	for i := 0; i < gates; i++ {
-		Domain = Utils.PF.Mul(
+		Domain = fields.PF.Mul(
 			Domain,
 			[]*big.Int{
-				Utils.FqR.Neg(big.NewInt(int64(i))), big.NewInt(int64(1)),
+				fields.FqR.Neg(big.NewInt(int64(i))), big.NewInt(int64(1)),
 			})
 	}
 	y := []*big.Int{}
 	for i := 0; i < gates; i++ {
 		y = append(y, new(big.Int).SetInt64(0))
 	}
-	test := Utils.PF.LagrangeInterpolation(y)
+	test := fields.PF.LagrangeInterpolation(y)
 	fmt.Println(test)
 	setup.Pk.Domain = Domain
-	Dx := Utils.PF.Eval(Domain, setup.Toxic.x)
-	invDelta := Utils.FqR.Inverse(setup.Toxic.Kdelta)
-	Dx_div_delta := Utils.FqR.Mul(invDelta, Dx)
+	Dx := fields.PF.Eval(Domain, setup.Toxic.x)
+	invDelta := fields.FqR.Inverse(setup.Toxic.Kdelta)
+	Dx_div_delta := fields.FqR.Mul(invDelta, Dx)
 
 	// encrypt x values with curve generators
 	// x^i times D(x) divided by delta
@@ -210,11 +175,11 @@ func GenerateTrustedSetup(witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi
 	powersXDomaindivDelta = append(powersXDomaindivDelta, ini)
 	tEncr := setup.Toxic.x
 	for i := 1; i < len(Ri); i++ {
-		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(Utils.FqR.Mul(tEncr, Dx_div_delta)))
+		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.FqR.Mul(tEncr, Dx_div_delta)))
 		powersX_onG = append(powersX_onG, g1ScalarBaseMultiply(tEncr))
 		powersX_onH = append(powersX_onH, g2ScalarBaseMultiply(tEncr))
 		// x^i -> x^{i+1}
-		tEncr = Utils.FqR.Mul(tEncr, setup.Toxic.x)
+		tEncr = fields.FqR.Mul(tEncr, setup.Toxic.x)
 	}
 
 	setup.Pk.G1.PowersX = powersX_onG
@@ -231,47 +196,47 @@ func GenerateTrustedSetup(witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi
 
 	for i := 0; i < witnessLength; i++ {
 		// G^Lix
-		lix := Utils.PF.Eval(Li[i], setup.Toxic.x)
+		lix := fields.PF.Eval(Li[i], setup.Toxic.x)
 
 		// G^Rix
-		grix := Utils.PF.Eval(Ri[i], setup.Toxic.x)
+		grix := fields.PF.Eval(Ri[i], setup.Toxic.x)
 
 		// G^Oix
-		oix := Utils.PF.Eval(Oi[i], setup.Toxic.x)
+		oix := fields.PF.Eval(Oi[i], setup.Toxic.x)
 
 		// G^Eix
-		eix := Utils.PF.Eval(Ei[i], setup.Toxic.x)
+		eix := fields.PF.Eval(Ei[i], setup.Toxic.x)
 		setup.Pk.G1.Ex = append(setup.Pk.G1.Ex, g1ScalarBaseMultiply(eix))
 
-		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(Utils.FqR.Add(eix, lix)))
+		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.FqR.Add(eix, lix)))
 
 		//H^Rix
-		hrix := Utils.PF.Eval(Ri[i], setup.Toxic.x)
+		hrix := fields.PF.Eval(Ri[i], setup.Toxic.x)
 		hRix := g2ScalarBaseMultiply(hrix)
 		setup.Pk.G2.Rx = append(setup.Pk.G2.Rx, hRix)
 
-		ter := Utils.FqR.Mul(setup.Toxic.Kalpha, grix)
-		ter = Utils.FqR.Add(ter, Utils.FqR.Mul(setup.Toxic.Kbeta, lix))
-		ter = Utils.FqR.Add(ter, Utils.FqR.Mul(setup.Toxic.Kbeta, eix))
-		ter = Utils.FqR.Add(ter, oix)
+		ter := fields.FqR.Mul(setup.Toxic.Kalpha, grix)
+		ter = fields.FqR.Add(ter, fields.FqR.Mul(setup.Toxic.Kbeta, lix))
+		ter = fields.FqR.Add(ter, fields.FqR.Mul(setup.Toxic.Kbeta, eix))
+		ter = fields.FqR.Add(ter, oix)
 
 		if i <= publicinputs {
-			invgamma := Utils.FqR.Inverse(setup.Toxic.Kgamma)
-			ter = Utils.FqR.Mul(invgamma, ter)
+			invgamma := fields.FqR.Inverse(setup.Toxic.Kgamma)
+			ter = fields.FqR.Mul(invgamma, ter)
 			setup.Pk.G1.RLEO_Gamma = append(setup.Pk.G1.RLEO_Gamma, g1ScalarBaseMultiply(ter))
 		} else {
-			invdelta := Utils.FqR.Inverse(setup.Toxic.Kdelta)
-			ter = Utils.FqR.Mul(invdelta, ter)
+			invdelta := fields.FqR.Inverse(setup.Toxic.Kdelta)
+			ter = fields.FqR.Mul(invdelta, ter)
 			setup.Pk.G1.RLEO_Delta = append(setup.Pk.G1.RLEO_Delta, g1ScalarBaseMultiply(ter))
 		}
 	}
 	setup.Pk.eGH = bn256.Pair(g1ScalarBaseMultiply(new(big.Int).SetInt64(1)), g2ScalarBaseMultiply(new(big.Int).SetInt64(1)))
-	setup.Pk.eGHalphaBeta = new(bn256.GT).ScalarMult(setup.Pk.eGH, Utils.FqR.Mul(setup.Toxic.Kalpha, setup.Toxic.Kbeta))
+	setup.Pk.eGHalphaBeta = new(bn256.GT).ScalarMult(setup.Pk.eGH, fields.FqR.Mul(setup.Toxic.Kalpha, setup.Toxic.Kbeta))
 	return setup, nil
 }
 
 // GenerateProofs generates all the parameters to proof the zkSNARK from the Circuit, Setup and the Witness
-func GenerateProofs(witnessLength, publicinputs int, pk Pk, w []*big.Int, Px []*big.Int) (Proof, error) {
+func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs int, pk Pk, w []*big.Int, Px []*big.Int) (Proof, error) {
 	var proof Proof
 	proof.PiA = new(bn256.G1).ScalarMult(pk.G1.Lx_plus_Ex[0], w[0])
 	proof.PiB = new(bn256.G2).ScalarMult(pk.G2.Rx[0], w[0])
@@ -279,7 +244,7 @@ func GenerateProofs(witnessLength, publicinputs int, pk Pk, w []*big.Int, Px []*
 	proof.PiF = new(bn256.G1).ScalarMult(pk.G1.Ex[0], w[0])
 
 	var QxDx_div_delta = new(bn256.G1)
-	Qx, _ := Utils.PF.Div(Px, pk.Domain)
+	Qx, _ := fields.PF.Div(Px, pk.Domain)
 
 	for i, QxCoefficient := range Qx {
 		tmp := new(bn256.G1).ScalarMult(pk.G1.PowersX_Domain_Delta[i], QxCoefficient)
