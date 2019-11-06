@@ -3,7 +3,6 @@ package circuitcompiler
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -381,9 +380,4 @@ func isFunction(a string) (tf bool, name string, inputs []string) {
 	inputs = strings.Split(varsString, ",")
 
 	return true, name, inputs
-}
-
-type Inputs struct {
-	Private []*big.Int
-	Publics []*big.Int
 }

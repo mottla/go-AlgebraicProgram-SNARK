@@ -139,16 +139,19 @@ func (pf PolynomialField) Eval(v []*big.Int, x *big.Int) *big.Int {
 
 // NewPolZeroAt generates a new polynomial that has value zero at the given value
 func (pf PolynomialField) NewPolZeroAt(pointPos, totalPoints int, height *big.Int) []*big.Int {
-	//todo note that this will blow up. big may be necessary
-	fac := 1
+
+	facBig := big.NewInt(1)
+	var iterator = new(big.Int)
 	//(xj-x0)(xj-x1)..(xj-x_j-1)(xj-x_j+1)..(x_j-x_k)
-	for i := 0; i < totalPoints; i++ {
-		if i != pointPos {
-			fac = fac * (pointPos - i)
-		}
+	for i := 0; i < pointPos; i++ {
+		iterator.SetInt64(int64(pointPos - i))
+		facBig.Mul(facBig, iterator)
+	}
+	for i := pointPos + 1; i < totalPoints; i++ {
+		iterator.SetInt64(int64(pointPos - i))
+		facBig.Mul(facBig, iterator)
 	}
 
-	facBig := big.NewInt(int64(fac))
 	hf := pf.F.Div(height, facBig)
 	r := []*big.Int{hf}
 	for i := 0; i < totalPoints; i++ {
@@ -167,10 +170,11 @@ func (pf PolynomialField) LagrangeInterpolation(v []*big.Int) []*big.Int {
 	var r []*big.Int
 	for i := 0; i < len(v); i++ {
 		//NOTE this comparison gives a huge performance boost
-		//if v[i].Cmp(bigZero) != 0 {
-		//	r = pf.Add(r, pf.NewPolZeroAt(i, len(v), v[i]))
-		//}
-		r = pf.Add(r, pf.NewPolZeroAt(i, len(v), v[i]))
+		if v[i].Cmp(bigZero) != 0 {
+			r = pf.Add(r, pf.NewPolZeroAt(i, len(v), v[i]))
+		} else {
+			r = pf.Add(r, ArrayOfBigZeros(len(v)))
+		}
 
 		//r = pf.Mul(v[i], pf.NewPolZeroAt(i+1, len(v), v[i]))
 	}

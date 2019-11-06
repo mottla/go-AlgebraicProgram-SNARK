@@ -2,6 +2,8 @@ package fields
 
 import (
 	"bytes"
+	"fmt"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"math/big"
 	"testing"
 
@@ -95,19 +97,28 @@ func TestPol(t *testing.T) {
 
 func TestLagrangeInterpolation(t *testing.T) {
 	// new Finite Field
-	r, ok := new(big.Int).SetString("21888242871839275222246405745257275088548364400416034343698204186575808495617", 10)
-	assert.True(nil, ok)
+
+	r := new(big.Int).Set(bn256.Order)
 	f := NewFq(r)
 	// new Polynomial Field
 	pf := NewPolynomialField(f)
 
-	b0 := big.NewInt(int64(0))
-	b5 := big.NewInt(int64(5))
-	a := []*big.Int{b0, b0, b0, b5}
-	alpha := pf.LagrangeInterpolation(a)
-
-	assert.Equal(t, pf.Eval(alpha, big.NewInt(int64(4))), b5)
-	aux := pf.Eval(alpha, big.NewInt(int64(3))).Int64()
-	assert.Equal(t, aux, int64(0))
+	var Npoints = int64(100)
+	var err error
+	Ypoints := make([]*big.Int, Npoints)
+	Xpoints := make([]*big.Int, Npoints)
+	for i := int64(0); i < Npoints; i++ {
+		Ypoints[i], err = f.Rand()
+		Xpoints[i] = new(big.Int).SetInt64(i)
+		assert.Nil(t, err)
+	}
+	Ypoints[3] = new(big.Int).SetInt64(int64(0))
+	alpha := pf.LagrangeInterpolation(Ypoints)
+	for i := int64(0); i < Npoints; i++ {
+		if pf.Eval(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
+			t.Fail()
+			fmt.Println("fail")
+		}
+	}
 
 }

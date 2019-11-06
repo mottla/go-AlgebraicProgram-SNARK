@@ -235,7 +235,7 @@ func TestEAP(t *testing.T) {
 			w := r1cs.CalculateWitness(inputs, program.Fields)
 			fmt.Println("witness")
 			fmt.Println(w)
-			assert.Equal(t, io.result, w[program.GlobalInputCount()])
+			assert.Equal(t, io.result, w[len(w)-1])
 		}
 	}
 }
