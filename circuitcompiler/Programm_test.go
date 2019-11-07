@@ -153,7 +153,7 @@ func TestCorrectness(t *testing.T) {
 
 	for _, test := range correctnessTest {
 		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram(bn256.Order)
+		program := NewProgram(bn256.P)
 		err := parser.Parse(program)
 
 		if err != nil {
@@ -199,7 +199,7 @@ func TestEAP(t *testing.T) {
 
 	for _, test := range correctnessEAPTests {
 		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram(bn256.Order)
+		program := NewProgram(bn256.P)
 		err := parser.Parse(program)
 
 		if err != nil {

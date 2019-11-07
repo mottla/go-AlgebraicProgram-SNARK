@@ -22,7 +22,7 @@ func panicErr(err error) {
 	}
 }
 
-//TODO EVERYTHING
+//TODO EVERYTHING This class is useless
 var commands = []cli.Command{
 	{
 		Name:    "compile",

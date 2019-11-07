@@ -409,6 +409,22 @@ func (e *GT) Unmarshal(m []byte) (*GT, bool) {
 	return e, true
 }
 
+//zeroGT returns the zero element of the group GT
+func ZeroGT() (gt *GT) {
+	gt = new(GT)
+	gt.p = newGFp12(nil)
+	gt.p.SetZero()
+	return
+}
+
+//zeroGT returns the one element of the group GT
+func OneGT() (gt *GT) {
+	gt = new(GT)
+	gt.p = newGFp12(nil)
+	gt.p.SetOne()
+	return
+}
+
 // Pair calculates an Optimal Ate pairing.
 func Pair(g1 *G1, g2 *G2) *GT {
 	return &GT{optimalAte(g2.p, g1.p, new(bnPool))}

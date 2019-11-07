@@ -12,8 +12,14 @@ type ER1CS struct {
 	E [][]*big.Int
 	O [][]*big.Int
 }
+type ER1CSTransposed struct {
+	L [][]*big.Int
+	R [][]*big.Int
+	E [][]*big.Int
+	O [][]*big.Int
+}
 
-func (er1cs *ER1CS) Transpose() (transposed ER1CS) {
+func (er1cs *ER1CS) Transpose() (transposed ER1CSTransposed) {
 
 	transposed.L = fields.Transpose(er1cs.L)
 	transposed.R = fields.Transpose(er1cs.R)
@@ -110,7 +116,7 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f Fields) (witness []*big.
 //within this process, the polynomial is evaluated at position 0
 //so an alpha/beta/gamma value is the polynomial evaluated at 0
 // the domain polynomial therefor is (-1+x)(-2+x)...(-n+x)
-func (er1cs *ER1CS) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly [][]*big.Int, domain []*big.Int) {
+func (er1cs *ER1CSTransposed) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly [][]*big.Int) {
 
 	lT := er1cs.L
 	rT := er1cs.R
@@ -126,16 +132,5 @@ func (er1cs *ER1CS) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly [][]*big.I
 		oPoly = append(oPoly, pf.PF.LagrangeInterpolation(oT[i]))
 	}
 
-	z := []*big.Int{big.NewInt(int64(1))}
-	for i := 1; i < len(lT); i++ {
-		z = pf.PF.Mul(
-			z,
-			[]*big.Int{
-				pf.FqR.Neg(
-					big.NewInt(int64(i))),
-				big.NewInt(int64(1)),
-			})
-	}
-	domain = z
 	return
 }

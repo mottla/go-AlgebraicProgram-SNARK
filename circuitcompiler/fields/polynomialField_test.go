@@ -54,7 +54,7 @@ func TestPol(t *testing.T) {
 	f := NewFq(r)
 
 	// new Polynomial Field
-	pf := NewPolynomialField(f)
+	pf := NewPolynomialFieldPrecomputedLagriangian(f, 100)
 
 	// polynomial multiplication
 	o := pf.Mul(a, b)
@@ -98,26 +98,32 @@ func TestPol(t *testing.T) {
 func TestLagrangeInterpolation(t *testing.T) {
 	// new Finite Field
 
-	r := new(big.Int).Set(bn256.Order)
+	r := new(big.Int).Set(bn256.P)
 	f := NewFq(r)
 	// new Polynomial Field
-	pf := NewPolynomialField(f)
+	pf := NewPolynomialFieldPrecomputedLagriangian(f, 100)
 
 	var Npoints = int64(100)
 	var err error
-	Ypoints := make([]*big.Int, Npoints)
+
 	Xpoints := make([]*big.Int, Npoints)
 	for i := int64(0); i < Npoints; i++ {
-		Ypoints[i], err = f.Rand()
 		Xpoints[i] = new(big.Int).SetInt64(i)
-		assert.Nil(t, err)
 	}
-	Ypoints[3] = new(big.Int).SetInt64(int64(0))
-	alpha := pf.LagrangeInterpolation(Ypoints)
-	for i := int64(0); i < Npoints; i++ {
-		if pf.Eval(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
-			t.Fail()
-			fmt.Println("fail")
+
+	for runs := 0; runs < 10; runs++ {
+		Ypoints := make([]*big.Int, Npoints)
+		for i := int64(0); i < Npoints; i++ {
+			Ypoints[i], err = f.Rand()
+			assert.Nil(t, err)
+		}
+		Ypoints[3] = new(big.Int).SetInt64(int64(0))
+		alpha := pf.LagrangeInterpolation(Ypoints)
+		for i := int64(0); i < Npoints; i++ {
+			if pf.Eval(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
+				t.Fail()
+				fmt.Println("fail")
+			}
 		}
 	}
 

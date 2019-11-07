@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
+	fields2 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 
 	"math/big"
@@ -71,7 +72,7 @@ type Proof struct {
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CS) (Gx, Px []*big.Int) {
+func CombinePolynomials2(fields circuitcompiler.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
 
 	pf := fields.PF
 
@@ -86,17 +87,35 @@ func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, Trans
 
 	LVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.L))
 	RVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.R))
-	fmt.Println(TransposedR1cs.R)
-	fmt.Println(scalarProduct(TransposedR1cs.R))
-	fmt.Println(RVec)
-	fmt.Println(pf.Eval(RVec, new(big.Int).SetInt64(1)))
-	fmt.Println(pf.Eval(RVec, new(big.Int).SetInt64(2)))
 	EVec := scalarProduct(TransposedR1cs.E)
 	OVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.O))
 
 	var mG_pointsVec []*big.Int
 	for i := 0; i < len(EVec); i++ {
 		p := g1ScalarBaseMultiply(EVec[i])
+		mG_pointsVec = append(mG_pointsVec, p.X())
+	}
+	Gx = pf.LagrangeInterpolation(mG_pointsVec)
+	a := pf.Mul(LVec, RVec)
+	b := pf.Add(a, Gx)
+	c := pf.Sub(b, OVec)
+	return Gx, c
+}
+
+// CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
+func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
+
+	pf := fields.PF
+
+	LVec := pf.AddPolynomials(pf.LinearCombine(Li, witness))
+	RVec := pf.AddPolynomials(pf.LinearCombine(Ri, witness))
+	EVec := pf.AddPolynomials(pf.LinearCombine(Ei, witness))
+	OVec := pf.AddPolynomials(pf.LinearCombine(Oi, witness))
+
+	var mG_pointsVec []*big.Int
+	for i := 0; i < len(EVec); i++ {
+		val := pf.Eval(EVec, new(big.Int).SetInt64(int64(i)))
+		p := g1ScalarBaseMultiply(val)
 		mG_pointsVec = append(mG_pointsVec, p.X())
 	}
 	Gx = pf.LagrangeInterpolation(mG_pointsVec)
@@ -113,32 +132,32 @@ func g2ScalarBaseMultiply(in *big.Int) *bn256.G2 {
 }
 
 // GenerateTrustedSetup generates the Trusted Setup from a compiled Circuit. The Setup.Toxic sub data structure must be destroyed
-func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (Setup, error) {
-	var setup Setup
+func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
+	var setup = new(Setup)
 	var err error
 
 	// generate random t value
 	setup.Toxic.x, err = fields.FqR.Rand()
 	if err != nil {
-		return Setup{}, err
+		panic("random failed")
 	}
 	//setup.Toxic.x = new(big.Int).SetInt64(1)
 
 	setup.Toxic.Kalpha, err = fields.FqR.Rand()
 	if err != nil {
-		return Setup{}, err
+		panic("random failed")
 	}
 	setup.Toxic.Kbeta, err = fields.FqR.Rand()
 	if err != nil {
-		return Setup{}, err
+		panic("random failed")
 	}
 	setup.Toxic.Kgamma, err = fields.FqR.Rand()
 	if err != nil {
-		return Setup{}, err
+		panic("random failed")
 	}
 	setup.Toxic.Kdelta, err = fields.FqR.Rand()
 	if err != nil {
-		return Setup{}, err
+		panic("random failed")
 	}
 
 	//generate the domain polynomial
@@ -152,12 +171,7 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 				fields.FqR.Neg(big.NewInt(int64(i))), big.NewInt(int64(1)),
 			})
 	}
-	y := []*big.Int{}
-	for i := 0; i < gates; i++ {
-		y = append(y, new(big.Int).SetInt64(0))
-	}
-	test := fields.PF.LagrangeInterpolation(y)
-	fmt.Println(test)
+
 	setup.Pk.Domain = Domain
 	Dx := fields.PF.Eval(Domain, setup.Toxic.x)
 	invDelta := fields.FqR.Inverse(setup.Toxic.Kdelta)
@@ -165,14 +179,11 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 
 	// encrypt x values with curve generators
 	// x^i times D(x) divided by delta
-	var powersXDomaindivDelta []*bn256.G1
-	var powersX_onG []*bn256.G1
-	var powersX_onH []*bn256.G2
-	ini := g1ScalarBaseMultiply(Dx_div_delta)
+	var powersXDomaindivDelta = []*bn256.G1{g1ScalarBaseMultiply(Dx_div_delta)}
+	var powersX_onG = []*bn256.G1{g1ScalarBaseMultiply(new(big.Int).SetInt64(1))}
+	var powersX_onH = []*bn256.G2{g2ScalarBaseMultiply(new(big.Int).SetInt64(1))}
 
 	//G^{x^i}
-	powersX_onG = append(powersX_onG, g1ScalarBaseMultiply(new(big.Int).SetInt64(1)))
-	powersXDomaindivDelta = append(powersXDomaindivDelta, ini)
 	tEncr := setup.Toxic.x
 	for i := 1; i < len(Ri); i++ {
 		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.FqR.Mul(tEncr, Dx_div_delta)))
@@ -195,16 +206,16 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 	setup.Pk.G2.Delta = g2ScalarBaseMultiply(setup.Toxic.Kdelta)
 
 	for i := 0; i < witnessLength; i++ {
-		// G^Lix
+		// Li(x)
 		lix := fields.PF.Eval(Li[i], setup.Toxic.x)
 
-		// G^Rix
-		grix := fields.PF.Eval(Ri[i], setup.Toxic.x)
+		// Ri(x)
+		rix := fields.PF.Eval(Ri[i], setup.Toxic.x)
 
-		// G^Oix
+		// Oi(x)
 		oix := fields.PF.Eval(Oi[i], setup.Toxic.x)
 
-		// G^Eix
+		// Ei(x)
 		eix := fields.PF.Eval(Ei[i], setup.Toxic.x)
 		setup.Pk.G1.Ex = append(setup.Pk.G1.Ex, g1ScalarBaseMultiply(eix))
 
@@ -215,7 +226,7 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 		hRix := g2ScalarBaseMultiply(hrix)
 		setup.Pk.G2.Rx = append(setup.Pk.G2.Rx, hRix)
 
-		ter := fields.FqR.Mul(setup.Toxic.Kalpha, grix)
+		ter := fields.FqR.Mul(setup.Toxic.Kalpha, rix)
 		ter = fields.FqR.Add(ter, fields.FqR.Mul(setup.Toxic.Kbeta, lix))
 		ter = fields.FqR.Add(ter, fields.FqR.Mul(setup.Toxic.Kbeta, eix))
 		ter = fields.FqR.Add(ter, oix)
@@ -231,23 +242,30 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 		}
 	}
 	setup.Pk.eGH = bn256.Pair(g1ScalarBaseMultiply(new(big.Int).SetInt64(1)), g2ScalarBaseMultiply(new(big.Int).SetInt64(1)))
-	setup.Pk.eGHalphaBeta = new(bn256.GT).ScalarMult(setup.Pk.eGH, fields.FqR.Mul(setup.Toxic.Kalpha, setup.Toxic.Kbeta))
+	//is a field multiplication under order g1 wrong?
+	setup.Pk.eGHalphaBeta = bn256.Pair(g1ScalarBaseMultiply(setup.Toxic.Kalpha), g2ScalarBaseMultiply(setup.Toxic.Kbeta))
+	//fmt.Println("zsfdadsff")
+	//fmt.Println(setup.Pk.eGHalphaBeta.String() )
+	//setup.Pk.eGHalphaBeta = new(bn256.GT).ScalarMult(setup.Pk.eGH, fields.FqR.Mul(setup.Toxic.Kalpha, setup.Toxic.Kbeta))
+	//fmt.Println(setup.Pk.eGHalphaBeta.String() )
 	return setup, nil
 }
 
 // GenerateProofs generates all the parameters to proof the zkSNARK from the Circuit, Setup and the Witness
-func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs int, pk Pk, w []*big.Int, Px []*big.Int) (Proof, error) {
-	var proof Proof
+func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
+	var proof = new(Proof)
 	proof.PiA = new(bn256.G1).ScalarMult(pk.G1.Lx_plus_Ex[0], w[0])
 	proof.PiB = new(bn256.G2).ScalarMult(pk.G2.Rx[0], w[0])
 	proof.PiC = new(bn256.G1).ScalarMult(pk.G1.RLEO_Delta[0], w[publicinputs+1])
 	proof.PiF = new(bn256.G1).ScalarMult(pk.G1.Ex[0], w[0])
 
-	var QxDx_div_delta = new(bn256.G1)
-	Qx, _ := fields.PF.Div(Px, pk.Domain)
-
-	for i, QxCoefficient := range Qx {
-		tmp := new(bn256.G1).ScalarMult(pk.G1.PowersX_Domain_Delta[i], QxCoefficient)
+	Qx, r := fields.PF.Div(Px, pk.Domain)
+	if !fields2.IsZeroArray(r) {
+		panic("remainder supposed to be 0")
+	}
+	var QxDx_div_delta = new(bn256.G1).ScalarMult(pk.G1.PowersX_Domain_Delta[0], Qx[0])
+	for i := 1; i < len(Qx); i++ {
+		tmp := new(bn256.G1).ScalarMult(pk.G1.PowersX_Domain_Delta[i], Qx[i])
 		QxDx_div_delta.Add(QxDx_div_delta, tmp)
 	}
 
@@ -275,7 +293,7 @@ func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs i
 }
 
 // VerifyProof verifies over the BN128 the Pairings of the Proof
-func VerifyProof(pk Pk, proof Proof, publicSignals []*big.Int, debug bool) bool {
+func VerifyProof(pk *Pk, proof *Proof, publicSignals []*big.Int, debug bool) bool {
 	//note that the trivial cases should be rejected to
 
 	if len(publicSignals) != len(pk.G1.RLEO_Gamma) {
@@ -287,13 +305,37 @@ func VerifyProof(pk Pk, proof Proof, publicSignals []*big.Int, debug bool) bool 
 	for i := 1; i < len(publicSignals); i++ {
 		icPubl.Add(icPubl, new(bn256.G1).ScalarMult(pk.G1.RLEO_Gamma[i], publicSignals[i]))
 	}
-	if bytes.Equal(
-		new(bn256.GT).Add(
-			bn256.Pair(proof.PiA, proof.PiB), new(bn256.GT).ScalarMult(pk.eGH, proof.PiF.X())).Marshal(),
-		new(bn256.GT).Add(
-			pk.eGHalphaBeta, new(bn256.GT).Add(
-				bn256.Pair(icPubl, pk.G2.Gamma), new(bn256.GT).Add(
-					bn256.Pair(proof.PiC, pk.G2.Delta), bn256.Pair(proof.PiF, proof.PiB)))).Marshal()) {
+
+	a := bn256.Pair(proof.PiA, new(bn256.G2).Add(proof.PiB, pk.G2.Beta))
+	b := new(bn256.GT).ScalarMult(pk.eGH, proof.PiF.X())
+	b2 := new(bn256.GT).ScalarMult(pk.eGH, new(big.Int).SetInt64(int64(0)))
+	if !bytes.Equal(b.Marshal(), b2.Marshal()) {
+		panic("not equal")
+	}
+	c := pk.eGHalphaBeta
+	d := bn256.Pair(icPubl, pk.G2.Gamma)
+	e := bn256.Pair(proof.PiC, pk.G2.Delta)
+	f := bn256.Pair(proof.PiF, proof.PiB)
+
+	ab := new(bn256.GT).Add(a, b)
+
+	fmt.Println(f.String())
+	fmt.Println(bn256.OneGT().String())
+	if !bytes.Equal(b.Marshal(), f.Marshal()) {
+		panic("not equal")
+	}
+	cd := new(bn256.GT).Add(c, d)
+	ef := new(bn256.GT).Add(e, f)
+	cdef := new(bn256.GT).Add(cd, ef)
+
+	ce := new(bn256.GT).Add(c, e)
+	df := new(bn256.GT).Add(f, d)
+	cedf := new(bn256.GT).Add(ce, df)
+	if !bytes.Equal(cedf.Marshal(), cdef.Marshal()) {
+		panic("not equal")
+	}
+
+	if bytes.Equal(ab.Marshal(), cdef.Marshal()) {
 		fmt.Println("✓ wolf19 verification passed")
 		return true
 	}

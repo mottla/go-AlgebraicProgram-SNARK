@@ -41,16 +41,60 @@ func BigArraysEqual(a, b []*big.Int) bool {
 	return true
 }
 
+func IsZeroArray(a []*big.Int) bool {
+	for i := 0; i < len(a); i++ {
+		if a[i].Cmp(bigZero) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // PolynomialField is the Polynomial over a Finite Field where the polynomial operations are performed
 type PolynomialField struct {
-	F Fq
+	F     Fq
+	bases [][]*big.Int
+}
+
+//InitBases precomputes the basis polynomials so later lagrangian interpolation
+//can be done by simply computing the linear product
+func (pf *PolynomialField) InitBases(totalPoints int) {
+	v := make([][]*big.Int, totalPoints)
+
+	//(xj-x0)(xj-x1)..(xj-x_j-1)(xj-x_j+1)..(x_j-x_k)
+	for pointPos := 0; pointPos < totalPoints; pointPos++ {
+		var iterator = new(big.Int)
+		facBig := big.NewInt(1)
+
+		for i := 0; i < pointPos; i++ {
+			iterator.SetInt64(int64(pointPos - i))
+			facBig = pf.F.Mul(facBig, iterator)
+		}
+		for i := pointPos + 1; i < totalPoints; i++ {
+			iterator.SetInt64(int64(pointPos - i))
+			facBig = pf.F.Mul(facBig, iterator)
+		}
+		hf := pf.F.Inverse(facBig)
+		r := []*big.Int{hf}
+		for i := 0; i < totalPoints; i++ {
+			if i != pointPos {
+				ineg := big.NewInt(int64(-i))
+				b1 := big.NewInt(int64(1))
+				r = pf.Mul(r, []*big.Int{ineg, b1})
+			}
+		}
+		v[pointPos] = r
+	}
+
+	pf.bases = v
 }
 
 // NewPolynomialField creates a new PolynomialField with the given FiniteField
-func NewPolynomialField(f Fq) PolynomialField {
-	return PolynomialField{
-		f,
-	}
+//and precomputed lagriang bases
+func NewPolynomialFieldPrecomputedLagriangian(f Fq, NumBases int) (pf *PolynomialField) {
+	polyField := &PolynomialField{F: f}
+	polyField.InitBases(NumBases)
+	return polyField
 }
 
 // Mul multiplies two polinomials over the Finite Field
@@ -145,11 +189,11 @@ func (pf PolynomialField) NewPolZeroAt(pointPos, totalPoints int, height *big.In
 	//(xj-x0)(xj-x1)..(xj-x_j-1)(xj-x_j+1)..(x_j-x_k)
 	for i := 0; i < pointPos; i++ {
 		iterator.SetInt64(int64(pointPos - i))
-		facBig.Mul(facBig, iterator)
+		facBig = pf.F.Mul(facBig, iterator)
 	}
 	for i := pointPos + 1; i < totalPoints; i++ {
 		iterator.SetInt64(int64(pointPos - i))
-		facBig.Mul(facBig, iterator)
+		facBig = pf.F.Mul(facBig, iterator)
 	}
 
 	hf := pf.F.Div(height, facBig)
@@ -171,7 +215,7 @@ func (pf PolynomialField) LagrangeInterpolation(v []*big.Int) []*big.Int {
 	for i := 0; i < len(v); i++ {
 		//NOTE this comparison gives a huge performance boost
 		if v[i].Cmp(bigZero) != 0 {
-			r = pf.Add(r, pf.NewPolZeroAt(i, len(v), v[i]))
+			r = pf.Add(r, pf.Mul(pf.bases[i], []*big.Int{v[i]}))
 		} else {
 			r = pf.Add(r, ArrayOfBigZeros(len(v)))
 		}
@@ -180,4 +224,20 @@ func (pf PolynomialField) LagrangeInterpolation(v []*big.Int) []*big.Int {
 	}
 	//
 	return r
+}
+
+func (pf PolynomialField) LinearCombine(polynomials [][]*big.Int, w []*big.Int) (scaledPolynomials [][]*big.Int) {
+	scaledPolynomials = make([][]*big.Int, len(w))
+	for i := 0; i < len(w); i++ {
+		scaledPolynomials[i] = pf.Mul([]*big.Int{w[i]}, polynomials[i])
+
+	}
+	return
+}
+func (pf PolynomialField) AddPolynomials(polynomials [][]*big.Int) (sumPoly []*big.Int) {
+	sumPoly = []*big.Int{}
+	for i := 0; i < len(polynomials); i++ {
+		sumPoly = pf.Add(sumPoly, polynomials[i])
+	}
+	return
 }

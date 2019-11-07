@@ -43,11 +43,11 @@ func prepareUtils(order *big.Int) Fields {
 	// new Finite Field
 	fqR := fields.NewFq(order)
 	// new Polynomial Field
-	pf := fields.NewPolynomialField(fqR)
+	pf := fields.NewPolynomialFieldPrecomputedLagriangian(fqR, 0)
 
 	return Fields{
 		FqR: fqR,
-		PF:  pf,
+		PF:  *pf,
 	}
 }
 
@@ -359,9 +359,9 @@ func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS ER1CS) {
 				panic(fmt.Sprintf("%v index not found!!!", val.name))
 			}
 		}
-		value := new(big.Int).Add(new(big.Int), p.Fields.FqR.FractionToField(val.multiplicative))
+		value := p.Fields.FqR.FractionToField(val.multiplicative)
 		if val.negate {
-			value.Neg(value)
+			value = p.Fields.FqR.Neg(value)
 		}
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
 		arr[indexMap[val.name]] = value
