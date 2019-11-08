@@ -9,8 +9,9 @@ import (
 )
 
 type Fields struct {
-	FqR fields.Fq
-	PF  fields.PolynomialField
+	ArithmeticField fields.Fq
+	PolynomialField fields.PolynomialField
+	CurveOrderField fields.Fq
 }
 
 type MultiplicationGateSignature struct {
@@ -39,27 +40,28 @@ type Program struct {
 	computedFactors map[string]MultiplicationGateSignature
 }
 
-func prepareUtils(order *big.Int) Fields {
+func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
 	// new Finite Field
-	fqR := fields.NewFq(order)
+	fqR := fields.NewFq(FieldOrder)
 	// new Polynomial Field
 	pf := fields.NewPolynomialFieldPrecomputedLagriangian(fqR, 0)
 
 	return Fields{
-		FqR: fqR,
-		PF:  *pf,
+		ArithmeticField: fqR,
+		PolynomialField: *pf,
+		CurveOrderField: fields.NewFq(CurveOrder),
 	}
 }
 
-func NewProgram(order *big.Int) (p *Program) {
+func NewProgram(CurveOrder, FieldOrder *big.Int) (p *Program) {
 	p = &Program{
 		functions:    map[string]*Circuit{},
 		globalInputs: []string{"one"},
 		globalOutput: map[string]bool{}, // map[string]bool{"main": false},
-		Fields:       prepareUtils(order),
+		Fields:       PrepareFields(CurveOrder, FieldOrder),
 	}
 
-	//	p.functions["g"]=&Circuit{Name:"Exp"}
+	//p.functions["g"]=&Circuit{Name:"Exp"}
 	return
 }
 
@@ -185,7 +187,7 @@ func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *gate,
 
 	if currentGate.OperationType() == FUNC {
 		_, n, _ := isFunction(currentGate.value.Out)
-		if n == "e" {
+		if n == "g" {
 
 			expGate := &gate{gateType: egate, value: currentGate.value, index: len(*orderedmGates), expoIns: factors{{typ: EXP, name: currentGate.value.Inputs[0], multiplicative: [2]int{1, 1}}}}
 			p.computedInContext[string(hashTraceBuildup)][currentGate.value.Out] = MultiplicationGateSignature{identifier: currentGate.value.Out}
@@ -193,7 +195,7 @@ func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *gate,
 			//p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: rootGate.value.Out, commonExtracted: sig.commonExtracted}
 
 			*orderedmGates = append(*orderedmGates, *expGate)
-			return factors{{typ: EXP, name: currentGate.value.Out, negate: negate, invert: invert, multiplicative: [2]int{1, 1}}}, hashTraceBuildup, false
+			return factors{{typ: IN, name: currentGate.value.Out, negate: negate, invert: invert, multiplicative: [2]int{1, 1}}}, hashTraceBuildup, false
 		}
 		nextContext := p.extendedFunctionRenamer(currentCircuit, currentGate.value)
 		currentCircuit = nextContext
@@ -359,9 +361,9 @@ func (p *Program) GenerateReducedR1CS(mGates []gate) (r1CS ER1CS) {
 				panic(fmt.Sprintf("%v index not found!!!", val.name))
 			}
 		}
-		value := p.Fields.FqR.FractionToField(val.multiplicative)
+		value := p.Fields.ArithmeticField.FractionToField(val.multiplicative)
 		if val.negate {
-			value = p.Fields.FqR.Neg(value)
+			value = p.Fields.ArithmeticField.Neg(value)
 		}
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
 		arr[indexMap[val.name]] = value

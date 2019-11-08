@@ -304,7 +304,6 @@ func CountMultiplicationGates(g *gate) int {
 	return 0
 }
 
-//TODO avoid printing multiple times in case of loops
 func PrintTree(g *gate) {
 	printTree(g, 0)
 }

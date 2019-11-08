@@ -69,6 +69,7 @@ func (e *G1) ScalarBaseMult(k *big.Int) *G1 {
 	if e.p == nil {
 		e.p = newCurvePoint(nil)
 	}
+	//k.Mod(k,Order)
 	e.p.Mul(curveGen, k, new(bnPool))
 	return e
 }
@@ -78,6 +79,7 @@ func (e *G1) ScalarMult(a *G1, k *big.Int) *G1 {
 	if e.p == nil {
 		e.p = newCurvePoint(nil)
 	}
+	//k.Mod(k,Order)
 	e.p.Mul(a.p, k, new(bnPool))
 	return e
 }

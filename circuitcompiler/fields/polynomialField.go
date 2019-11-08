@@ -170,16 +170,16 @@ func (pf PolynomialField) Sub(a, b []*big.Int) []*big.Int {
 	return r
 }
 
-// Eval evaluates the polinomial over the Finite Field at the given value x
-func (pf PolynomialField) Eval(v []*big.Int, x *big.Int) *big.Int {
-	r := big.NewInt(int64(0))
-	for i := 0; i < len(v); i++ {
-		xi := pf.F.Exp(x, big.NewInt(int64(i)))
-		elem := pf.F.Mul(v[i], xi)
-		r = pf.F.Add(r, elem)
-	}
-	return r
-}
+//// Eval evaluates the polinomial over the Finite Field at the given value x
+//func (pf PolynomialField) Eval(v []*big.Int, x *big.Int) *big.Int {
+//	r := big.NewInt(int64(0))
+//	for i := 0; i < len(v); i++ {
+//		xi := pf.F.Exp(x, big.NewInt(int64(i)))
+//		elem := pf.F.Mul(v[i], xi)
+//		r = pf.F.Add(r, elem)
+//	}
+//	return r
+//}
 
 // NewPolZeroAt generates a new polynomial that has value zero at the given value
 func (pf PolynomialField) NewPolZeroAt(pointPos, totalPoints int, height *big.Int) []*big.Int {

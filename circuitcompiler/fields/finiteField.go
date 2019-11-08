@@ -107,6 +107,18 @@ func (fq Fq) Exp(base *big.Int, e *big.Int) *big.Int {
 	return res
 }
 
+func (fq Fq) EvalPoly(v []*big.Int, x *big.Int) *big.Int {
+	r := new(big.Int).Set(v[0])
+	for i := int64(1); i < int64(len(v)); i++ {
+		if v[i].Cmp(bigZero) != 0 {
+			//note since we expect the polynomials to be sparse, we compute the x^i straight away.. maybe incremental would still be more efficient
+			r = fq.Add(r, fq.Mul(v[i], fq.Exp(x, big.NewInt(i))))
+		}
+
+	}
+	return r
+}
+
 func BigIsOdd(n *big.Int) bool {
 	return n.Bit(0) == 1
 }
@@ -136,7 +148,7 @@ func (fq Fq) IsZero(a *big.Int) bool {
 }
 
 func (fq Fq) Copy(a *big.Int) *big.Int {
-	return new(big.Int).SetBytes(a.Bytes())
+	return new(big.Int).Mod(a, fq.Q)
 }
 
 func (fq Fq) Affine(a *big.Int) *big.Int {

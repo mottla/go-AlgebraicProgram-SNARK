@@ -90,9 +90,9 @@ func TestPol(t *testing.T) {
 
 	// NewPolZeroAt
 	o = pf.NewPolZeroAt(3, 4, b4)
-	assert.Equal(t, pf.Eval(o, big.NewInt(3)), b4)
+	assert.Equal(t, f.EvalPoly(o, big.NewInt(3)), b4)
 	o = pf.NewPolZeroAt(2, 4, b3)
-	assert.Equal(t, pf.Eval(o, big.NewInt(2)), b3)
+	assert.Equal(t, f.EvalPoly(o, big.NewInt(2)), b3)
 }
 
 func TestLagrangeInterpolation(t *testing.T) {
@@ -120,7 +120,7 @@ func TestLagrangeInterpolation(t *testing.T) {
 		Ypoints[3] = new(big.Int).SetInt64(int64(0))
 		alpha := pf.LagrangeInterpolation(Ypoints)
 		for i := int64(0); i < Npoints; i++ {
-			if pf.Eval(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
+			if f.EvalPoly(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
 				t.Fail()
 				fmt.Println("fail")
 			}

@@ -94,15 +94,15 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f Fields) (witness []*big.
 
 		if !division {
 			set[index] = true
-			s := f.FqR.Mul(sumLeft, sumRight)
+			s := f.ArithmeticField.Mul(sumLeft, sumRight)
 			exp := new(bn256.G1).ScalarBaseMult(sumExp)
-			witness[index] = f.FqR.Add(s, exp.X())
+			witness[index] = f.ArithmeticField.Add(s, exp.X())
 			s.Add(s, new(big.Int).Exp(new(big.Int).SetInt64(2), sumExp, nil))
 
 		} else {
 			set[index] = true
-			witness[index] = f.FqR.Div(sumOut, sumRight)
-			//Utils.FqR.Mul(sumOut, Utils.FqR.Inverse(sumRight))
+			witness[index] = f.ArithmeticField.Div(sumOut, sumRight)
+			//Utils.ArithmeticField.Mul(sumOut, Utils.ArithmeticField.Inverse(sumRight))
 		}
 
 	}
@@ -123,13 +123,13 @@ func (er1cs *ER1CSTransposed) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly 
 	eT := er1cs.E
 	oT := er1cs.O
 	for i := 0; i < len(lT); i++ {
-		lPoly = append(lPoly, pf.PF.LagrangeInterpolation(lT[i]))
+		lPoly = append(lPoly, pf.PolynomialField.LagrangeInterpolation(lT[i]))
 
-		rPoly = append(rPoly, pf.PF.LagrangeInterpolation(rT[i]))
+		rPoly = append(rPoly, pf.PolynomialField.LagrangeInterpolation(rT[i]))
 
-		ePoly = append(ePoly, pf.PF.LagrangeInterpolation(eT[i]))
+		ePoly = append(ePoly, pf.PolynomialField.LagrangeInterpolation(eT[i]))
 
-		oPoly = append(oPoly, pf.PF.LagrangeInterpolation(oT[i]))
+		oPoly = append(oPoly, pf.PolynomialField.LagrangeInterpolation(oT[i]))
 	}
 
 	return
