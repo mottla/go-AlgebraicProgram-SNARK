@@ -74,7 +74,7 @@ type Proof struct {
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
 func CombinePolynomials2(fields circuitcompiler.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
 
-	pf := fields.PF
+	pf := fields.PolynomialField
 
 	scalarProduct := func(vec [][]*big.Int) (poly []*big.Int) {
 		var ax []*big.Int
@@ -105,7 +105,7 @@ func CombinePolynomials2(fields circuitcompiler.Fields, witness []*big.Int, Tran
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
 func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
 
-	pf := fields.PF
+	pf := fields.PolynomialField
 
 	LVec := pf.AddPolynomials(pf.LinearCombine(Li, witness))
 	RVec := pf.AddPolynomials(pf.LinearCombine(Ri, witness))
@@ -114,7 +114,7 @@ func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, Li, R
 
 	var mG_pointsVec []*big.Int
 	for i := 0; i < len(EVec); i++ {
-		val := pf.Eval(EVec, new(big.Int).SetInt64(int64(i)))
+		val := fields.ArithmeticField.EvalPoly(EVec, new(big.Int).SetInt64(int64(i)))
 		p := g1ScalarBaseMultiply(val)
 		mG_pointsVec = append(mG_pointsVec, p.X())
 	}
@@ -137,25 +137,26 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 	var err error
 
 	// generate random t value
-	setup.Toxic.x, err = fields.FqR.Rand()
+	setup.Toxic.x, err = fields.CurveOrderField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	//setup.Toxic.x = new(big.Int).SetInt64(1)
+	//TODO this is why my scheme sucks. we can only have x in {0,..,len(gates)} and not from the entire field. This destroys security
+	setup.Toxic.x = new(big.Int).SetInt64(1)
 
-	setup.Toxic.Kalpha, err = fields.FqR.Rand()
+	setup.Toxic.Kalpha, err = fields.CurveOrderField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kbeta, err = fields.FqR.Rand()
+	setup.Toxic.Kbeta, err = fields.CurveOrderField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kgamma, err = fields.FqR.Rand()
+	setup.Toxic.Kgamma, err = fields.CurveOrderField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kdelta, err = fields.FqR.Rand()
+	setup.Toxic.Kdelta, err = fields.CurveOrderField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
@@ -163,34 +164,36 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 	//generate the domain polynomial
 	Domain := []*big.Int{big.NewInt(int64(1))}
 
-	//(x)(x-1)(x-2)..
+	//(x)(x-1)(x-2)..TODO maybe here index
 	for i := 0; i < gates; i++ {
-		Domain = fields.PF.Mul(
+		Domain = fields.PolynomialField.Mul(
 			Domain,
 			[]*big.Int{
-				fields.FqR.Neg(big.NewInt(int64(i))), big.NewInt(int64(1)),
+				fields.ArithmeticField.Neg(big.NewInt(int64(i))), big.NewInt(int64(1)),
 			})
 	}
 
 	setup.Pk.Domain = Domain
-	Dx := fields.PF.Eval(Domain, setup.Toxic.x)
-	invDelta := fields.FqR.Inverse(setup.Toxic.Kdelta)
-	Dx_div_delta := fields.FqR.Mul(invDelta, Dx)
+	//TODO other field maybe??
+	Dx := fields.CurveOrderField.EvalPoly(Domain, setup.Toxic.x)
+	invDelta := fields.CurveOrderField.Inverse(setup.Toxic.Kdelta)
+	invgamma := fields.CurveOrderField.Inverse(setup.Toxic.Kgamma)
+	Dx_div_delta := fields.CurveOrderField.Mul(invDelta, Dx)
 
 	// encrypt x values with curve generators
 	// x^i times D(x) divided by delta
 	var powersXDomaindivDelta = []*bn256.G1{g1ScalarBaseMultiply(Dx_div_delta)}
-	var powersX_onG = []*bn256.G1{g1ScalarBaseMultiply(new(big.Int).SetInt64(1))}
-	var powersX_onH = []*bn256.G2{g2ScalarBaseMultiply(new(big.Int).SetInt64(1))}
+	var powersX_onG = []*bn256.G1{g1ScalarBaseMultiply(big.NewInt(1))}
+	var powersX_onH = []*bn256.G2{g2ScalarBaseMultiply(big.NewInt(1))}
 
 	//G^{x^i}
-	tEncr := setup.Toxic.x
+	tEncr := new(big.Int).Set(setup.Toxic.x)
 	for i := 1; i < len(Ri); i++ {
-		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.FqR.Mul(tEncr, Dx_div_delta)))
+		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.CurveOrderField.Mul(tEncr, Dx_div_delta)))
 		powersX_onG = append(powersX_onG, g1ScalarBaseMultiply(tEncr))
 		powersX_onH = append(powersX_onH, g2ScalarBaseMultiply(tEncr))
 		// x^i -> x^{i+1}
-		tEncr = fields.FqR.Mul(tEncr, setup.Toxic.x)
+		tEncr = fields.CurveOrderField.Mul(tEncr, setup.Toxic.x)
 	}
 
 	setup.Pk.G1.PowersX = powersX_onG
@@ -206,38 +209,33 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 	setup.Pk.G2.Delta = g2ScalarBaseMultiply(setup.Toxic.Kdelta)
 
 	for i := 0; i < witnessLength; i++ {
-		// Li(x)
-		lix := fields.PF.Eval(Li[i], setup.Toxic.x)
-
+		// Li(x) Todo here??
+		lix := fields.CurveOrderField.EvalPoly(Li[i], setup.Toxic.x)
 		// Ri(x)
-		rix := fields.PF.Eval(Ri[i], setup.Toxic.x)
-
+		rix := fields.CurveOrderField.EvalPoly(Ri[i], setup.Toxic.x)
 		// Oi(x)
-		oix := fields.PF.Eval(Oi[i], setup.Toxic.x)
+		oix := fields.CurveOrderField.EvalPoly(Oi[i], setup.Toxic.x)
 
 		// Ei(x)
-		eix := fields.PF.Eval(Ei[i], setup.Toxic.x)
+		eix := fields.CurveOrderField.EvalPoly(Ei[i], setup.Toxic.x)
 		setup.Pk.G1.Ex = append(setup.Pk.G1.Ex, g1ScalarBaseMultiply(eix))
 
-		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.FqR.Add(eix, lix)))
+		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.CurveOrderField.Add(eix, lix)))
 
 		//H^Rix
-		hrix := fields.PF.Eval(Ri[i], setup.Toxic.x)
-		hRix := g2ScalarBaseMultiply(hrix)
+		hRix := g2ScalarBaseMultiply(fields.CurveOrderField.Copy(rix))
 		setup.Pk.G2.Rx = append(setup.Pk.G2.Rx, hRix)
 
-		ter := fields.FqR.Mul(setup.Toxic.Kalpha, rix)
-		ter = fields.FqR.Add(ter, fields.FqR.Mul(setup.Toxic.Kbeta, lix))
-		ter = fields.FqR.Add(ter, fields.FqR.Mul(setup.Toxic.Kbeta, eix))
-		ter = fields.FqR.Add(ter, oix)
+		ter := fields.CurveOrderField.Mul(setup.Toxic.Kalpha, rix)
+		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, lix))
+		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, eix))
+		ter = fields.CurveOrderField.Add(ter, oix)
 
 		if i <= publicinputs {
-			invgamma := fields.FqR.Inverse(setup.Toxic.Kgamma)
-			ter = fields.FqR.Mul(invgamma, ter)
+			ter = fields.CurveOrderField.Mul(invgamma, ter)
 			setup.Pk.G1.RLEO_Gamma = append(setup.Pk.G1.RLEO_Gamma, g1ScalarBaseMultiply(ter))
 		} else {
-			invdelta := fields.FqR.Inverse(setup.Toxic.Kdelta)
-			ter = fields.FqR.Mul(invdelta, ter)
+			ter = fields.CurveOrderField.Mul(invDelta, ter)
 			setup.Pk.G1.RLEO_Delta = append(setup.Pk.G1.RLEO_Delta, g1ScalarBaseMultiply(ter))
 		}
 	}
@@ -246,24 +244,26 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 	setup.Pk.eGHalphaBeta = bn256.Pair(g1ScalarBaseMultiply(setup.Toxic.Kalpha), g2ScalarBaseMultiply(setup.Toxic.Kbeta))
 	//fmt.Println("zsfdadsff")
 	//fmt.Println(setup.Pk.eGHalphaBeta.String() )
-	//setup.Pk.eGHalphaBeta = new(bn256.GT).ScalarMult(setup.Pk.eGH, fields.FqR.Mul(setup.Toxic.Kalpha, setup.Toxic.Kbeta))
+	//setup.Pk.eGHalphaBeta = new(bn256.GT).ScalarMult(setup.Pk.eGH, fields.ArithmeticField.Mul(setup.Toxic.Kalpha, setup.Toxic.Kbeta))
 	//fmt.Println(setup.Pk.eGHalphaBeta.String() )
 	return setup, nil
 }
 
 // GenerateProofs generates all the parameters to proof the zkSNARK from the Circuit, Setup and the Witness
-func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
+func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicInputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
 	var proof = new(Proof)
 	proof.PiA = new(bn256.G1).ScalarMult(pk.G1.Lx_plus_Ex[0], w[0])
 	proof.PiB = new(bn256.G2).ScalarMult(pk.G2.Rx[0], w[0])
-	proof.PiC = new(bn256.G1).ScalarMult(pk.G1.RLEO_Delta[0], w[publicinputs+1])
+	proof.PiC = new(bn256.G1).ScalarMult(pk.G1.RLEO_Delta[0], w[publicInputs+1])
 	proof.PiF = new(bn256.G1).ScalarMult(pk.G1.Ex[0], w[0])
+	Qx, r := fields.PolynomialField.Div(Px, pk.Domain)
 
-	Qx, r := fields.PF.Div(Px, pk.Domain)
 	if !fields2.IsZeroArray(r) {
 		panic("remainder supposed to be 0")
 	}
+
 	var QxDx_div_delta = new(bn256.G1).ScalarMult(pk.G1.PowersX_Domain_Delta[0], Qx[0])
+
 	for i := 1; i < len(Qx); i++ {
 		tmp := new(bn256.G1).ScalarMult(pk.G1.PowersX_Domain_Delta[i], Qx[i])
 		QxDx_div_delta.Add(QxDx_div_delta, tmp)
@@ -276,9 +276,9 @@ func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs i
 		//proof element B
 		proof.PiB.Add(proof.PiB, new(bn256.G2).ScalarMult(pk.G2.Rx[i], w[i]))
 
-		if i > publicinputs+1 {
+		if i > publicInputs+1 {
 			//proof element C
-			proof.PiC.Add(proof.PiC, new(bn256.G1).ScalarMult(pk.G1.RLEO_Delta[i-publicinputs-1], w[i]))
+			proof.PiC.Add(proof.PiC, new(bn256.G1).ScalarMult(pk.G1.RLEO_Delta[i-publicInputs-1], w[i]))
 		}
 		//proof element F
 		proof.PiF.Add(proof.PiF, new(bn256.G1).ScalarMult(pk.G1.Ex[i], w[i]))
@@ -292,7 +292,7 @@ func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicinputs i
 	return proof, nil
 }
 
-// VerifyProof verifies over the BN128 the Pairings of the Proof
+// VerifyProof verifies over the BN256 the Pairings of the Proof
 func VerifyProof(pk *Pk, proof *Proof, publicSignals []*big.Int, debug bool) bool {
 	//note that the trivial cases should be rejected to
 
@@ -308,32 +308,16 @@ func VerifyProof(pk *Pk, proof *Proof, publicSignals []*big.Int, debug bool) boo
 
 	a := bn256.Pair(proof.PiA, new(bn256.G2).Add(proof.PiB, pk.G2.Beta))
 	b := new(bn256.GT).ScalarMult(pk.eGH, proof.PiF.X())
-	b2 := new(bn256.GT).ScalarMult(pk.eGH, new(big.Int).SetInt64(int64(0)))
-	if !bytes.Equal(b.Marshal(), b2.Marshal()) {
-		panic("not equal")
-	}
+
 	c := pk.eGHalphaBeta
 	d := bn256.Pair(icPubl, pk.G2.Gamma)
 	e := bn256.Pair(proof.PiC, pk.G2.Delta)
 	f := bn256.Pair(proof.PiF, proof.PiB)
 
 	ab := new(bn256.GT).Add(a, b)
-
-	fmt.Println(f.String())
-	fmt.Println(bn256.OneGT().String())
-	if !bytes.Equal(b.Marshal(), f.Marshal()) {
-		panic("not equal")
-	}
 	cd := new(bn256.GT).Add(c, d)
 	ef := new(bn256.GT).Add(e, f)
 	cdef := new(bn256.GT).Add(cd, ef)
-
-	ce := new(bn256.GT).Add(c, e)
-	df := new(bn256.GT).Add(f, d)
-	cedf := new(bn256.GT).Add(ce, df)
-	if !bytes.Equal(cedf.Marshal(), cdef.Marshal()) {
-		panic("not equal")
-	}
 
 	if bytes.Equal(ab.Marshal(), cdef.Marshal()) {
 		fmt.Println("✓ wolf19 verification passed")

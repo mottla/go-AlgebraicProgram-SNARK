@@ -22,7 +22,7 @@ func panicErr(err error) {
 	}
 }
 
-//TODO EVERYTHING This class is useless
+//TODO EVERYTHING This class is unfinished. See wolf19_test at this point
 var commands = []cli.Command{
 	{
 		Name:    "compile",
@@ -119,7 +119,7 @@ func CompileCircuit(context *cli.Context) error {
 	hx := snark.Utils.PF.DivisorPolynomial(px, zx)
 
 	// hx==px/zx so px==hx*zx
-	// assert.Equal(t, px, snark.Utils.PF.Mul(hx, zx))
+	// assert.Equal(t, px, snark.Utils.PolynomialField.Mul(hx, zx))
 	if !r1csqap.BigArraysEqual(px, snark.Utils.PF.Mul(hx, zx)) {
 		panic(errors.New("px != hx*zx"))
 	}
