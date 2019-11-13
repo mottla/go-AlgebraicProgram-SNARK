@@ -22,6 +22,8 @@ type TraceCorrectnessTest struct {
 var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
 var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 10)
 
+//NOTE that the results are wrong. need to consider that division is now done on a finite field.
+//TODO compute new testcases with a python scrypt
 var correctnessTest = []TraceCorrectnessTest{
 	{
 		io: []InOut{{
@@ -34,7 +36,7 @@ var correctnessTest = []TraceCorrectnessTest{
 		}},
 		code: `
 	def main( x  ,  z ) :
-		out = do(z) + e(x,x)
+		out = do(z) + add(x,x)
 
 	def do(x):
 		e = x * 5
@@ -135,6 +137,18 @@ var correctnessTest = []TraceCorrectnessTest{
 }
 
 var correctnessEAPTests = []TraceCorrectnessTest{
+	{io: []InOut{{
+		inputs: []*big.Int{big.NewInt(int64(7))},
+		result: big.NewInt(int64(4)),
+	}},
+		code: `
+	def main(a):
+		b = a * a
+		c = 4 - b
+		d = 5 * c
+		out =  d /  b
+	`,
+	},
 	{
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
@@ -142,9 +156,13 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 		}},
 		code: `
 	def main( x  ,  z ) :
-		a= x * z
+		a= foo(z) * z
 		b = a * a
 		out = a * b
+
+	def foo(x):
+		b = x + 7
+		out = b * x
 	`,
 	},
 }
@@ -153,7 +171,7 @@ func TestCorrectness(t *testing.T) {
 
 	for _, test := range correctnessTest {
 		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram(bn256.P)
+		program := NewProgram(bn256.Order, bn256.Order)
 		err := parser.Parse(program)
 
 		if err != nil {
@@ -185,10 +203,11 @@ func TestCorrectness(t *testing.T) {
 			inputs := io.inputs
 			fmt.Println("input")
 			fmt.Println(inputs)
-			w := r1cs.CalculateWitness(inputs, program.Fields)
+			w, err := r1cs.CalculateWitness(inputs, program.Fields)
+			assert.NoError(t, err)
 			fmt.Println("witness")
 			fmt.Println(w)
-			assert.Equal(t, io.result, w[program.GlobalInputCount()])
+			assert.Equal(t, io.result, w[len(w)-1])
 		}
 
 	}
@@ -197,9 +216,11 @@ func TestCorrectness(t *testing.T) {
 
 func TestEAP(t *testing.T) {
 
-	for _, test := range correctnessEAPTests {
+	//for i := 0; i < len(correctnessEAPTests);i++ {
+	for i := 0; i < 2; i++ {
+		test := correctnessTest[i]
 		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram(bn256.P)
+		program := NewProgram(bn256.Order, bn256.Order)
 		err := parser.Parse(program)
 
 		if err != nil {
@@ -232,7 +253,8 @@ func TestEAP(t *testing.T) {
 			inputs := io.inputs
 			fmt.Println("input")
 			fmt.Println(inputs)
-			w := r1cs.CalculateWitness(inputs, program.Fields)
+			w, err := r1cs.CalculateWitness(inputs, program.Fields)
+			assert.NoError(t, err)
 			fmt.Println("witness")
 			fmt.Println(w)
 			assert.Equal(t, io.result, w[len(w)-1])

@@ -40,11 +40,13 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 			result: big.NewInt(int64(1764)),
 		}},
 		code: `
-	def main( x  ,  z ) :
-		a= x * z
-		b= g(z) * 1
-		c = b + a
-		out = c * a 
+	def foo(x):
+		out = x * x
+
+	def main( x  ,  z ) :		
+		b = g(z) * 1
+		c = b + x		
+		out = c * b 
 	`,
 	},
 }
@@ -82,23 +84,19 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		fmt.Println(r1cs.R)
 		fmt.Println(r1cs.E)
 		fmt.Println(r1cs.O)
-		fmt.Println(trasposedR1Cs.L)
-		fmt.Println(trasposedR1Cs.R)
-		fmt.Println(trasposedR1Cs.E)
-		fmt.Println(trasposedR1Cs.O)
 		// ER1CS to QAP
 		l, r, e, o := trasposedR1Cs.ER1CSToEAP(program.Fields)
-		fmt.Println(l)
-		fmt.Println(r)
-		fmt.Println(e)
-		fmt.Println(o)
+		//fmt.Println(l)
+		//fmt.Println(r)
+		//fmt.Println(e)
+		//fmt.Println(o)
 
 		setup, err := GenerateTrustedSetup(program.Fields, len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
 
 		for _, io := range test.io {
 			inputs := io.inputs
-			w := r1cs.CalculateWitness(inputs, program.Fields)
-
+			w, err := r1cs.CalculateWitness(inputs, program.Fields)
+			assert.NoError(t, err)
 			fmt.Println("input")
 			fmt.Println(inputs)
 			fmt.Println("witness")

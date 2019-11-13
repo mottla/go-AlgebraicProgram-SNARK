@@ -1,6 +1,8 @@
 package circuitcompiler
 
 import (
+	"errors"
+	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"math/big"
@@ -28,88 +30,6 @@ func (er1cs *ER1CS) Transpose() (transposed ER1CSTransposed) {
 	return
 }
 
-//Calculates the witness (program trace) given some input
-//asserts that ER1CS has been computed and is stored in the program p memory calling this function
-func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f Fields) (witness []*big.Int) {
-
-	witness = fields.ArrayOfBigZeros(len(r1cs.L[0]))
-	set := make([]bool, len(witness))
-	witness[0] = big.NewInt(int64(1))
-	set[0] = true
-
-	for i := range input {
-		witness[i+1] = input[i]
-		set[i+1] = true
-	}
-
-	zero := big.NewInt(int64(0))
-
-	for i := 0; i < len(r1cs.L); i++ {
-		gatesLeftInputs := r1cs.L[i]
-		gatesRightInputs := r1cs.R[i]
-		gatesExpInputs := r1cs.E[i]
-		gatesOutputs := r1cs.O[i]
-
-		sumLeft := big.NewInt(int64(0))
-		sumRight := big.NewInt(int64(0))
-		sumExp := big.NewInt(int64(0))
-		sumOut := big.NewInt(int64(0))
-
-		index := -1
-		division := false
-		for j, val := range gatesLeftInputs {
-			if val.Cmp(zero) != 0 {
-				if !set[j] {
-					index = j
-					division = true
-					break
-				}
-				sumLeft.Add(sumLeft, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-		for j, val := range gatesRightInputs {
-			if val.Cmp(zero) != 0 {
-				sumRight.Add(sumRight, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-		for j, val := range gatesExpInputs {
-			if val.Cmp(zero) != 0 {
-				sumExp.Add(sumExp, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-
-		for j, val := range gatesOutputs {
-			if val.Cmp(zero) != 0 {
-				if !set[j] {
-					if index != -1 {
-						panic("invalid ER1CS form")
-					}
-
-					index = j
-					break
-				}
-				sumOut.Add(sumOut, new(big.Int).Mul(val, witness[j]))
-			}
-		}
-
-		if !division {
-			set[index] = true
-			s := f.ArithmeticField.Mul(sumLeft, sumRight)
-			exp := new(bn256.G1).ScalarBaseMult(sumExp)
-			witness[index] = f.ArithmeticField.Add(s, exp.X())
-			s.Add(s, new(big.Int).Exp(new(big.Int).SetInt64(2), sumExp, nil))
-
-		} else {
-			set[index] = true
-			witness[index] = f.ArithmeticField.Div(sumOut, sumRight)
-			//Utils.ArithmeticField.Mul(sumOut, Utils.ArithmeticField.Inverse(sumRight))
-		}
-
-	}
-
-	return
-}
-
 // R1CSToQAP converts the ER1CS* values to the EAP values
 //it uses Lagrange interpolation to to fit a polynomial through each slice. The x coordinate
 //is simply a linear increment starting at 1
@@ -130,6 +50,108 @@ func (er1cs *ER1CSTransposed) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly 
 		ePoly = append(ePoly, pf.PolynomialField.LagrangeInterpolation(eT[i]))
 
 		oPoly = append(oPoly, pf.PolynomialField.LagrangeInterpolation(oT[i]))
+	}
+
+	return
+}
+
+//Calculates the witness (program trace) given some input
+//asserts that ER1CS has been computed and is stored in the program p memory calling this function
+func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f Fields) (witness []*big.Int, err error) {
+
+	witness = fields.ArrayOfBigZeros(len(r1cs.L[0]))
+	set := make([]bool, len(witness))
+	witness[0] = big.NewInt(int64(1))
+	set[0] = true
+
+	for i := range input {
+		witness[i+1] = input[i]
+		set[i+1] = true
+	}
+
+	zero := big.NewInt(int64(0))
+
+	getKnownsAndUnknowns := func(array []*big.Int) (knowns []*big.Int, unknownsAtIndices []int) {
+		knowns = fields.ArrayOfBigZeros(len(array))
+		for j, val := range array {
+			if val.Cmp(zero) != 0 {
+				if !set[j] {
+					unknownsAtIndices = append(unknownsAtIndices, j)
+				} else {
+					knowns[j] = val
+				}
+			}
+		}
+		return
+	}
+
+	sum := func(array []*big.Int) (sum *big.Int) {
+		sum = new(big.Int)
+		for i, val := range array {
+			if val.Cmp(zero) != 0 {
+				sum.Add(sum, new(big.Int).Mul(val, witness[i]))
+			}
+
+		}
+		return
+	}
+
+	for i := 0; i < len(r1cs.L); i++ {
+		gatesLeftInputs := r1cs.L[i]
+		gatesRightInputs := r1cs.R[i]
+		gatesExpInputs := r1cs.E[i]
+		gatesOutputs := r1cs.O[i]
+
+		leftKnowns, leftUnknowns := getKnownsAndUnknowns(gatesLeftInputs)
+		rightKnowns, rightUnknowns := getKnownsAndUnknowns(gatesRightInputs)
+		exponentKnowns, exponentUnknowns := getKnownsAndUnknowns(gatesExpInputs)
+		if len(exponentUnknowns) > 0 {
+			return nil, errors.New("discret logarithm cannot be computed. if you know how. mail me! please!!")
+		}
+		outKnowns, outUnknowns := getKnownsAndUnknowns(gatesOutputs)
+
+		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) != 1 {
+			return nil, errors.New("computing more then one unknown in Gate assignment is not possible")
+		}
+
+		if len(leftUnknowns) == 1 {
+			sumright := sum(rightKnowns)
+			if sumright.Cmp(zero) == 0 {
+				fmt.Println(r1cs.L[i])
+				fmt.Println(r1cs.R[i])
+				fmt.Println(r1cs.E[i])
+				fmt.Println(r1cs.O[i])
+
+				return nil, errors.New("the summation of R inputs cannot be 0 if the unknown is in L")
+			}
+			result := f.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = f.ArithmeticField.Div(result, sumright)
+			result = f.ArithmeticField.Sub(result, sum(leftKnowns))
+			set[leftUnknowns[0]] = true
+			witness[leftUnknowns[0]] = result
+			continue
+		}
+		if len(rightUnknowns) == 1 {
+			sumleft := sum(leftKnowns)
+			if sumleft.Cmp(zero) == 0 {
+				return nil, errors.New("the summation of L inputs cannot be 0 if the unknown is in R")
+			}
+			result := f.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = f.ArithmeticField.Div(result, sumleft)
+			result = f.ArithmeticField.Sub(result, sum(rightKnowns))
+			set[rightUnknowns[0]] = true
+			witness[rightUnknowns[0]] = result
+			continue
+		}
+
+		if len(outUnknowns) == 1 {
+			result := f.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+			result = f.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			set[outUnknowns[0]] = true
+			witness[outUnknowns[0]] = result
+			continue
+		}
+
 	}
 
 	return

@@ -3,7 +3,6 @@ package circuitcompiler
 import (
 	"errors"
 	"io"
-	"regexp"
 	"strings"
 )
 
@@ -73,10 +72,7 @@ func (p *Parser) parseLine() (*Constraint, error) {
 			return c, err
 		}
 		// read string inside ( )
-		rgx := regexp.MustCompile(`\((.*?)\)`)
-		insideParenthesis := rgx.FindStringSubmatch(line)
-		varsString := strings.Replace(insideParenthesis[1], " ", "", -1)
-		c.Inputs = strings.Split(varsString, ",")
+
 		return c, nil
 	case "var":
 		//var a = 234
@@ -121,25 +117,6 @@ func (p *Parser) parseLine() (*Constraint, error) {
 	return c, nil
 }
 
-func existInArray(arr []string, elem string) bool {
-	for _, v := range arr {
-		if v == elem {
-			return true
-		}
-	}
-	return false
-}
-
-func addToArrayIfNotExist(arr []string, elem string) []string {
-	for _, v := range arr {
-		if v == elem {
-			return arr
-		}
-	}
-	arr = append(arr, elem)
-	return arr
-}
-
 // Parse parses the lines and returns the compiled Circuit
 func (p *Parser) Parse(programm *Program) (err error) {
 
@@ -153,18 +130,9 @@ func (p *Parser) Parse(programm *Program) (err error) {
 		if constraint.Op == FUNC {
 			circuit = programm.addFunction(constraint)
 		} else {
-			circuit.addConstraint(constraint)
+			circuit.prepareAndAddConstraintToGateMap(constraint)
 		}
 	}
-	//TODO
-	//circuit.NVars = len(circuit.Signals)
-	//circuit.NSignals = len(circuit.Signals)
+
 	return nil
-}
-func copyArray(in []string) []string { // tmp
-	var out []string
-	for _, e := range in {
-		out = append(out, e)
-	}
-	return out
 }

@@ -119,7 +119,7 @@ func factorsSignature(leftFactors, rightFactors factors) (sig MultiplicationGate
 	rightNum := new(big.Int).SetBytes(hasher.Sum(nil))
 
 	//we did all this, because multiplication is commutativ, and we want the signature of a
-	//mulitplication gate   factorsSignature(a,b) == factorsSignature(b,a)
+	//mulitplication Gate   factorsSignature(a,b) == factorsSignature(b,a)
 	leftNum.Add(leftNum, rightNum)
 
 	res := normalizeFactor(mul2DVector(extractedFacLeft, extractedFacRight))
@@ -178,7 +178,7 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 				//continue
 
 			}
-			panic("unexpected. If this errror is thrown, its probably brcause a true multiplication gate has been skipped and treated as on with constant multiplication or addition ")
+			panic("unexpected. If this errror is thrown, its probably brcause a true multiplication Gate has been skipped and treated as on with constant multiplication or addition ")
 
 		}
 

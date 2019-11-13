@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-//factors are essential to identify, if a specific gate has been computed already
-//eg. if we can extract a factor from a gate that is independent of commutativity, multiplicativitz we will do much better, in finding and reusing old outputs do
-//minimize the multiplication gate number
-// for example the gate a*b == gate b*a hence, we only need to compute one of both.
+//factors are essential to identify, if a specific Gate has been computed already
+//eg. if we can extract a factor from a Gate that is independent of commutativity, multiplicativitz we will do much better, in finding and reusing old outputs do
+//minimize the multiplication Gate number
+// for example the Gate a*b == Gate b*a hence, we only need to compute one of both.
 
 func TestFactorSignature(t *testing.T) {
 	facNeutral := factors{&factor{multiplicative: [2]int{1, 1}}}

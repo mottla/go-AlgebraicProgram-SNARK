@@ -19,27 +19,27 @@ const (
 
 // Circuit is the data structure of the compiled circuit
 type Circuit struct {
-	Inputs []string
+	Inputs []*Gate
 	Name   string
-	root   *gate
+	root   *Gate
 	//after reducing
 	//constraintMap map[string]*Constraint
-	gateMap map[string]*gate
+	gateMap map[string]*Gate
 }
 
-type gate struct {
-	gateType   gateType
-	index      int
-	left       *gate
-	right      *gate
-	funcInputs []*gate
-	value      *Constraint //is a pointer a good thing here??
-	leftIns    factors     //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
-	rightIns   factors
-	expoIns    factors
+type Gate struct {
+	gateType gateType
+	index    int
+	left     *Gate
+	right    *Gate
+	//funcInputs []*Gate
+	value    *Constraint //is a pointer a good thing here??
+	leftIns  factors     //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
+	rightIns factors
+	expoIns  factors
 }
 
-func (g gate) String() string {
+func (g Gate) String() string {
 	return fmt.Sprintf("Gate %v : %v  with left %v right %v", g.index, g.value, g.leftIns, g.rightIns)
 }
 
@@ -50,16 +50,17 @@ func (g gate) String() string {
 // Constraint is the data structure of a flat code operation
 type Constraint struct {
 	// v1 op v2 = out
-	Op  Token
-	V1  string
-	V2  string
-	Out string
+	Circuit string //the name of the function, in which this constraint is defined. circuit/function names must be unique
+	Op      Token
+	V1      string
+	V2      string
+	Out     string
 	//fV1  *variable
 	//fV2  *variable
 	//fOut *variable
 	//Literal string
 	//TODO once i've implemented a new parser/lexer we do this differently
-	Inputs []string // in func declaration case
+	Inputs []*Gate // in func declaration case
 	//fInputs []*variable
 	negate bool
 	invert bool
@@ -73,53 +74,55 @@ func (c Constraint) String() string {
 }
 
 func newCircuit(name string) *Circuit {
-	return &Circuit{Name: name, gateMap: make(map[string]*gate)}
+	return &Circuit{Name: name, gateMap: make(map[string]*Gate)}
 }
 
 func (p *Program) addFunction(constraint *Constraint) (c *Circuit) {
-	name := constraint.Out
 
-	b, name2, _ := isFunction(name)
+	b, name, args := isFunction(constraint.Out)
 	if !b {
 		panic(fmt.Sprintf("not a function: %v", constraint))
 	}
-	name = name2
-
 	if _, ex := p.functions[name]; ex {
 		panic("function already declared")
 	}
-
 	c = newCircuit(name)
 
 	p.functions[name] = c
 
-	renamedInputs := make([]string, len(constraint.Inputs))
-	//I need the inputs to be defined as input constraints for each function for later renaming conventions
-	//if constraint.Literal == "main" {
-	for i, in := range constraint.Inputs {
-		newConstr := &Constraint{
-			Op:  IN,
-			Out: in,
-		}
-		//if name == "main" {
-		//	p.addGlobalInput(*newConstr)
-		//}
-		c.addConstraint(newConstr)
-		renamedInputs[i] = newConstr.Out
-	}
-	//}
+	renamedInputs := make([]*Gate, len(args))
 
+	for i, in := range args {
+		newConstr := &Constraint{
+			Circuit: name,
+			Op:      IN,
+			Out:     in,
+		}
+		//c.prepareAndAddConstraintToGateMap(newConstr)
+		renamedInputs[i] = &Gate{value: newConstr}
+		c.gateMap[newConstr.Out] = renamedInputs[i]
+	}
 	c.Inputs = renamedInputs
 	return
-
 }
 
-func (circ *Circuit) addConstraint(constraint *Constraint) {
-	if _, ex := circ.gateMap[constraint.Out]; ex {
-		panic("already used FlatConstraint")
+//prepareAndAddConstraintToGateMap takes a constraint as input, and renames its variables
+//according to the circuit calling this function
+//if the circuit is the main function circuit, then the constraint a = b * c becomes main@a = main@b * main@c
+func (circ *Circuit) prepareAndAddConstraintToGateMap(constraint *Constraint) {
+	if knownConstr, ex := circ.gateMap[constraint.Out]; ex {
+		*constraint = *knownConstr.value
+		return
 	}
-	gateToAdd := &gate{value: constraint}
+	if constraint.Out == "" {
+		return
+	}
+	if arg, val := circ.isArgument(constraint.Out); arg {
+		//lessons learned. if assigned without *, then the assignment is lost after the retrun
+		*constraint = *val
+		return
 
+	}
 	if constraint.Op == DIVIDE {
 		constraint.Op = MULTIPLY
 		constraint.invert = true
@@ -129,18 +132,44 @@ func (circ *Circuit) addConstraint(constraint *Constraint) {
 		constraint.negate = true
 	}
 
+	if b, _ := isValue(constraint.Out); b {
+		constraint.Op = CONST
+		//return
+	}
+
+	if b, _, inputs := isFunction(constraint.Out); b {
+		renamedInputs := make([]*Gate, len(inputs))
+		for i, in := range inputs {
+			tmp := &Constraint{Out: in, Circuit: circ.Name}
+			circ.prepareAndAddConstraintToGateMap(tmp)
+			renamedInputs[i] = &Gate{value: tmp}
+		}
+		//nn := composeNewFunction(name, renamedInputs)
+		//constraint.Out = nn
+		constraint.Inputs = renamedInputs
+		constraint.Op = FUNC
+		circ.gateMap[constraint.Out] = &Gate{value: constraint}
+		return
+	}
+	gateToAdd := &Gate{value: constraint}
+	left := &Constraint{Out: constraint.V1, Circuit: circ.Name}
+	right := &Constraint{Out: constraint.V2, Circuit: circ.Name}
+	circ.prepareAndAddConstraintToGateMap(left)
+	circ.prepareAndAddConstraintToGateMap(right)
+	constraint.V1 = left.Out
+	constraint.V2 = right.Out
 	//todo this is dangerous.. if someone would use out as variable name, things would be fucked
 	if constraint.Out == "out" {
 		constraint.Out = circ.Name //composeNewFunction(circ.Name, circ.Inputs)
 		circ.root = gateToAdd
-	} else {
-		constraint.Out = circ.renamer(constraint.Out)
+		circ.gateMap[constraint.Out] = gateToAdd
+		return
 	}
 
-	constraint.V1 = circ.renamer(constraint.V1)
-	constraint.V2 = circ.renamer(constraint.V2)
+	//constraint.Out = circ.Name + variableIndicationSign + constraint.Out
 
 	circ.gateMap[constraint.Out] = gateToAdd
+
 }
 
 func (circ *Circuit) currentOutputName() string {
@@ -148,112 +177,16 @@ func (circ *Circuit) currentOutputName() string {
 	return composeNewFunction(circ.Name, circ.currentOutputs())
 }
 
+//currentOutputs returns the composite name of the function/circuit with the recently assigned inputs
 func (circ *Circuit) currentOutputs() []string {
 
 	renamedInputs := make([]string, len(circ.Inputs))
 	for i, in := range circ.Inputs {
-		if _, ex := circ.gateMap[in]; !ex {
-			panic("not existing input")
-		}
-		renamedInputs[i] = circ.gateMap[in].value.Out
+		renamedInputs[i] = in.value.Out
 	}
 
 	return renamedInputs
 
-}
-
-func (circ *Circuit) renamer(constraint string) string {
-
-	if constraint == "" {
-		return ""
-	}
-
-	if b, _ := isValue(constraint); b {
-		circ.gateMap[constraint] = &gate{value: &Constraint{Op: CONST, Out: constraint}}
-		return constraint
-	}
-
-	if b, name, inputs := isFunction(constraint); b {
-		renamedInputs := make([]string, len(inputs))
-		for i, in := range inputs {
-			renamedInputs[i] = circ.renamer(in)
-		}
-		nn := composeNewFunction(name, renamedInputs)
-		circ.gateMap[nn] = &gate{value: &Constraint{Op: FUNC, Out: nn, Inputs: renamedInputs}}
-		return nn
-	}
-
-	return circ.Name + variableIndicationSign + constraint
-
-}
-
-//func (circ *Circuit) renameInputs(inputs []string) {
-//	if len(inputs) != len(circ.Inputs) {
-//		panic("given inputs != circuit.Inputs")
-//	}
-//	mapping := make(map[string]string)
-//	for i := 0; i < len(inputs); i++ {
-//		if _, ex := circ.gateMap[inputs[i]]; ex {
-//
-//			//this is a tricky part. So we replace former inputs with the new ones, thereby
-//			//it might be, that the new input name has already been used for some output inside the function
-//			//currently I dont know an elegant way how to handle this renaming issue
-//			if circ.gateMap[inputs[i]].value.Op != IN {
-//				panic(fmt.Sprintf("renaming collsion with %s", inputs[i]))
-//			}
-//
-//		}
-//		mapping[circ.Inputs[i]] = inputs[i]
-//	}
-//	//fmt.Println(mapping)
-//	//circ.Inputs = inputs
-//	permute := func(in string) string {
-//		if out, ex := mapping[in]; ex {
-//			return out
-//		}
-//		return in
-//	}
-//
-//	permuteListe := func(in []string) []string {
-//		for i := 0; i < len(in); i++ {
-//			in[i] = permute(in[i])
-//		}
-//		return in
-//	}
-//
-//	for _, constraint := range circ.gateMap {
-//
-//		if constraint.value.Op == IN {
-//			constraint.value.Out = permute(constraint.value.Out)
-//			continue
-//		}
-//
-//		if b, n, in := isFunction(constraint.value.Out); b {
-//			constraint.value.Out = composeNewFunction(n, permuteListe(in))
-//			constraint.value.Inputs = permuteListe(in)
-//		}
-//		if b, n, in := isFunction(constraint.value.V1); b {
-//			constraint.value.V1 = composeNewFunction(n, permuteListe(in))
-//			constraint.value.Inputs = permuteListe(in)
-//		}
-//		if b, n, in := isFunction(constraint.value.V2); b {
-//			constraint.value.V2 = composeNewFunction(n, permuteListe(in))
-//			constraint.value.Inputs = permuteListe(in)
-//		}
-//
-//		constraint.value.V1 = permute(constraint.value.V1)
-//		constraint.value.V2 = permute(constraint.value.V2)
-//
-//	}
-//	return
-//}
-
-func getContextFromVariable(in string) string {
-	//if strings.Contains(in, variableIndicationSign) {
-	//	return strings.Split(in, variableIndicationSign)[0]
-	//}
-	//return ""
-	return strings.Split(in, variableIndicationSign)[0]
 }
 
 func composeNewFunction(fname string, inputs []string) string {
@@ -277,11 +210,11 @@ func max(a, b int) int {
 	return b
 }
 
-func TreeDepth(g *gate) int {
+func TreeDepth(g *Gate) int {
 	return printDepth(g, 0)
 }
 
-func printDepth(g *gate, d int) int {
+func printDepth(g *Gate, d int) int {
 	d = d + 1
 	if g.left != nil && g.right != nil {
 		return max(printDepth(g.left, d), printDepth(g.right, d))
@@ -292,7 +225,7 @@ func printDepth(g *gate, d int) int {
 	}
 	return d
 }
-func CountMultiplicationGates(g *gate) int {
+func CountMultiplicationGates(g *Gate) int {
 	if g == nil {
 		return 0
 	}
@@ -304,21 +237,16 @@ func CountMultiplicationGates(g *gate) int {
 	return 0
 }
 
-func PrintTree(g *gate) {
+func PrintTree(g *Gate) {
 	printTree(g, 0)
 }
-func printTree(g *gate, d int) {
+func printTree(g *Gate, d int) {
 	d += 1
 
 	if g.leftIns == nil || g.rightIns == nil {
 		fmt.Printf("Depth: %v - %s \t \t \t \t \n", d, g.value)
 	} else {
 		fmt.Printf("Depth: %v - %s \t \t \t \t with  l %v  and r %v\n", d, g.value, g.leftIns, g.rightIns)
-	}
-	if g.funcInputs != nil {
-		for _, v := range g.funcInputs {
-			printTree(v, d)
-		}
 	}
 
 	if g.left != nil {
@@ -333,7 +261,7 @@ func Xor(a, b bool) bool {
 	return (a && !b) || (!a && b)
 }
 
-func (g *gate) ExtractValues(in []int) (er error) {
+func (g *Gate) ExtractValues(in []int) (er error) {
 	if b, v1 := isValue(g.value.V1); b {
 		if b2, v2 := isValue(g.value.V2); b2 {
 			in = append(in, v1, v2)
@@ -343,21 +271,10 @@ func (g *gate) ExtractValues(in []int) (er error) {
 	return errors.New(fmt.Sprintf("Gate \"%s\" has no int values", g.value))
 }
 
-func (g *gate) OperationType() Token {
+func (g *Gate) OperationType() Token {
 	return g.value.Op
 }
 
-//returns index of e if its in arr
-//return -1 if e not in arr
-func indexInArray(arr []string, e string) int {
-	for i, a := range arr {
-		if a == e {
-			return i
-		}
-	}
-	panic("lul")
-	return -1
-}
 func isValue(a string) (bool, int) {
 	v, err := strconv.Atoi(a)
 	if err != nil {
