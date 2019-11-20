@@ -36,7 +36,7 @@ func (er1cs *ER1CS) Transpose() (transposed ER1CSTransposed) {
 //within this process, the polynomial is evaluated at position 0
 //so an alpha/beta/gamma value is the polynomial evaluated at 0
 // the domain polynomial therefor is (-1+x)(-2+x)...(-n+x)
-func (er1cs *ER1CSTransposed) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly [][]*big.Int) {
+func (er1cs *ER1CSTransposed) ER1CSToEAP(pf fields.Fields) (lPoly, rPoly, ePoly, oPoly [][]*big.Int) {
 
 	lT := er1cs.L
 	rT := er1cs.R
@@ -57,7 +57,7 @@ func (er1cs *ER1CSTransposed) ER1CSToEAP(pf Fields) (lPoly, rPoly, ePoly, oPoly 
 
 //Calculates the witness (program trace) given some input
 //asserts that ER1CS has been computed and is stored in the program p memory calling this function
-func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f Fields) (witness []*big.Int, err error) {
+func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness []*big.Int, err error) {
 
 	witness = fields.ArrayOfBigZeros(len(r1cs.L[0]))
 	set := make([]bool, len(witness))

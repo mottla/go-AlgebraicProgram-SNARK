@@ -7,12 +7,6 @@ import (
 	"math/big"
 )
 
-type Fields struct {
-	ArithmeticField fields.Fq
-	PolynomialField fields.PolynomialField
-	CurveOrderField fields.Fq
-}
-
 type MultiplicationGateSignature struct {
 	identifier      string
 	commonExtracted [2]int //if the mgate had a extractable factor, it will be stored here
@@ -21,7 +15,7 @@ type MultiplicationGateSignature struct {
 type Program struct {
 	functions    map[string]*Circuit
 	globalInputs []*Gate
-	Fields       Fields //find a better name
+	Fields       fields.Fields //find a better name
 
 	//key 1: the hash chain indicating from where the variable is called H( H(main(a,b)) , doSomething(x,z) ), where H is a hash function.
 	//value 1 : map
@@ -38,25 +32,17 @@ type Program struct {
 	computedFactors map[string]MultiplicationGateSignature
 }
 
-func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
-	// new Finite Field
-	fqR := fields.NewFq(FieldOrder)
-	// new Polynomial Field
-	pf := fields.NewPolynomialFieldPrecomputedLagriangian(fqR, 0)
-
-	return Fields{
-		ArithmeticField: fqR,
-		PolynomialField: *pf,
-		CurveOrderField: fields.NewFq(CurveOrder),
-	}
-}
-
-func NewProgram(CurveOrder, FieldOrder *big.Int) (p *Program) {
-	p = &Program{
+func NewProgram(CurveOrder, FieldOrder *big.Int) (program *Program) {
+	program = &Program{
 		functions:    map[string]*Circuit{},
 		globalInputs: []*Gate{{value: &Constraint{Op: CONST, Out: "1"}}},
-		Fields:       PrepareFields(CurveOrder, FieldOrder),
+		Fields:       fields.PrepareFields(CurveOrder, FieldOrder),
 	}
+
+	pointMultiplicationCircuit := program.registerFunctionFromConstraint(&Constraint{Out: "g(x)"})
+	expGate := &Gate{gateType: egate, value: pointMultiplicationCircuit.Inputs[0].value}
+	pointMultiplicationCircuit.root = expGate
+	//pointMultiplicationCircuit.gateMap[constraint.Out] = gateToAdd
 
 	//pointMultiplicationCircuit :=&Circuit{Name:"Exp"}
 	//p.functions["g"] = &Circuit{Name: "Exp"}
@@ -113,45 +99,8 @@ func (p *Program) BuildConstraintTrees() {
 
 }
 
-func (c *Circuit) isArgument(in string) (isArg bool, constraint *Constraint) {
-	for _, v := range c.Inputs {
-		if v.value.Out == in {
-			return true, v.value
-		}
-	}
-	return false, nil
-}
-
-func (c *Circuit) buildTree(g *Gate) {
-
-	//if g.OperationType() == CONST {
-	//	return
-	//}
-	if b, v := c.isArgument(g.value.Out); b {
-		g.value = v
-		return
-	}
-
-	if g.OperationType() == FUNC {
-		for _, ingate := range g.value.Inputs {
-			c.buildTree(ingate)
-		}
-		return
-	}
-
-	if gate, ex := c.gateMap[g.value.V1]; ex {
-		g.left = gate
-		c.buildTree(gate)
-	}
-	if gate, ex := c.gateMap[g.value.V2]; ex {
-		g.right = gate
-		c.buildTree(gate)
-	}
-
-}
-
-func (p *Program) ReduceCombinedTree() (orderedmGates []Gate) {
-	orderedmGates = []Gate{}
+func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
+	orderedmGates = []*Gate{}
 	p.computedInContext = make(map[string]map[string]MultiplicationGateSignature)
 	p.computedFactors = make(map[string]MultiplicationGateSignature)
 	rootHash := make([]byte, 10)
@@ -163,7 +112,27 @@ func (p *Program) ReduceCombinedTree() (orderedmGates []Gate) {
 //recursively walks through the parse tree to create a list of all
 //multiplication gates needed for the QAP construction
 //Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so
-func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *Gate, hashTraceBuildup []byte, orderedmGates *[]Gate, negate bool, invert bool) (facs factors, hashTraceResult []byte, variableEnd bool) {
+func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *Gate, hashTraceBuildup []byte, orderedmGates *[]*Gate, negate bool, invert bool) (facs factors, hashTraceResult []byte, variableEnd bool) {
+
+	if currentGate.OperationType() == FUNC {
+		//TODO g handling
+		_, n, _ := isFunction(currentGate.value.Out)
+		if n == "g" {
+			expGate := &Gate{gateType: egate, value: currentGate.value, index: len(*orderedmGates), expoIns: factors{{typ: EXP, name: currentGate.value.Inputs[0].value.Out, multiplicative: [2]int{1, 1}}}}
+			p.computedInContext[string(hashTraceBuildup)][currentGate.value.Out] = MultiplicationGateSignature{commonExtracted: [2]int{1, 1}, identifier: currentGate.value.Out}
+			//p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: rootGate.value.Out, commonExtracted: sig.commonExtracted}
+			*orderedmGates = append(*orderedmGates, expGate)
+			return factors{{typ: IN, name: currentGate.value.Out, negate: negate, invert: invert, multiplicative: [2]int{1, 1}}}, hashTraceBuildup, true
+		}
+		//changes the leaves of a circuit (which are the inputs and constants) to the arguments passed
+		nextContext := p.changeInputs(currentGate.value)
+		currentCircuit = nextContext
+		currentGate = nextContext.root
+		hashTraceBuildup = hashTogether(hashTraceBuildup, []byte(currentCircuit.currentOutputName()))
+		if _, ex := p.computedInContext[string(hashTraceBuildup)]; !ex {
+			p.computedInContext[string(hashTraceBuildup)] = make(map[string]MultiplicationGateSignature)
+		}
+	}
 
 	if out, ex := p.computedInContext[string(hashTraceBuildup)][currentGate.value.Out]; ex {
 		fac := &factor{typ: IN, name: out.identifier, invert: invert, negate: negate, multiplicative: out.commonExtracted}
@@ -183,25 +152,14 @@ func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *Gate,
 		return factors{{typ: CONST, negate: negate, multiplicative: mul}}, hashTraceBuildup, false
 	}
 
-	if currentGate.OperationType() == FUNC {
-		//TODO g handling
-		_, n, _ := isFunction(currentGate.value.Out)
-		if n == "g" {
-			expGate := &Gate{gateType: egate, value: currentGate.value, index: len(*orderedmGates), expoIns: factors{{typ: EXP, name: currentGate.value.Inputs[0].value.Out, multiplicative: [2]int{1, 1}}}}
-			p.computedInContext[string(hashTraceBuildup)][currentGate.value.Out] = MultiplicationGateSignature{commonExtracted: [2]int{1, 1}, identifier: currentGate.value.Out}
-			//p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: rootGate.value.Out, commonExtracted: sig.commonExtracted}
-			*orderedmGates = append(*orderedmGates, *expGate)
-			return factors{{typ: IN, name: currentGate.value.Out, negate: negate, invert: invert, multiplicative: [2]int{1, 1}}}, hashTraceBuildup, true
-		}
-		//changes the leaves of a circuit (which are the inputs and constants) to the arguments passed
-		nextContext := p.changeInputs(currentGate.value)
-		currentCircuit = nextContext
-		currentGate = nextContext.root
-		hashTraceBuildup = hashTogether(hashTraceBuildup, []byte(currentCircuit.currentOutputName()))
-		if _, ex := p.computedInContext[string(hashTraceBuildup)]; !ex {
-			p.computedInContext[string(hashTraceBuildup)] = make(map[string]MultiplicationGateSignature)
-		}
-	}
+	//if currentGate.gateType == egate {
+	//	rootGate := cloneGate(currentGate)
+	//	expGate := &Gate{gateType: egate, value: rootGate.value, index: len(*orderedmGates)}
+	//	p.computedInContext[string(hashTraceBuildup)][currentCircuit.currentOutputName()] = MultiplicationGateSignature{commonExtracted: [2]int{1, 1}, identifier: currentCircuit.currentOutputName()}
+	//	//p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: rootGate.value.Out, commonExtracted: sig.commonExtracted}
+	//	*orderedmGates = append(*orderedmGates, expGate)
+	//	return factors{{typ: IN, name: currentCircuit.currentOutputName(), negate: negate, invert: invert, multiplicative: [2]int{1, 1}}}, hashTraceBuildup, true
+	//}
 
 	if currentGate.OperationType() == IN {
 		//fac := &factor{typ: IN, name: currentGate.value.Out, invert: invert, negate: negate, multiplicative: [2]int{1, 1}}
@@ -242,7 +200,7 @@ func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *Gate,
 		p.computedInContext[string(hashTraceBuildup)][currentGate.value.Out] = MultiplicationGateSignature{identifier: rootGate.value.Out, commonExtracted: sig.commonExtracted}
 
 		p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: rootGate.value.Out, commonExtracted: sig.commonExtracted}
-		*orderedmGates = append(*orderedmGates, *rootGate)
+		*orderedmGates = append(*orderedmGates, rootGate)
 
 		return factors{{typ: IN, name: rootGate.value.Out, invert: invert, negate: negate, multiplicative: sig.commonExtracted}}, hashTraceBuildup, true
 	}
@@ -256,14 +214,6 @@ func (p *Program) r1CSRecursiveBuild(currentCircuit *Circuit, currentGate *Gate,
 
 }
 
-//copies a Gate neglecting its references to other gates
-func cloneGate(in *Gate) (out *Gate) {
-	constr := &Constraint{Inputs: in.value.Inputs, Out: in.value.Out, Op: in.value.Op, invert: in.value.invert, negate: in.value.negate, V2: in.value.V2, V1: in.value.V1}
-	nRightins := in.rightIns.clone()
-	nLeftInst := in.leftIns.clone()
-	return &Gate{value: constr, leftIns: nLeftInst, rightIns: nRightins, index: in.index}
-}
-
 func (p *Program) getMainCircuit() *Circuit {
 	return p.functions["main"]
 }
@@ -273,25 +223,32 @@ func (p *Program) changeInputs(constraint *Constraint) (nextContext *Circuit) {
 	if constraint.Op != FUNC {
 		panic("not a function")
 	}
-	//if _, ex := contextCircuit.gateMap[constraint.Out]; !ex {
-	//	panic("constraint must be within the contextCircuit circuit")
-	//}
+
 	b, n, _ := isFunction(constraint.Out)
 	if !b {
 		panic("not a function")
 	}
+
 	if newContext, v := p.functions[n]; v {
 
-		//am i certain that constraint.inputs is alwazs equal to n??? me dont like it
+		if len(newContext.Inputs) != len(constraint.Inputs) {
+			panic("argument size missmatch")
+		}
+
 		for i, _ := range newContext.Inputs {
-			//if
-			//newContext.Inputs[i].Out = constraint.Inputs[i].Out
-			//newContext.Inputs[i].Circuit = constraint.Inputs[i].Circuit
-			*newContext.Inputs[i] = *constraint.Inputs[i]
+			newContext.Inputs[i].gateType = constraint.Inputs[i].gateType
+			newContext.Inputs[i].value = constraint.Inputs[i].value
+			newContext.Inputs[i].right = constraint.Inputs[i].right
+
+			newContext.Inputs[i].left = constraint.Inputs[i].left
+			newContext.Inputs[i].expoIns = constraint.Inputs[i].expoIns
+			newContext.Inputs[i].leftIns = constraint.Inputs[i].leftIns
+			newContext.Inputs[i].rightIns = constraint.Inputs[i].rightIns
+
+			//*newContext.Inputs[i] = *constraint.Inputs[i]
 
 		}
 
-		//newContext.renameInputs(constraint.Inputs)
 		return newContext
 	}
 	panic("undeclared function call. check your source")
@@ -299,7 +256,7 @@ func (p *Program) changeInputs(constraint *Constraint) (nextContext *Circuit) {
 }
 
 // GenerateR1CS generates the ER1CS polynomials from the Circuit
-func (p *Program) GenerateReducedR1CS(mGates []Gate) (r1CS ER1CS) {
+func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 	// from flat code to ER1CS
 
 	offset := len(p.globalInputs)

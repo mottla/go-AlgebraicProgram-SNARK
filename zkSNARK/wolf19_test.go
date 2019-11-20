@@ -78,7 +78,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		}
 
 		fmt.Println("\n generating ER1CS")
-		r1cs := program.GenerateReducedR1CS(gates)
+		r1cs := program.GatesToR1CS(gates)
 		trasposedR1Cs := r1cs.Transpose()
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)

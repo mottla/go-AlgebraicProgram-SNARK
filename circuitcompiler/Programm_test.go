@@ -143,7 +143,7 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 	}},
 		code: `
 	def main(a):
-		b = a * a
+		b = g(a) * a
 		c = 4 - b
 		d = 5 * c
 		out =  d /  b
@@ -194,7 +194,7 @@ func TestCorrectness(t *testing.T) {
 		}
 
 		fmt.Println("\n generating ER1CS")
-		r1cs := program.GenerateReducedR1CS(gates)
+		r1cs := program.GatesToR1CS(gates)
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
 		fmt.Println(r1cs.O)
@@ -218,7 +218,7 @@ func TestEAP(t *testing.T) {
 
 	//for i := 0; i < len(correctnessEAPTests);i++ {
 	for i := 0; i < 2; i++ {
-		test := correctnessTest[i]
+		test := correctnessEAPTests[i]
 		parser := NewParser(strings.NewReader(test.code))
 		program := NewProgram(bn256.Order, bn256.Order)
 		err := parser.Parse(program)
@@ -243,7 +243,7 @@ func TestEAP(t *testing.T) {
 		}
 
 		fmt.Println("\n generating ER1CS")
-		r1cs := program.GenerateReducedR1CS(gates)
+		r1cs := program.GatesToR1CS(gates)
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
 		fmt.Println(r1cs.E)

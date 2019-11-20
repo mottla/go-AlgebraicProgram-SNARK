@@ -6,6 +6,25 @@ import (
 	"math/big"
 )
 
+type Fields struct {
+	ArithmeticField Fq
+	PolynomialField PolynomialField
+	CurveOrderField Fq
+}
+
+func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
+	// new Finite Field
+	fqR := NewFq(FieldOrder)
+	// new Polynomial Field
+	pf := NewPolynomialFieldPrecomputedLagriangian(fqR, 0)
+
+	return Fields{
+		ArithmeticField: fqR,
+		PolynomialField: *pf,
+		CurveOrderField: NewFq(CurveOrder),
+	}
+}
+
 // Fq is the Z field over modulus Q
 type Fq struct {
 	Q *big.Int // Q
