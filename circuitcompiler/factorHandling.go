@@ -11,7 +11,6 @@ type factors []*factor
 
 type factor struct {
 	typ            Token
-	name           string
 	invert, negate bool
 	multiplicative [2]int
 }

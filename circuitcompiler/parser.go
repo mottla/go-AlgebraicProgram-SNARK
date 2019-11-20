@@ -110,10 +110,10 @@ out:
 				if _, ex := programm.functions[constraint.Output.Value]; ex {
 					panic(fmt.Sprintf("function %s already declared", constraint.Output.Value))
 				}
-				circuit = registerFunctionFromConstraint(&constraint)
+				circuit = RegisterFunctionFromConstraint(&constraint)
 				programm.functions[constraint.Output.Value] = circuit
 			}
-			circuit.SemanticCheck_AddGateMap(&constraint)
+			circuit.SemanticCheck_RootMapUpdate(&constraint)
 
 			constraint.PrintReverseConstaintTree(0)
 		case <-parser.done:
@@ -754,7 +754,7 @@ func (p *Parser) CutAtSemiCol(in []Token) (cut []Token) {
 //			break
 //		}
 //		if constraint.Op == FUNC {
-//			circuit = programm.registerFunctionFromConstraint(constraint)
+//			circuit = programm.RegisterFunctionFromConstraint(constraint)
 //		} else {
 //			circuit.prepareAndAddConstraintToGateMap(constraint)
 //		}
