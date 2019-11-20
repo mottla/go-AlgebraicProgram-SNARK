@@ -13,7 +13,7 @@ var variableIndicationSign = "@"
 type Circuit struct {
 	Inputs []*Gate
 	Name   string
-	root   *Gate
+	roots   map[Token]*Gate
 	//after reducing
 	//constraintMap map[string]*Constraint
 	gateMap map[Token]*Gate
@@ -34,9 +34,7 @@ func (c *Circuit) isArgument(in Token) (isArg bool) {
 
 func (c *Circuit) buildTree(g *Gate) {
 
-	//if g.OperationType() == CONST {
-	//	return
-	//}
+
 	if b, v := c.isArgument(g.value.Out); b {
 		g.value = v
 		return
@@ -60,6 +58,10 @@ func (c *Circuit) buildTree(g *Gate) {
 
 }
 
+func (circ *Circuit) UpdateRootsMap(token Token){
+	if
+}
+
 func (circ *Circuit) SemanticCheck_AddGateMap(constraint *Constraint) {
 
 	if ex := circ.isArgument(constraint.Output); ex {
@@ -74,7 +76,7 @@ func (circ *Circuit) SemanticCheck_AddGateMap(constraint *Constraint) {
 			//tmp := &Constraint{Out: in, Circuit: circ.Name}
 			circ.SemanticCheck_AddGateMap(in)
 		}
-		//circ.gateMap[constraint.Output] = &Gate{value: constraint}
+		circ.roots[constraint.Output] = &Gate{value: constraint}
 		return
 	case VAR:
 		if _, ex := circ.gateMap[constraint.Output]; ex {
