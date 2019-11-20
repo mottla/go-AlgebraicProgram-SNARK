@@ -95,7 +95,7 @@ func init() {
 }
 
 const (
-	NumberToken TokenType = iota + 1
+	NumberToken TokenType = 1 << iota
 	SyntaxToken
 	CommentToken
 	AssignmentOperatorToken

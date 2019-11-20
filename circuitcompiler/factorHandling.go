@@ -31,10 +31,8 @@ func (f factors) Less(i, j int) bool {
 }
 
 func (f factor) String() string {
-	if f.typ == CONST {
-		return fmt.Sprintf("(const fac: %v)", f.multiplicative)
-	}
-	str := f.name
+
+	str := f.typ.Value
 	if f.invert {
 		str += "^-1"
 	}
@@ -47,7 +45,7 @@ func (f factor) String() string {
 func (f factors) clone() (res factors) {
 	res = make(factors, len(f))
 	for k, v := range f {
-		res[k] = &factor{multiplicative: v.multiplicative, typ: v.typ, name: v.name, invert: v.invert, negate: v.negate}
+		res[k] = &factor{multiplicative: v.multiplicative, typ: v.typ, invert: v.invert, negate: v.negate}
 	}
 	return
 }
@@ -61,7 +59,6 @@ func (f factors) normalizeAll() {
 // find Least Common Multiple (LCM) via GCD
 func LCMsmall(a, b int) int {
 	result := a * b / GCD(a, b)
-
 	return result
 }
 
@@ -123,7 +120,7 @@ func factorsSignature(leftFactors, rightFactors factors) (sig MultiplicationGate
 
 	res := normalizeFactor(mul2DVector(extractedFacLeft, extractedFacRight))
 
-	return MultiplicationGateSignature{identifier: leftNum.String()[:16], commonExtracted: res}, leftFactors, rightFactors
+	return MultiplicationGateSignature{identifier: Token{Value: leftNum.String()[:16]}, commonExtracted: res}, leftFactors, rightFactors
 }
 
 func lengthOfLongestSlice(a, b factors) int {
@@ -147,28 +144,28 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 
 		for _, right := range rightFactors {
 
-			if left.typ == CONST && right.typ == IN {
-				leftFactors[i] = &factor{typ: IN, name: right.name, negate: Xor(left.negate, right.negate), invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+			if left.typ.Type == NumberToken && right.typ.Type == IdentToken {
+				leftFactors[i] = &factor{typ: right.typ, negate: Xor(left.negate, right.negate), invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
-			if right.typ == CONST && left.typ == IN {
-				leftFactors[i] = &factor{typ: IN, name: left.name, negate: Xor(left.negate, right.negate), invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+			if right.typ.Type == NumberToken && left.typ.Type == IdentToken {
+				leftFactors[i] = &factor{typ: right.typ, negate: Xor(left.negate, right.negate), invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
-			if right.typ&left.typ == CONST {
-				leftFactors[i] = &factor{typ: CONST, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+			if right.typ.Type&left.typ.Type == NumberToken {
+				leftFactors[i] = &factor{typ: left.typ, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 
 			}
 			//tricky part here
 			//this one should only be reached, after a true mgate had its left and right braches computed. here we
 			//a factor can appear at most in quadratic form. we reduce terms a*a^-1 here.
-			if right.typ&left.typ == IN {
-				if left.name == right.name {
+			if right.typ.Type&left.typ.Type == IdentToken {
+				if left.typ.Value == right.typ.Value {
 					if right.invert != left.invert {
-						leftFactors[i] = &factor{typ: CONST, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+						leftFactors[i] = &factor{typ: Token{Type: NumberToken}, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 						continue
 					}
 				}
@@ -195,7 +192,7 @@ func abs(n int) (val int, positive bool) {
 
 //adds two factors to one iff they are both are constants or of the same variable
 func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
-	if facLeft.typ&facRight.typ == CONST {
+	if facLeft.typ.Type&facRight.typ.Type == NumberToken {
 		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
 		if facLeft.negate {
 			a0 *= -1
@@ -205,10 +202,12 @@ func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
 		}
 		absValue, positive := abs(a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0)
 
-		return true, factor{typ: CONST, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
+		return true, factor{typ: Token{
+			Type: NumberToken,
+		}, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
 
 	}
-	if facLeft.typ&facRight.typ == IN && facLeft.invert == facRight.invert && facLeft.name == facRight.name {
+	if facLeft.typ.Type&facRight.typ.Type == IdentToken && facLeft.invert == facRight.invert && facLeft.typ.Value == facRight.typ.Value {
 		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
 		if facLeft.negate {
 			a0 *= -1
@@ -218,7 +217,7 @@ func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
 		}
 		absValue, positive := abs(a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0)
 
-		return true, factor{typ: IN, invert: facRight.invert, name: facRight.name, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
+		return true, factor{typ: facRight.typ, invert: facRight.invert, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
 
 	}
 	return false, factor{}

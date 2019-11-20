@@ -32,121 +32,6 @@ func (c *Circuit) isArgument(in Token) (isArg bool) {
 	return false
 }
 
-//recursively walks through the parse tree to create a list of all
-//multiplication gates needed for the QAP construction
-//Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so
-func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, hashTraceBuildup []byte, orderedmGates *[]*Gate, negate bool, invert bool) (facs factors, hashTraceResult []byte, variableEnd bool) {
-
-	if currentConstraint.Output.Type == FUNCTION_CALL {
-		nextCircuit := p.changeInputs(currentConstraint)
-		currentCircuit = nextCircuit
-		hashTraceBuildup = hashTogether(hashTraceBuildup, []byte(currentCircuit.currentOutputName()))
-		for _, v := range nextCircuit.rootConstraints {
-			p.build(nextCircuit, v, hashTraceBuildup, orderedmGates, negate, invert)
-		}
-		fac := &factor{typ: currentConstraint.Output, invert: invert, multiplicative: [2]int{1, 1}}
-		return factors{fac}, hashTraceBuildup, true
-	}
-
-	if len(currentConstraint.Inputs) == 0 {
-		if out, ex := p.computedInContext[string(hashTraceBuildup)][currentConstraint.Output]; ex {
-			fac := &factor{typ: out.identifier, invert: invert, negate: negate, multiplicative: out.commonExtracted}
-			return factors{fac}, hashTraceBuildup, true
-		}
-		switch currentConstraint.Output.Type {
-		case NumberToken:
-			b1, v1 := isValue(currentConstraint.Output.Value)
-			if !b1 {
-				panic("not a constant")
-			}
-			mul := [2]int{v1, 1}
-			if invert {
-				mul = [2]int{1, v1}
-			}
-			//return factors{{typ: CONST, negate: negate, multiplicative: mul}}, hashTraceBuildup, false
-			return factors{{typ: currentConstraint.Output, negate: negate, multiplicative: mul}}, hashTraceBuildup, false
-		case IdentToken:
-			//TODO can this happen?
-			//fac := &factor{typ: IN, name: currentConstraint.value.Out, invert: invert, negate: negate, multiplicative: [2]int{1, 1}}
-			fac := &factor{typ: currentConstraint.Output, invert: invert, multiplicative: [2]int{1, 1}}
-			return factors{fac}, hashTraceBuildup, true
-		default:
-			panic("")
-		}
-	}
-
-	if len(currentConstraint.Inputs) == 1 {
-		switch currentConstraint.Output.Type {
-		case VAR:
-			return p.build(currentCircuit, currentConstraint.Inputs[0], hashTraceBuildup, orderedmGates, negate, invert)
-		default:
-		}
-	}
-
-	if len(currentConstraint.Inputs) == 3 {
-		//assert that the operation is in the middle..will cause truble i guess
-		left := currentConstraint.Inputs[0]
-		right := currentConstraint.Inputs[2]
-		operation := currentConstraint.Inputs[1].Output
-
-		leftFactors, hashLeft, variableAtLeftEnd := p.build(currentCircuit, left, hashTraceBuildup, orderedmGates, negate, invert)
-		rightFactors, hashRight, variableAtRightEnd := p.build(currentCircuit, right, hashTraceBuildup, orderedmGates, Xor(negate, false), invert)
-
-		switch operation.Type {
-		case BinaryComperatorToken:
-			break
-		case BitOperatorToken:
-			break
-		case BooleanOperatorToken:
-			break
-		case ArithmeticOperatorToken:
-			switch operation.Value {
-			case "*":
-				if !(variableAtLeftEnd && variableAtRightEnd) { //&& !currentConstraint.value.invert && currentConstraint != p.getMainCircuit().root {
-					return mulFactors(leftFactors, rightFactors), hashTraceBuildup, variableAtLeftEnd || variableAtRightEnd
-				}
-				sig, newLef, newRigh := factorsSignature(leftFactors, rightFactors)
-				if out, ex := p.computedFactors[sig.identifier]; ex {
-					return factors{{typ: out.identifier, invert: invert, negate: negate, multiplicative: sig.commonExtracted}}, hashTraceBuildup, true
-				}
-
-				out := currentConstraint.Output.Value + string(hashTogether(hashLeft, hashRight)[:10])
-				rootGate := &Gate{
-					gateType: mgate,
-					index:    len(*orderedmGates),
-					value: &Constraint{
-						Output: Token{
-							Type:  0,
-							Value: out,
-						},
-					},
-					leftIns:  newLef,
-					rightIns: newRigh,
-				}
-
-				p.computedInContext[string(hashTraceBuildup)][currentConstraint.Output] = MultiplicationGateSignature{identifier: currentConstraint.Output, commonExtracted: sig.commonExtracted}
-
-				p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: currentConstraint.Output, commonExtracted: sig.commonExtracted}
-				*orderedmGates = append(*orderedmGates, rootGate)
-
-				return factors{{typ: currentConstraint.Output, invert: invert, negate: negate, multiplicative: sig.commonExtracted}}, hashTraceBuildup, true
-
-				return
-			case "+":
-				return addFactors(leftFactors, rightFactors), hashTraceBuildup, variableAtLeftEnd || variableAtRightEnd
-				return
-			}
-			break
-		case AssignmentOperatorToken:
-			break
-		default:
-			panic("")
-		}
-	}
-	panic("asdf")
-
-}
-
 func (circ *Circuit) updateRootsMap(constraint *Constraint) {
 	for _, v := range constraint.Inputs {
 		delete(circ.rootConstraints, v.Output)
@@ -160,9 +45,12 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 		return
 	}
 
-	switch constraint.Output.Type {
-	case NumberToken:
+	if constraint.Output.Type&(NumberToken|IdentToken|ArithmeticOperatorToken) != 0 {
 		return
+	}
+
+	switch constraint.Output.Type {
+
 	case FUNCTION_CALL:
 		for _, in := range constraint.Inputs {
 			//tmp := &Constraint{Out: in, Circuit: circ.Name}
@@ -190,15 +78,10 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 
 		return
 	case RETURN:
-		if len(constraint.Inputs) == 0 {
-			return
+		for _, v := range constraint.Inputs {
+			circ.SemanticCheck_RootMapUpdate(v)
 		}
-		if len(constraint.Inputs) == 1 {
-			circ.SemanticCheck_RootMapUpdate(constraint.Inputs[0])
-			circ.updateRootsMap(constraint)
-			return
-		}
-		panic("not supposed")
+		circ.updateRootsMap(constraint)
 		return
 	default:
 		panic("not implemented")
@@ -234,22 +117,22 @@ func RegisterFunctionFromConstraint(constraint *Constraint) (c *Circuit) {
 	return
 }
 
-//func (circ *Circuit) currentOutputName() string {
-//
-//	return composeNewFunction(circ.Name, circ.currentOutputs())
-//}
+func (circ *Circuit) currentOutputName() string {
+
+	return composeNewFunction(circ.Name, circ.currentOutputs())
+}
 
 //currentOutputs returns the composite name of the function/circuit with the recently assigned inputs
-//func (circ *Circuit) currentOutputs() []string {
-//
-//	renamedInputs := make([]string, len(circ.Inputs))
-//	for i, in := range circ.Inputs {
-//		renamedInputs[i] = in.value.Out
-//	}
-//
-//	return renamedInputs
-//
-//}
+func (circ *Circuit) currentOutputs() []string {
+
+	renamedInputs := make([]string, len(circ.Inputs))
+	for i, in := range circ.Inputs {
+		renamedInputs[i] = in.Output.Value
+	}
+
+	return renamedInputs
+
+}
 
 func composeNewFunction(fname string, inputs []string) string {
 	builder := strings.Builder{}

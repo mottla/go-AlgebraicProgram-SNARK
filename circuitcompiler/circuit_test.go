@@ -3,8 +3,6 @@ package circuitcompiler
 import (
 	"fmt"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
-	"strings"
-
 	//"fmt"
 	////"math/big"
 	//"strings"
@@ -23,51 +21,36 @@ func TestXor(t *testing.T) {
 
 var CircuitCorrectnessTest = []string{
 	`
-	def main( x  ,  z ) :
-		out = do(z) + add(x,x)
-
-	def do(x):
-		e = x * 5
-		b = e * 6
-		c = b * 7
-		f = c * 1
-		d = c * f
-		out = d * mul(d,e)
-	
-	def add(x ,k):
-		z = k * x
-		out = do(x) + mul(x,z)
-	
-
-	def mul(a,b):
-		out = a * b
-	`,
+	def main( x  ,  z ) {
+		var a = x * z
+		return a*a
+		}`,
 }
 
-func TestParser_Parse(t *testing.T) {
-	for _, code := range CircuitCorrectnessTest {
-		parser := NewParser(strings.NewReader(code))
+func TestPrintTree(t *testing.T) {
+
+	for _, test := range CircuitCorrectnessTest {
+
 		program := NewProgram(bn256.Order, bn256.Order)
-		err := parser.Parse(program)
 
-		if err != nil {
-			panic(err)
-		}
+		parser := NewParser(test, false)
+		parser.Parse(program)
+
 		fmt.Println("\n unreduced")
-		fmt.Println(code)
+		fmt.Println(test)
 
-		program.BuildConstraintTrees()
-		for k, v := range program.functions {
-			fmt.Println(k)
-			PrintTree(v.root)
-		}
-
-		fmt.Println("\nReduced gates")
-		//PrintTree(froots["mul"])
 		gates := program.ReduceCombinedTree()
+
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)
 		}
+
+		//fmt.Println("\n generating ER1CS")
+		//r1cs := program.GatesToR1CS(gates)
+		//fmt.Println(r1cs.L)
+		//fmt.Println(r1cs.R)
+		//fmt.Println(r1cs.O)
+
 	}
 
 }

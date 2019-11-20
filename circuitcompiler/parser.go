@@ -87,17 +87,14 @@ func (p *Parser) NextToken() *Token {
 }
 
 func NewParser(code string, log bool) (p *Parser) {
-	l := New(code, ProbablyWhitespaceState)
-	l.Start()
-
-	return &Parser{constraintChan: make(chan Constraint), tokenChannel: make(chan Token), done: make(chan struct{}), lexer: l, log: log}
+	lexer := New(code, ProbablyWhitespaceState)
+	lexer.Start()
+	return &Parser{constraintChan: make(chan Constraint), tokenChannel: make(chan Token), done: make(chan struct{}), lexer: lexer, log: log}
 }
 
-func (p *Parser) Parse(code string, programm *Program) {
+func (parser *Parser) Parse(programm *Program) {
 
 	var circuit *Circuit
-
-	parser := NewParser(code, false)
 
 	go parser.libraryMode()
 out:
@@ -112,6 +109,7 @@ out:
 				}
 				circuit = RegisterFunctionFromConstraint(&constraint)
 				programm.functions[constraint.Output.Value] = circuit
+				continue
 			}
 			circuit.SemanticCheck_RootMapUpdate(&constraint)
 
@@ -136,7 +134,7 @@ func (p *Parser) libraryMode() {
 		return
 	}
 	if tok.Value == "" {
-		close(p.done)
+		//close(p.done)
 		return
 	}
 	p.Error("Function expected, got %v : %v", tok.Value, tok.Type)

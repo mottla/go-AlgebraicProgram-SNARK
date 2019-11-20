@@ -5,7 +5,6 @@ import (
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"github.com/stretchr/testify/assert"
 	"math/big"
-	"strings"
 	"testing"
 )
 
@@ -170,25 +169,17 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 func TestCorrectness(t *testing.T) {
 
 	for _, test := range correctnessTest {
-		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram(bn256.Order, bn256.Order)
-		err := parser.Parse(program)
 
-		if err != nil {
-			panic(err)
-		}
+		program := NewProgram(bn256.Order, bn256.Order)
+
+		parser := NewParser(test.code, false)
+		parser.Parse(program)
+
 		fmt.Println("\n unreduced")
 		fmt.Println(test.code)
 
-		program.BuildConstraintTrees()
-		for k, v := range program.functions {
-			fmt.Println(k)
-			PrintTree(v.root)
-		}
-
-		fmt.Println("\nReduced gates")
-		//PrintTree(froots["mul"])
 		gates := program.ReduceCombinedTree()
+
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)
 		}
@@ -214,50 +205,50 @@ func TestCorrectness(t *testing.T) {
 
 }
 
-func TestEAP(t *testing.T) {
-
-	//for i := 0; i < len(correctnessEAPTests);i++ {
-	for i := 0; i < 2; i++ {
-		test := correctnessEAPTests[i]
-		parser := NewParser(strings.NewReader(test.code))
-		program := NewProgram(bn256.Order, bn256.Order)
-		err := parser.Parse(program)
-
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("\n unreduced")
-		fmt.Println(test.code)
-
-		program.BuildConstraintTrees()
-		for k, v := range program.functions {
-			fmt.Println(k)
-			PrintTree(v.root)
-		}
-
-		fmt.Println("\nReduced gates")
-		//PrintTree(froots["mul"])
-		gates := program.ReduceCombinedTree()
-		for _, g := range gates {
-			fmt.Printf("\n %v", g)
-		}
-
-		fmt.Println("\n generating ER1CS")
-		r1cs := program.GatesToR1CS(gates)
-		fmt.Println(r1cs.L)
-		fmt.Println(r1cs.R)
-		fmt.Println(r1cs.E)
-		fmt.Println(r1cs.O)
-
-		for _, io := range test.io {
-			inputs := io.inputs
-			fmt.Println("input")
-			fmt.Println(inputs)
-			w, err := r1cs.CalculateWitness(inputs, program.Fields)
-			assert.NoError(t, err)
-			fmt.Println("witness")
-			fmt.Println(w)
-			assert.Equal(t, io.result, w[len(w)-1])
-		}
-	}
-}
+//func TestEAP(t *testing.T) {
+//
+//	//for i := 0; i < len(correctnessEAPTests);i++ {
+//	for i := 0; i < 2; i++ {
+//		test := correctnessEAPTests[i]
+//		parser := NewParser(strings.NewReader(test.code))
+//		program := NewProgram(bn256.Order, bn256.Order)
+//		err := parser.Parse(program)
+//
+//		if err != nil {
+//			panic(err)
+//		}
+//		fmt.Println("\n unreduced")
+//		fmt.Println(test.code)
+//
+//		program.BuildConstraintTrees()
+//		for k, v := range program.functions {
+//			fmt.Println(k)
+//			PrintTree(v.root)
+//		}
+//
+//		fmt.Println("\nReduced gates")
+//		//PrintTree(froots["mul"])
+//		gates := program.ReduceCombinedTree()
+//		for _, g := range gates {
+//			fmt.Printf("\n %v", g)
+//		}
+//
+//		fmt.Println("\n generating ER1CS")
+//		r1cs := program.GatesToR1CS(gates)
+//		fmt.Println(r1cs.L)
+//		fmt.Println(r1cs.R)
+//		fmt.Println(r1cs.E)
+//		fmt.Println(r1cs.O)
+//
+//		for _, io := range test.io {
+//			inputs := io.inputs
+//			fmt.Println("input")
+//			fmt.Println(inputs)
+//			w, err := r1cs.CalculateWitness(inputs, program.Fields)
+//			assert.NoError(t, err)
+//			fmt.Println("witness")
+//			fmt.Println(w)
+//			assert.Equal(t, io.result, w[len(w)-1])
+//		}
+//	}
+//}
