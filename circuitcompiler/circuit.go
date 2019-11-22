@@ -2,7 +2,6 @@ package circuitcompiler
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -11,107 +10,112 @@ var variableIndicationSign = "@"
 
 // Circuit is the data structure of the compiled circuit
 type Circuit struct {
-	Inputs          []*Constraint
-	Name            string
-	rootConstraints map[Token]*Constraint
+	Inputs            []*Constraint
+	Name              string
+	rootConstraints   map[string]*Constraint
+	returnConstraints []*Constraint
 	//after reducing
 	//constraintMap map[string]*Constraint
-	constraintMap map[Token]*Constraint
+	constraintMap map[string]*Constraint
 }
 
 func newCircuit(name string) *Circuit {
-	return &Circuit{Name: name, constraintMap: make(map[Token]*Constraint), rootConstraints: make(map[Token]*Constraint)}
+	return &Circuit{Name: name, constraintMap: make(map[string]*Constraint), rootConstraints: make(map[string]*Constraint)}
 }
 
-func (c *Circuit) isArgument(in Token) (isArg bool) {
-	for _, v := range c.Inputs {
-		if v.Output == in {
-			return true
+//only identtokens can be arguments
+func (c *Circuit) isArgument(in Token) (isArg bool, arg *Constraint) {
+	if in.Type == IdentToken {
+		for _, v := range c.Inputs {
+			if v.Output.Value == in.Value {
+				return true, v
+			}
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (circ *Circuit) updateRootsMap(constraint *Constraint) {
+
 	for _, v := range constraint.Inputs {
-		delete(circ.rootConstraints, v.Output)
+		delete(circ.rootConstraints, v.Output.Value)
 	}
-	circ.rootConstraints[constraint.Output] = constraint
+	circ.rootConstraints[constraint.Output.Value] = constraint
 }
 
 func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 
-	if ex := circ.isArgument(constraint.Output); ex {
+	if constraint.Output.Type&(ARGUMENT|NumberToken|binOp) != 0 {
 		return
 	}
+	for i := 0; i < len(constraint.Inputs); i++ {
+		//circ.SemanticCheck_RootMapUpdate(constraint.Inputs[i])
 
-	if constraint.Output.Type&(NumberToken|IdentToken|ArithmeticOperatorToken) != 0 {
-		return
+		if ex, arg := circ.isArgument(constraint.Inputs[i].Output); ex {
+			constraint.Inputs[i] = arg
+		}
+		circ.SemanticCheck_RootMapUpdate(constraint.Inputs[i])
 	}
 
 	switch constraint.Output.Type {
-
-	case FUNCTION_CALL:
-		for _, in := range constraint.Inputs {
-			//tmp := &Constraint{Out: in, Circuit: circ.Name}
-			circ.SemanticCheck_RootMapUpdate(in)
+	case IdentToken:
+		if v, ex := circ.constraintMap[constraint.Output.Value]; ex {
+			*constraint = *v
+			break
 		}
-		circ.updateRootsMap(constraint)
-		return
+		panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Value))
+	case IF:
+		fmt.Println("dsaf")
+		break
+	case FUNCTION_CALL:
+		break
+	case EQUAL:
+
+		break
 	case VAR:
-		if _, ex := circ.constraintMap[constraint.Output]; ex {
+		if _, ex := circ.constraintMap[constraint.Output.Value]; ex {
 			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Value))
 		}
-		circ.constraintMap[constraint.Output] = constraint
-		if len(constraint.Inputs) == 1 {
-			circ.SemanticCheck_RootMapUpdate(constraint.Inputs[0])
-			circ.updateRootsMap(constraint)
-			return
-		}
-		if len(constraint.Inputs) == 3 {
-			circ.SemanticCheck_RootMapUpdate(constraint.Inputs[0])
-			circ.SemanticCheck_RootMapUpdate(constraint.Inputs[2])
-			circ.updateRootsMap(constraint)
-			return
-		}
-		panic("not supposed")
-
-		return
+		circ.constraintMap[constraint.Output.Value] = constraint
+		break
 	case RETURN:
-		for _, v := range constraint.Inputs {
-			circ.SemanticCheck_RootMapUpdate(v)
-		}
-		circ.updateRootsMap(constraint)
-		return
+		//constraint.Output.Value= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Value))
+		constraint.Output.Value = circ.Name
+		circ.returnConstraints = append(circ.returnConstraints, constraint)
+		break
+	case UNASIGNEDVAR:
+		circ.constraintMap[constraint.Output.Value] = constraint
+		break
 	default:
-		panic("not implemented")
+		panic(fmt.Sprintf("not implemented %v", constraint))
 
 	}
-
+	circ.updateRootsMap(constraint)
 }
 
 func RegisterFunctionFromConstraint(constraint *Constraint) (c *Circuit) {
 
 	name := constraint.Output.Value
-
 	c = newCircuit(name)
 
+	duplicateMap := make(map[string]bool)
 	for _, arg := range constraint.Inputs {
-		if ar, ex := c.constraintMap[arg.Output]; ex {
-			panic(fmt.Sprintf("argument must be unique %v", ar))
-		}
-		//ng := &Gate{
-		//	gateType: 0,
-		//	index:    0,
-		//	left:     nil,
-		//	right:    nil,
-		//	value:    arg,
-		//	leftIns:  nil,
-		//	rightIns: nil,
-		//	expoIns:  nil,
-		//}
-		c.constraintMap[arg.Output] = arg
 
+		if _, ex := duplicateMap[arg.Output.Value]; ex {
+			panic("argument must be unique ")
+		}
+		duplicateMap[arg.Output.Value] = true
+		////ng := &Gate{
+		////	gateType: 0,
+		////	index:    0,
+		////	left:     nil,
+		////	right:    nil,
+		////	value:    arg,
+		////	leftIns:  nil,
+		////	rightIns: nil,
+		////	expoIns:  nil,
+		////}
+		c.constraintMap[arg.Output.Value] = arg
 	}
 	c.Inputs = constraint.Inputs
 	return
@@ -212,19 +216,4 @@ func isValue(a string) (bool, int) {
 		return false, 0
 	}
 	return true, v
-}
-func isFunction(a string) (tf bool, name string, inputs []string) {
-
-	if !strings.ContainsRune(a, '(') && !strings.ContainsRune(a, ')') {
-		return false, "", nil
-	}
-	name = strings.Split(a, "(")[0]
-
-	// read string inside ( )
-	rgx := regexp.MustCompile(`\((.*?)\)`)
-	insideParenthesis := rgx.FindStringSubmatch(a)
-	varsString := strings.Replace(insideParenthesis[1], " ", "", -1)
-	inputs = strings.Split(varsString, ",")
-
-	return true, name, inputs
 }

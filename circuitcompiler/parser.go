@@ -7,13 +7,9 @@ import (
 
 // Constraint is the data structure of a flat code operation
 type Constraint struct {
-	// v1 op v2 = out
 	Output Token
-
-	Inputs []*Constraint // in func declaration case
-
+	Inputs []*Constraint
 }
-type ParseState func(parser *Parser) ParseState
 
 func (c Constraint) String() string {
 	//fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
@@ -35,6 +31,21 @@ func (c Constraint) PrintReverseConstaintTree(depth int) {
 		v.PrintReverseConstaintTree(depth)
 	}
 	fmt.Printf("%v: %v \n", depth, c)
+}
+
+//isDeterministicExpression takes a constraint and checks if all leaves are numbers.
+func isDeterministicExpression(c *Constraint) bool {
+	if c.Output.Type == NumberToken {
+		return true
+	}
+	if len(c.Inputs) == 0 {
+		return false
+	}
+	res := true
+	for _, v := range c.Inputs {
+		res = res && isDeterministicExpression(v)
+	}
+	return res
 }
 
 type Parser struct {
@@ -92,33 +103,38 @@ func NewParser(code string, log bool) (p *Parser) {
 	return &Parser{constraintChan: make(chan Constraint), tokenChannel: make(chan Token), done: make(chan struct{}), lexer: lexer, log: log}
 }
 
-func (parser *Parser) Parse(programm *Program) {
+func (parser *Parser) Parse(checkSemantics bool) (circuits map[string]*Circuit) {
 
 	var circuit *Circuit
-
+	circuits = make(map[string]*Circuit)
 	go parser.libraryMode()
 out:
 	for {
 		select {
 		case constraint := <-parser.constraintChan:
+			fmt.Println("#############")
 			fmt.Println(constraint)
 
-			if constraint.Output.Type == FUNCTION_DEFINE {
-				if _, ex := programm.functions[constraint.Output.Value]; ex {
-					panic(fmt.Sprintf("function %s already declared", constraint.Output.Value))
+			if checkSemantics {
+				if constraint.Output.Type == FUNCTION_DEFINE {
+					if _, ex := circuits[constraint.Output.Value]; ex {
+						panic(fmt.Sprintf("function %s already declared", constraint.Output.Value))
+					}
+					circuit = RegisterFunctionFromConstraint(&constraint)
+					circuits[constraint.Output.Value] = circuit
+					continue
 				}
-				circuit = RegisterFunctionFromConstraint(&constraint)
-				programm.functions[constraint.Output.Value] = circuit
-				continue
+
+				circuit.SemanticCheck_RootMapUpdate(&constraint)
 			}
-			circuit.SemanticCheck_RootMapUpdate(&constraint)
 
 			constraint.PrintReverseConstaintTree(0)
+			fmt.Println("#############")
 		case <-parser.done:
 			break out
 		}
 	}
-
+	return circuits
 }
 
 func (p *Parser) libraryMode() {
@@ -133,11 +149,11 @@ func (p *Parser) libraryMode() {
 		p.libraryMode()
 		return
 	}
-	if tok.Value == "" {
-		//close(p.done)
-		return
-	}
-	p.Error("Function expected, got %v : %v", tok.Value, tok.Type)
+	//if tok.Value == "" {
+	//	close(p.done)
+	//	return
+	//}
+	//p.Error("Function expected, got %v : %v", tok.Value, tok.Type)
 
 }
 
@@ -146,9 +162,7 @@ func (p *Parser) functionMode() {
 		fmt.Println("function mode")
 	}
 	tok := p.NextToken()
-
-	//we expect an identifier
-	if tok.Type != IdentToken {
+	if tok.Type != FUNCTION_CALL {
 		p.Error("Function Identifier expected, got %v : %v", tok.Value, tok.Type)
 	}
 
@@ -157,9 +171,8 @@ func (p *Parser) functionMode() {
 	}
 
 	tok = p.NextToken()
-
 	if tok.Value != "(" {
-		p.Error("function needs brackets, got %v : %v", tok.Value, tok.Type)
+		p.Error("Function expected, got %v ", tok)
 	}
 
 	for {
@@ -200,7 +213,7 @@ func (p *Parser) statementMode(tokens []Token) {
 	var success bool
 	switch tokens[0].Type {
 	case IF: //if a<b { }   if (a<b) {
-		ifStatement, rest := SplitAtFirst(tokens, "{")
+		ifStatement, rest := SplitTokensAtFirstString(tokens, "{")
 		if len(rest) == 0 || rest[0].Value != "{" {
 			p.Error("if statement requires { }")
 		}
@@ -215,7 +228,8 @@ func (p *Parser) statementMode(tokens []Token) {
 				Type: IF,
 			},
 		}
-		p.expressionMode(ifStatement[1:], &IfConst)
+		p.parseExpression(ifStatement[1:], &IfConst)
+		p.constraintChan <- IfConst
 		p.statementMode(insideIf)
 		p.statementMode(outsideIf)
 		return
@@ -226,7 +240,7 @@ func (p *Parser) statementMode(tokens []Token) {
 			p.Error("brackets '(' missing, got %v", tokens[1])
 		}
 		// a = 4;
-		l, r := SplitAtFirst(tokens[2:], ";")
+		l, r := SplitTokensAtFirstString(tokens[2:], ";")
 		if r[0].Value != ";" {
 			p.Error("';' expected, got %v", r[0])
 		}
@@ -242,21 +256,21 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		ForConst := Constraint{Output: Token{Type: FOR}, Inputs: []*Constraint{&varConst}}
 
-		p.expressionMode(l[2:], &ForConst)
+		p.parseExpression(l[2:], &ForConst)
 
 		// a <5;
-		l, r = SplitAtFirst(r, ";")
+		l, r = SplitTokensAtFirstString(r, ";")
 		if r[0].Value != ";" {
 			p.Error("';' expected, got %v", r[0])
 		}
 		r = r[1:]
-		p.expressionMode(l, &ForConst)
+		p.parseExpression(l, &ForConst)
 		//a+=1)
 		l, r, success = SplitAtClosingBrackets(r)
 		if !success {
 			p.Error("closing brackets missing")
 		}
-		p.expressionMode(l, &ForConst)
+		p.parseExpression(l, &ForConst)
 		p.constraintChan <- ForConst
 		r = removeLeadingBreaks(r)
 
@@ -269,9 +283,25 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		p.statementMode(l)
 		p.statementMode(r)
+	case EQUAL:
+		//equal(args...)    equal(a,2) -> creates assertion gates s.t. a=2
+		l, r := SplitTokensAtFirstString(tokens, "\n")
+		if r[0].Value != "\n" {
+			p.Error("linebreak expected, got %v", r[0])
+		}
+		r = r[1:]
+		varConst := Constraint{
+			Output: Token{
+				Type:  EQUAL,
+				Value: combineString(l),
+			},
+		}
+		p.argumentParse(l[1:], &varConst)
+		p.constraintChan <- varConst
+		p.statementMode(r)
 	case VAR:
 
-		l, r := SplitAtFirst(tokens, "\n")
+		l, r := SplitTokensAtFirstString(tokens, "\n")
 		if r[0].Value != "\n" {
 			p.Error("linebreak expected, got %v", r[0])
 		}
@@ -286,22 +316,23 @@ func (p *Parser) statementMode(tokens []Token) {
 				Value: l[1].Value,
 			},
 		}
-		p.expressionMode(l[3:], &varConst)
+		p.parseExpression(l[3:], &varConst)
 		p.constraintChan <- varConst
 		p.statementMode(r)
 	case RETURN:
 		//return (1+a)
-		l, r := SplitAtFirst(tokens, "\n")
+		l, r := SplitTokensAtFirstString(tokens, "\n")
 		returnCOnstraint := Constraint{
 			Output: Token{
 				Type: RETURN,
 			},
 		}
-		p.expressionMode(l[1:], &returnCOnstraint)
-		p.constraintChan <- returnCOnstraint
+		p.parseExpression(l[1:], &returnCOnstraint)
+
 		if len(removeLeadingAndTrailingBreaks(r)) != 0 {
 			panic("not supposed")
 		}
+		p.constraintChan <- returnCOnstraint
 		return
 
 	default:
@@ -311,118 +342,160 @@ func (p *Parser) statementMode(tokens []Token) {
 
 // epx := (exp) | exp Operator exp | Identifier(arg) | IN | Number
 //arg := exp | arg,exp
-func (p *Parser) expressionMode(stack []Token, constraint *Constraint) {
+func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
+	//(exp)->exp
+	helpText := combineString(stack)
+	helpText += ""
+	stack = stripOfBrackets(stack)
+
 	if len(stack) == 0 {
-		return
-	}
-	if stack[0].Value == "(" {
-		// asdf)jkl -> { asdf, )jkl }
-		withinBrackets, outsideBrackets, success := SplitAtClosingBrackets(stack[1:])
-		if !success {
-			p.Error("closing brackets missing")
-		}
-		newTok := Token{
-			Type:  IdentToken,
-			Value: combineString(withinBrackets) + ")",
-		}
-		c1 := &Constraint{Output: newTok}
-
-		constraint.Inputs = append(constraint.Inputs, c1)
-		//p.tokenChannel <- newTok
-		p.expressionMode(withinBrackets, c1)
-
-		if len(outsideBrackets) > 1 {
-			p.expressionMode(append([]Token{newTok}, outsideBrackets...), constraint)
-		}
-
+		p.Error("Expression expected")
 		return
 	}
 
-	//can only be a In or a Number
+	//can only be IN | Number
 	if len(stack) == 1 {
-		if stack[0].Type == NumberToken || stack[0].Type == IdentToken {
+		if stack[0].Type&(NumberToken|IdentToken) != 0 {
 			constraint.Inputs = append(constraint.Inputs, &Constraint{Output: stack[0]})
 			return
 		}
 		p.Error("Variable or number expected, got %v ", stack[0])
 	}
 
-	//can be exp Op exp | Indentifier(arg)
-	if len(stack) >= 3 {
-		if stack[0].Type != NumberToken && stack[0].Type != IdentToken {
-			p.Error("Variable or number expected, got %v ", stack[0])
+	l, binOperation, r := SplitAtFirstHighestTokenType(stack, binOp)
+
+	if binOperation.Type&binOp != 0 {
+
+		constraint.Inputs = append(constraint.Inputs, &Constraint{
+			Output: binOperation,
+		})
+
+		l, r = stripOfBrackets(l), stripOfBrackets(r)
+
+		if len(l) == 1 && len(r) == 1 {
+			p.parseExpression(l, constraint)
+			p.parseExpression(r, constraint)
+			return
 		}
-
-		if stack[1].Type == BinaryComperatorToken ||
-			stack[1].Type == ArithmeticOperatorToken ||
-			stack[1].Type == BooleanOperatorToken ||
-			stack[1].Type == BitOperatorToken ||
-			stack[1].Type == AssignmentOperatorToken {
-
-			constraint.Inputs = append(constraint.Inputs, &Constraint{Output: stack[0]}, &Constraint{Output: stack[1]})
-			if len(stack) == 3 {
-				p.expressionMode(stack[2:], constraint)
-				return
-			}
-
-			out := combineString(stack[2:])
-
+		if len(l) == 1 {
+			p.parseExpression(l, constraint)
 			newTok := Token{
-				Type:  IdentToken,
-				Value: out,
+				Type:  UNASIGNEDVAR,
+				Value: combineString(r),
 			}
 			c1 := &Constraint{Output: newTok}
 			constraint.Inputs = append(constraint.Inputs, c1)
-
-			p.expressionMode(stack[2:], c1)
+			p.parseExpression(r, c1)
+			return
+		}
+		if len(r) == 1 {
+			p.parseExpression(r, constraint)
+			newTok := Token{
+				Type:  UNASIGNEDVAR,
+				Value: combineString(l),
+			}
+			c1 := &Constraint{Output: newTok}
+			constraint.Inputs = append(constraint.Inputs, c1)
+			p.parseExpression(l, c1)
 			return
 		}
 
-		if stack[0].Type != IdentToken {
-			p.Error("function name expected, got %v ", stack[0])
+		ltok := Token{
+			Type:  UNASIGNEDVAR,
+			Value: combineString(r),
 		}
+		cl := &Constraint{Output: ltok}
+		rtok := Token{
+			Type:  UNASIGNEDVAR,
+			Value: combineString(l),
+		}
+		cr := &Constraint{Output: rtok}
+		constraint.Inputs = append(constraint.Inputs, cl)
+		constraint.Inputs = append(constraint.Inputs, cr)
+		p.parseExpression(r, cl)
+		p.parseExpression(l, cr)
+		return
+	} else if binOperation.Type != 0 {
+		p.Error("unsuported operation %v", binOperation)
+	}
 
-		if stack[1].Value == "(" {
+	if stack[0].Type == FUNCTION_CALL {
+		constraint.Output = stack[0]
+		p.argumentParse(stack[1:], constraint)
+		return
+	}
+
+	panic("asdf")
+	newTok := Token{
+		Type: UNASIGNEDVAR,
+		//Value: "(" + combineString(withinBrackets) + ")",
+		Value: combineString(stack),
+	}
+	c1 := &Constraint{Output: newTok}
+	p.parseExpression(l, c1)
+	return
+
+}
+
+func (p *Parser) argumentParse(stack []Token, constraint *Constraint) {
+
+	if stack[0].Value != "(" {
+		p.Error("function expected, got %v ", combineString(stack[:1]))
+	}
+
+	//functionToken := Token{
+	//	Type:  typ,
+	//	Value: stack[0].Value,
+	//}
+	//functionConstraint := &Constraint{Output: functionToken}
+	//constraint.Inputs = append(constraint.Inputs, functionConstraint)
+
+	functionInput, rem, success := SplitAtClosingBrackets(stack[1:])
+	if !success {
+		p.Error("closing brackets missing")
+	}
+
+	arguments := SplitAt(functionInput, ",")
+
+	//arguments can be expressions, so we need to parse them
+	for _, v := range arguments {
+		//TODO check soon
+		if len(v) == 0 {
+			p.Error("argument missing at function %v", constraint.Output)
+		}
+		//foo(a)
+		if len(v) == 1 {
+			p.parseExpression(v, constraint)
+			continue
+		}
+		//foo(a*b)
+		if len(v) > 1 {
 			newTok := Token{
-				Type:  FUNCTION_CALL,
-				Value: stack[0].Value,
+				Type:  UNASIGNEDVAR,
+				Value: combineString(functionInput),
 			}
 			c1 := &Constraint{Output: newTok}
 			constraint.Inputs = append(constraint.Inputs, c1)
-			functionInput, rem, success := SplitAtClosingBrackets(stack[2:])
-			if !success {
-				p.Error("closing brackets missing")
-			}
-			for _, v := range SplitAt(functionInput, ",") {
-				//TODO check soon
-				if len(v) == 0 {
-					p.Error("argument missing at function %v", stack[0].Value)
-				}
-				p.expressionMode(v, c1)
-			}
-			if len(rem) == 0 {
-				return
-			}
-			if len(rem) == 1 {
-				p.expressionMode(rem, constraint)
-				return
-			}
-			if len(rem) > 1 {
-				out := combineString(stack[:len(functionInput)]) + ")"
-				newTok := Token{
-					Type:  IdentToken,
-					Value: out,
-				}
-				//c1 := &Constraint{Output: newTok}
-				//constraint.Inputs = append(constraint.Inputs, c1)
-				p.expressionMode(append([]Token{newTok}, rem...), constraint)
-				return
-			}
+			p.parseExpression(v, c1)
+			continue
 		}
+
+	}
+
+	//handle what comes after the function
+	if len(rem) != 0 {
+		p.Error("%v", rem)
 		return
 	}
-	p.Error("invalid expression , got %v ", stack)
-	return
+
+}
+
+func isBinaryOperation(tok Token) bool {
+	return tok.Type == BinaryComperatorToken ||
+		tok.Type == ArithmeticOperatorToken ||
+		tok.Type == BooleanOperatorToken ||
+		tok.Type == BitOperatorToken ||
+		tok.Type == AssignmentOperatorToken
 }
 
 func removeTrailingBreaks(in []Token) (out []Token) {
@@ -491,18 +564,6 @@ func (p *Parser) stackTillSwingBracketsClose() (tokens []Token) {
 	return
 }
 
-//func (p *Parser) stackTillEOReturn() []Token {
-//	var stack []Token
-//	for tok := p.NextToken(); tok.Type != EOF; tok = p.NextToken() {
-//		stack = append(stack, *tok)
-//		if tok.Type == RETURN {
-//			return append(stack, p.stackTillBreak()...)
-//		}
-//	}
-//	p.Error("return missing")
-//	return stack
-//}
-
 func (p *Parser) stackTillBreak() []Token {
 	var stack []Token
 	for tok := p.NextToken(); tok.Value != "\n" || tok.Type == EOF; tok = p.NextToken() {
@@ -525,7 +586,7 @@ func (p *Parser) stackTillSemiCol() []Token {
 //SplitAt takes takes a string S and a token array and splits st: abScdasdSf -> ( ab,cdas, f  )
 //if S does not occur it returns ( in , []Tokens{} )
 func SplitAt(in []Token, splitAt string) (out [][]Token) {
-	for l, r := SplitAtFirst(in, splitAt); ; l, r = SplitAtFirst(r, splitAt) {
+	for l, r := SplitTokensAtFirstString(in, splitAt); ; l, r = SplitTokensAtFirstString(r, splitAt) {
 		if len(l) > 0 {
 			out = append(out, l)
 			continue
@@ -538,9 +599,9 @@ func SplitAt(in []Token, splitAt string) (out [][]Token) {
 	}
 }
 
-//SplitAtFirst takes takes a string S and a token array and splits st: abScd -> ( ab , Scd )
+//SplitTokensAtFirstString takes takes a string S and a token array and splits st: abScd -> ( ab , Scd )
 //if S does not occur it returns ( in , []Tokens{} )
-func SplitAtFirst(in []Token, splitAt string) (cutLeft, cutRight []Token) {
+func SplitTokensAtFirstString(in []Token, splitAt string) (cutLeft, cutRight []Token) {
 	for i := 0; i < len(in); i++ {
 		if in[i].Value == splitAt {
 			return in[:i], in[i:]
@@ -549,9 +610,65 @@ func SplitAtFirst(in []Token, splitAt string) (cutLeft, cutRight []Token) {
 	return in, cutRight
 }
 
+//SplitAtFirstHighestTokenType takes takes a string S and a token array and splits st:
+func SplitAtFirstHighestTokenType(in []Token, splitAt TokenType) (cutLeft []Token, tok Token, cutRight []Token) {
+	ctr := 0
+	for i := 0; i < len(in); i++ {
+		if in[i].Value == "(" {
+			ctr++
+		}
+		if in[i].Value == ")" {
+			ctr--
+		}
+
+		if (in[i].Type&splitAt) != 0 && ctr == 0 {
+			if i == len(in)-1 {
+				return in[:i], in[i], cutRight
+			}
+			return in[:i], in[i], in[i+1:]
+		}
+	}
+	return nil, Token{}, nil
+}
+
+//SplitTokensAtFirstString takes takes a string S and a token array and splits st: abScd -> ( ab , Scd )
+//if S does not occur it returns ( in , []Tokens{} )
+func SplitAtFirstTokenType(in []Token, splitAt TokenType) (cutLeft []Token, tok Token, cutRight []Token) {
+	for i := 0; i < len(in); i++ {
+		if in[i].Type == splitAt {
+			if i == len(in)-1 {
+				return in[:i], in[i], cutRight
+			}
+			return in[:i], in[i], in[i:]
+		}
+	}
+	return nil, Token{}, nil
+}
+
+func stripOfBrackets(in []Token) []Token {
+	if isSurroundedByBrackets(in) {
+		return stripOfBrackets(in[1 : len(in)-1])
+	}
+	return in
+}
+
+func isSurroundedByBrackets(in []Token) bool {
+	if len(in) == 0 {
+		return false
+	}
+	if in[0].Value != "(" {
+		return false
+	}
+	_, r, b := SplitAtClosingBrackets(in[1:])
+	if b && len(r) == 0 {
+		return true
+	}
+	return false
+}
+
 //SplitAtClosingBrackets takes token array asserting that the opening brackets
 //are not contained! Returns the slices without the closing bracket in an of them!
-//note that this behaviour differs from SplitAtFirst
+//note that this behaviour differs from SplitTokensAtFirstString
 //example "asdf)jkl" -> "asdf" ,"jkl" ,true
 //"(asdf)jkl" -> nil,nil,false
 //"(asdf))jkl" -> "(asdf)","jkl",true
@@ -602,161 +719,3 @@ func (p *Parser) CutAtSemiCol(in []Token) (cut []Token) {
 
 	return p.CutAtSemiCol(in[:len(in)-1])
 }
-
-//func (p *Parser) stackTillBracketsClose() []Token {
-//	var stack []Token
-//	ctr := 1
-//	for tok := p.NextToken(); tok.Value != "\n" || tok.Type != EOF; tok = p.NextToken() {
-//
-//		if tok.Value == "(" {
-//			ctr++
-//		}
-//		if tok.Value == ")" {
-//			ctr--
-//			if ctr == 0 {
-//				return stack
-//			}
-//		}
-//		stack = append(stack, *tok)
-//	}
-//	p.Error("brackets missmatch")
-//	return nil
-//}
-
-//
-//import (
-//	"errors"
-//	"io"
-//	"strings"
-//)
-//
-//// Parser data structure holds the Scanner and the Parsing functions
-//type Parser struct {
-//	s   *Scanner
-//	buf struct {
-//		tok Token  // last read token
-//		lit string // last read literal
-//		n   int    // buffer size (max=1)
-//	}
-//}
-//
-//// NewParser creates a new parser from a io.Reader
-//func NewParser(r io.Reader) *Parser {
-//	return &Parser{s: NewScanner(r)}
-//}
-//
-//func (p *Parser) scan() (tok Token, lit string) {
-//	// if there is a token in the buffer return it
-//	if p.buf.n != 0 {
-//		p.buf.n = 0
-//		return p.buf.tok, p.buf.lit
-//	}
-//	tok, lit = p.s.scan()
-//
-//	p.buf.tok, p.buf.lit = tok, lit
-//
-//	return
-//}
-//
-//func (p *Parser) unscan() {
-//	p.buf.n = 1
-//}
-//
-//func (p *Parser) scanIgnoreWhitespace() (tok Token, lit string) {
-//	tok, lit = p.scan()
-//	if tok == WS {
-//		tok, lit = p.scan()
-//	}
-//	return
-//}
-//
-//// parseLine parses the current line
-//func (p *Parser) parseLine() (*Constraint, error) {
-//	/*
-//		in this version,
-//		line will be for example s3 = s1 * s4
-//		this is:
-//		val eq val op val
-//	*/
-//	c := &Constraint{}
-//	tok, lit := p.scanIgnoreWhitespace()
-//	switch lit {
-//	case "def":
-//		c.Op = FUNC
-//		// format: `func name(in):`
-//		//todo this is all a bit hacky and unsafe
-//		line, err := p.s.r.ReadString(':')
-//		line = strings.Replace(line, " ", "", -1)
-//		line = strings.Replace(line, ":", "", -1)
-//		//set function name
-//		//c.Literal = strings.Split(line, "(")[0]
-//		c.Out = line
-//
-//		if err != nil {
-//			return c, err
-//		}
-//		// read string inside ( )
-//
-//		return c, nil
-//	case "var":
-//		//var a = 234
-//		//c.Literal += lit
-//		_, lit = p.scanIgnoreWhitespace()
-//		c.Out = lit
-//		//c.Literal += lit
-//		_, lit = p.scanIgnoreWhitespace() // skip =
-//		//c.Literal += lit
-//		// v1
-//		_, lit = p.scanIgnoreWhitespace()
-//		c.V1 = lit
-//		//c.Literal += lit
-//		break
-//	case "#":
-//		return nil, errors.New("comment parseline")
-//	default:
-//		c.Out = lit
-//		//c.Literal += lit
-//		_, lit = p.scanIgnoreWhitespace() // skip =
-//		//c.Literal += lit
-//
-//		// v1
-//		tok, lit = p.scanIgnoreWhitespace()
-//		c.V1 = lit
-//		//c.Literal += lit
-//
-//		// operator
-//		tok, lit = p.scanIgnoreWhitespace()
-//
-//		c.Op = tok
-//		//c.Literal += lit
-//		// v2
-//		_, lit = p.scanIgnoreWhitespace()
-//		c.V2 = lit
-//		//c.Literal += lit
-//	}
-//
-//	if tok == EOF {
-//		return nil, errors.New("eof in parseline")
-//	}
-//	return c, nil
-//}
-//
-//// Parse parses the lines and returns the compiled Circuit
-//func (p *Parser) Parse(programm *Program) (err error) {
-//
-//	var circuit *Circuit
-//
-//	for {
-//		constraint, err := p.parseLine()
-//		if err != nil {
-//			break
-//		}
-//		if constraint.Op == FUNC {
-//			circuit = programm.RegisterFunctionFromConstraint(constraint)
-//		} else {
-//			circuit.prepareAndAddConstraintToGateMap(constraint)
-//		}
-//	}
-//
-//	return nil
-//}

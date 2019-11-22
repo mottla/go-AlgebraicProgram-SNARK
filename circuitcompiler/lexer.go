@@ -90,9 +90,18 @@ func init() {
 	//	operationMap[v] = UnaryOperatorToken
 	//}
 	keyWordMap = map[string]TokenType{
-		"return": RETURN, "def": FUNCTION_DEFINE, "call": FUNCTION_CALL, "var": VAR, "if": IF, "while": WHILE, "for": FOR}
+		"return": RETURN,
+		"def":    FUNCTION_DEFINE,
+		"var":    VAR,
+		"if":     IF,
+		"while":  WHILE,
+		"for":    FOR,
+		"equal":  EQUAL,
+	}
 
 }
+
+var binOp = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
 
 const (
 	NumberToken TokenType = 1 << iota
@@ -110,15 +119,21 @@ const (
 	FUNCTION_DEFINE
 	FUNCTION_CALL
 	VAR
+	UNASIGNEDVAR
 	ARGUMENT
 	IF
 	WHILE
 	FOR
 	RETURN
+	EQUAL
 )
 
 func (ch TokenType) String() string {
 	switch ch {
+	case EQUAL:
+		return "equal"
+	case UNASIGNEDVAR:
+		return "UNASIGNEDVAR"
 	case IdentToken:
 		return "identifier"
 	case CommentToken:
@@ -404,6 +419,12 @@ func IdentState(l *L) StateFunc {
 
 	if val, ex := keyWordMap[l.Current()]; ex {
 		l.Emit(val)
+		return ProbablyWhitespaceState
+	}
+	peek = l.Peek()
+	if peek == '(' {
+		//l.Next()
+		l.Emit(FUNCTION_CALL)
 		return ProbablyWhitespaceState
 	}
 

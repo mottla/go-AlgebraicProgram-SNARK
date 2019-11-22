@@ -13,7 +13,7 @@ func Test_Parser(t *testing.T) {
 		}
 
 		def foo(o,k){
-			for(a = 3; ; a+=1){
+			for(a = 3; a<2; a+=1){
 				var d =  (c * (1+b) * k)		
 				return  d
 				}
@@ -26,18 +26,7 @@ func Test_Parser(t *testing.T) {
 	fmt.Println(code)
 
 	parser := NewParser(code, false)
-
-	go parser.libraryMode()
-out:
-	for {
-		select {
-		case c := <-parser.constraintChan:
-			fmt.Println(c)
-			c.PrintReverseConstaintTree(0)
-		case <-parser.done:
-			break out
-		}
-	}
+	parser.Parse(false)
 }
 
 //only to see the difference between the split funcitons
@@ -66,7 +55,7 @@ func TestParser_SplitAt(t *testing.T) {
 		},
 	}
 
-	fmt.Println(SplitAtFirst(toks, ")"))
+	fmt.Println(SplitTokensAtFirstString(toks, ")"))
 
 	fmt.Println(SplitAt(toks, ")"))
 

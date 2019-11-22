@@ -16,9 +16,8 @@ type Gate struct {
 	index    int
 	left     *Gate
 	right    *Gate
-	//funcInputs []*Gate
-	value    *Constraint //is a pointer a good thing here??
-	leftIns  factors     //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
+	value    *Constraint
+	leftIns  factors //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
 	rightIns factors
 	expoIns  factors
 }

@@ -20,11 +20,21 @@ func TestXor(t *testing.T) {
 }
 
 var CircuitCorrectnessTest = []string{
+	//3 gates needed. nice dude
+	//	`
+	//def foo(a){
+	//return a*a
+	//}
+	//	def main( x ) {
+	//		return foo(x)*foo(x*x)
+	//		}`,
+
 	`
-	def main( x  ,  z ) {
-		var a = x * z
-		return a*a
-		}`,
+def main( a,b,c) {
+	equal(a,b)
+	return b
+}
+	`,
 }
 
 func TestPrintTree(t *testing.T) {
@@ -34,12 +44,12 @@ func TestPrintTree(t *testing.T) {
 		program := NewProgram(bn256.Order, bn256.Order)
 
 		parser := NewParser(test, false)
-		parser.Parse(program)
+		fkts := parser.Parse(true)
 
 		fmt.Println("\n unreduced")
 		fmt.Println(test)
 
-		gates := program.ReduceCombinedTree()
+		gates := program.ReduceCombinedTree(fkts)
 
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)
