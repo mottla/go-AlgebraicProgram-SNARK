@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type factors []*factor
+type factors []factor
 
 type factor struct {
 	typ            Token
@@ -45,7 +45,7 @@ func (f factor) String() string {
 func (f factors) clone() (res factors) {
 	res = make(factors, len(f))
 	for k, v := range f {
-		res[k] = &factor{multiplicative: v.multiplicative, typ: v.typ, invert: v.invert, negate: v.negate}
+		res[k] = factor{multiplicative: v.multiplicative, typ: v.typ, invert: v.invert, negate: v.negate}
 	}
 	return
 }
@@ -144,28 +144,28 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 
 		for _, right := range rightFactors {
 
-			if left.typ.Type == NumberToken && right.typ.Type == IdentToken {
-				leftFactors[i] = &factor{typ: right.typ, negate: Xor(left.negate, right.negate), invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+			if left.typ.Type == NumberToken && right.typ.Type&IN != 0 {
+				leftFactors[i] = factor{typ: right.typ, negate: Xor(left.negate, right.negate), invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
-			if right.typ.Type == NumberToken && left.typ.Type == IdentToken {
-				leftFactors[i] = &factor{typ: right.typ, negate: Xor(left.negate, right.negate), invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+			if left.typ.Type&IN != 0 && right.typ.Type == NumberToken {
+				leftFactors[i] = factor{typ: left.typ, negate: Xor(left.negate, right.negate), invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if right.typ.Type&left.typ.Type == NumberToken {
-				leftFactors[i] = &factor{typ: left.typ, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = factor{typ: left.typ, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 
 			}
 			//tricky part here
 			//this one should only be reached, after a true mgate had its left and right braches computed. here we
 			//a factor can appear at most in quadratic form. we reduce terms a*a^-1 here.
-			if right.typ.Type&left.typ.Type == IdentToken {
+			if right.typ.Type&left.typ.Type&IN != 0 {
 				if left.typ.Value == right.typ.Value {
 					if right.invert != left.invert {
-						leftFactors[i] = &factor{typ: Token{Type: NumberToken}, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+						leftFactors[i] = factor{typ: Token{Type: NumberToken}, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 						continue
 					}
 				}
@@ -174,6 +174,7 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 				//continue
 
 			}
+			fmt.Println("")
 			panic("unexpected. If this errror is thrown, its probably brcause a true multiplication Gate has been skipped and treated as on with constant multiplication or addition ")
 
 		}
@@ -207,7 +208,7 @@ func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
 		}, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
 
 	}
-	if facLeft.typ.Type&facRight.typ.Type == IdentToken && facLeft.invert == facRight.invert && facLeft.typ.Value == facRight.typ.Value {
+	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.invert == facRight.invert && facLeft.typ.Value == facRight.typ.Value {
 		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
 		if facLeft.negate {
 			a0 *= -1
@@ -220,12 +221,13 @@ func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
 		return true, factor{typ: facRight.typ, invert: facRight.invert, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
 
 	}
+
 	return false, factor{}
 
 }
 
 //returns the reduced sum of two input factor arrays
-//if no reduction was done (worst case), it returns the concatenation of the input arrays
+//if no reduction was done, it returns the concatenation of the input arrays
 func addFactors(leftFactors, rightFactors factors) factors {
 	var found bool
 	res := make(factors, 0, len(leftFactors)+len(rightFactors))
@@ -235,10 +237,10 @@ func addFactors(leftFactors, rightFactors factors) factors {
 		for i, facRight := range rightFactors {
 
 			var sum factor
-			found, sum = addFactor(*facLeft, *facRight)
+			found, sum = addFactor(facLeft, facRight)
 
 			if found {
-				rightFactors[i] = &sum
+				rightFactors[i] = sum
 				break
 			}
 

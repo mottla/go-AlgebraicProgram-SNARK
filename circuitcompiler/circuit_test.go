@@ -32,9 +32,8 @@ var CircuitCorrectnessTest = []string{
 	`
 def main( a,b,c) {
 	equal(a,b)
-	return b
-}
-	`,
+	return b  
+  }`,
 }
 
 func TestPrintTree(t *testing.T) {
@@ -57,7 +56,7 @@ func TestPrintTree(t *testing.T) {
 
 		//fmt.Println("\n generating ER1CS")
 		//r1cs := program.GatesToR1CS(gates)
-		//fmt.Println(r1cs.L)
+		//fmt.Println(r1cs.Lexer)
 		//fmt.Println(r1cs.R)
 		//fmt.Println(r1cs.O)
 

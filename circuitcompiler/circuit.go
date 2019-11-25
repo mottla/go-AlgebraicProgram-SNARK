@@ -68,6 +68,7 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 		fmt.Println("dsaf")
 		break
 	case FUNCTION_CALL:
+		constraint.Output.Value = composeNewFunctionName(constraint)
 		break
 	case EQUAL:
 
@@ -138,6 +139,20 @@ func (circ *Circuit) currentOutputs() []string {
 
 }
 
+func composeNewFunctionName(fkt *Constraint) string {
+	builder := strings.Builder{}
+	builder.WriteString(fkt.Output.Value)
+	builder.WriteRune('(')
+	for i := 0; i < len(fkt.Inputs); i++ {
+		builder.WriteString(fkt.Inputs[i].Output.Value)
+		if i < len(fkt.Inputs)-1 {
+			builder.WriteRune(',')
+		}
+	}
+	builder.WriteRune(')')
+	return builder.String()
+}
+
 func composeNewFunction(fname string, inputs []string) string {
 	builder := strings.Builder{}
 	builder.WriteString(fname)
@@ -152,40 +167,6 @@ func composeNewFunction(fname string, inputs []string) string {
 	return builder.String()
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func TreeDepth(g *Gate) int {
-	return printDepth(g, 0)
-}
-
-func printDepth(g *Gate, d int) int {
-	d = d + 1
-	if g.left != nil && g.right != nil {
-		return max(printDepth(g.left, d), printDepth(g.right, d))
-	} else if g.left != nil {
-		return printDepth(g.left, d)
-	} else if g.right != nil {
-		return printDepth(g.right, d)
-	}
-	return d
-}
-func CountMultiplicationGates(g *Gate) int {
-	if g == nil {
-		return 0
-	}
-	if len(g.rightIns) > 0 || len(g.leftIns) > 0 {
-		return 1 + CountMultiplicationGates(g.left) + CountMultiplicationGates(g.right)
-	} else {
-		return CountMultiplicationGates(g.left) + CountMultiplicationGates(g.right)
-	}
-	return 0
-}
-
 func PrintTree(g *Gate) {
 	printTree(g, 0)
 }
@@ -198,12 +179,6 @@ func printTree(g *Gate, d int) {
 		fmt.Printf("Depth: %v - %s \t \t \t \t with  l %v  and r %v\n", d, g.value, g.leftIns, g.rightIns)
 	}
 
-	if g.left != nil {
-		printTree(g.left, d)
-	}
-	if g.right != nil {
-		printTree(g.right, d)
-	}
 }
 
 func Xor(a, b bool) bool {

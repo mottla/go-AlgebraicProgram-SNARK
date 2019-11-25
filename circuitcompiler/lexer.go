@@ -14,7 +14,7 @@ package circuitcompiler
 // And then you define your own state functions (`lexer.StateFunc`) to handle
 // analyzing the string.
 //
-//     func StringState(l *lexer.L) lexer.StateFunc {
+//     func StringState(l *lexer.Lexer) lexer.StateFunc {
 //             l.Next() // eat starting "
 //             l.Ignore() // drop current value
 //             while l.Peek() != '"' {
@@ -35,7 +35,7 @@ import (
 	"unicode/utf8"
 )
 
-type StateFunc func(*L) StateFunc
+type StateFunc func(*Lexer) StateFunc
 
 type TokenType int
 
@@ -50,7 +50,7 @@ type Token struct {
 }
 
 func (ch Token) String() string {
-	return fmt.Sprintf("(%q <> %v )", ch.Value, ch.Type)
+	return fmt.Sprintf("(%v <> %v )", ch.Value, ch.Type)
 }
 
 var numberTokens = "0123456789"
@@ -102,6 +102,7 @@ func init() {
 }
 
 var binOp = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
+var IN = IdentToken | ARGUMENT | VAR
 
 const (
 	NumberToken TokenType = 1 << iota
@@ -176,7 +177,7 @@ func (ch TokenType) String() string {
 	}
 }
 
-type L struct {
+type Lexer struct {
 	source          string
 	start, position int
 	startState      StateFunc
@@ -189,8 +190,8 @@ type L struct {
 }
 
 // New creates a returns a lexer ready to parse the given source code.
-func New(src string, start StateFunc) *L {
-	return &L{
+func New(src string, start StateFunc) *Lexer {
+	return &Lexer{
 		source:     src,
 		startState: start,
 		start:      0,
@@ -200,7 +201,7 @@ func New(src string, start StateFunc) *L {
 }
 
 // Start begins executing the Lexer in an asynchronous manner (using a goroutine).
-func (l *L) Start() {
+func (l *Lexer) Start() {
 	// Take half the string length as a buffer size.
 	buffSize := len(l.source) / 2
 	if buffSize <= 0 {
@@ -210,7 +211,7 @@ func (l *L) Start() {
 	go l.run()
 }
 
-func (l *L) StartSync() {
+func (l *Lexer) StartSync() {
 	// Take half the string length as a buffer size.
 	buffSize := len(l.source) / 2
 	if buffSize <= 0 {
@@ -221,13 +222,13 @@ func (l *L) StartSync() {
 }
 
 // Current returns the value being being analyzed at this moment.
-func (l *L) Current() string {
+func (l *Lexer) Current() string {
 	return l.source[l.start:l.position]
 }
 
 // Emit will receive a token type and push a new token with the current analyzed
 // value into the tokens channel.
-func (l *L) Emit(t TokenType) {
+func (l *Lexer) Emit(t TokenType) {
 	tok := Token{
 		Type:  t,
 		Value: l.Current(),
@@ -240,14 +241,14 @@ func (l *L) Emit(t TokenType) {
 // Ignore clears the rewind stack and then sets the current beginning position
 // to the current position in the source which effectively ignores the section
 // of the source being analyzed.
-func (l *L) Ignore() {
+func (l *Lexer) Ignore() {
 	l.rewind.clear()
 	l.start = l.position
 }
 
 // Peek performs a Next operation immediately followed by a Rewind returning the
 // peeked rune.
-func (l *L) Peek() rune {
+func (l *Lexer) Peek() rune {
 	r := l.Next()
 	l.Rewind()
 
@@ -256,7 +257,7 @@ func (l *L) Peek() rune {
 
 // Peek performs a Next operation immediately followed by a Rewind returning the
 // peeked rune.
-func (l *L) PeekTwo() string {
+func (l *Lexer) PeekTwo() string {
 	r := string(l.Next()) + string(l.Next())
 	l.Rewind()
 	l.Rewind()
@@ -266,7 +267,7 @@ func (l *L) PeekTwo() string {
 // Rewind will take the last rune read (if any) and rewind back. Rewinds can
 // occur more than once per call to Next but you can never rewind past the
 // last point a token was emitted.
-func (l *L) Rewind() {
+func (l *Lexer) Rewind() {
 	r := l.rewind.pop()
 	if r > EOFRune {
 		size := utf8.RuneLen(r)
@@ -282,7 +283,7 @@ func (l *L) Rewind() {
 
 // Next pulls the next rune from the Lexer and returns it, moving the position
 // forward in the source.
-func (l *L) Next() rune {
+func (l *Lexer) Next() rune {
 	var (
 		r rune
 		s int
@@ -304,7 +305,7 @@ func (l *L) Next() rune {
 // Take receives a string containing all acceptable strings and will contine
 // over each consecutive character in the source until a token not in the given
 // string is encountered. This should be used to quickly pull token parts.
-func (l *L) Take(chars string) {
+func (l *Lexer) Take(chars string) {
 	r := l.Next()
 	for strings.ContainsRune(chars, r) {
 		r = l.Next()
@@ -314,7 +315,7 @@ func (l *L) Take(chars string) {
 
 // NextToken returns the next token from the lexer and a value to denote whether
 // or not the token is finished.
-func (l *L) NextToken() (*Token, bool) {
+func (l *Lexer) NextToken() (*Token, bool) {
 	if tok, ok := <-l.tokens; ok {
 		//this way we only return the first \n we encounter, if multiple \n\n\n.. follow, we skip the consecutive ones
 		if tok.Value == "\n" && !l.alreadyNewline {
@@ -332,7 +333,7 @@ func (l *L) NextToken() (*Token, bool) {
 
 // Partial yyLexer implementation
 
-func (l *L) Error(e string) {
+func (l *Lexer) Error(e string) {
 	if l.ErrorHandler != nil {
 		l.Err = errors.New(e)
 		l.ErrorHandler(e)
@@ -342,7 +343,7 @@ func (l *L) Error(e string) {
 }
 
 // Private methods
-func (l *L) run() {
+func (l *Lexer) run() {
 	state := l.startState
 	for state != nil {
 		state = state(l)
@@ -363,21 +364,21 @@ func isDigit(ch rune) bool {
 	return (ch >= '0' && ch <= '9')
 }
 
-func NumberState(l *L) StateFunc {
+func NumberState(l *Lexer) StateFunc {
 	l.Take(numberTokens)
 	l.Emit(NumberToken)
 	return ProbablyWhitespaceState(l)
 }
 
-func readIdent(l *L) {
-	r := l.Next()
+func readIdent(l *Lexer) {
 
+	r := l.Next()
 	for (r >= 'a' && r <= 'z') || r == '_' {
 		r = l.Next()
 	}
 	l.Rewind()
 }
-func readCommentLine(l *L) {
+func readCommentLine(l *Lexer) {
 
 	for r := l.Next(); r != EOFRune && r != '\n'; {
 		r = l.Next()
@@ -385,10 +386,10 @@ func readCommentLine(l *L) {
 	l.Rewind()
 }
 
-func IdentState(l *L) StateFunc {
+func IdentState(l *Lexer) StateFunc {
 	peek := l.Peek()
 
-	if peek >= '0' && peek <= '9' {
+	if isDigit(peek) {
 		return NumberState
 	} else if strings.ContainsRune(syntaxTokens, peek) {
 		l.Next()
@@ -434,7 +435,7 @@ func IdentState(l *L) StateFunc {
 	return ProbablyWhitespaceState
 }
 
-func ProbablyWhitespaceState(l *L) StateFunc {
+func ProbablyWhitespaceState(l *Lexer) StateFunc {
 
 	r := l.Peek()
 	if r == EOFRune {
@@ -448,7 +449,7 @@ func ProbablyWhitespaceState(l *L) StateFunc {
 	return IdentState
 }
 
-func WhitespaceState(l *L) StateFunc {
+func WhitespaceState(l *Lexer) StateFunc {
 
 	r := l.Peek()
 	if r == EOFRune {
@@ -466,188 +467,3 @@ func WhitespaceState(l *L) StateFunc {
 
 	return IdentState
 }
-
-//
-//import (
-//	"bufio"
-//	"bytes"
-//	"io"
-//)
-//
-//type OperatorSymbol int
-//type Token int
-//
-//const (
-//	ILLEGAL Token = 1 << iota
-//	WS
-//	EOF
-//	FUNC
-//	IDENT // val
-//	IN
-//	VAR      // var
-//	CONST    // const value
-//	EQ       // =
-//	PLUS     // +
-//	MINUS    // -
-//	MULTIPLY // *
-//	DIVIDE   // /
-//	EXP      // ^
-//	OUT
-//)
-//
-//func (ch Token) String() string {
-//	switch ch {
-//	case EQ:
-//		return "="
-//	case PLUS:
-//		return "+"
-//	case MINUS:
-//		return "-"
-//	case MULTIPLY:
-//		return "*"
-//	case DIVIDE:
-//		return "/"
-//	case EXP:
-//		return "^"
-//	case FUNC:
-//		return "def"
-//	case IN:
-//		return "In"
-//	case CONST:
-//		return "Const"
-//	default:
-//		return "unknown Token"
-//
-//	}
-//
-//}
-//
-//var eof = rune(0)
-//
-//func isWhitespace(ch rune) bool {
-//	return ch == ' ' || ch == '\t' || ch == '\n'
-//}
-//
-//func isLetter(ch rune) bool {
-//	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
-//}
-//func isDigit(ch rune) bool {
-//	return (ch >= '0' && ch <= '9')
-//}
-//
-//// Scanner holds the bufio.Reader
-//type Scanner struct {
-//	r *bufio.Reader
-//}
-//
-//// NewScanner creates a new Scanner with the given io.Reader
-//func NewScanner(r io.Reader) *Scanner {
-//	return &Scanner{r: bufio.NewReader(r)}
-//}
-//
-//func (s *Scanner) read() rune {
-//	ch, _, err := s.r.ReadRune()
-//	if err != nil {
-//		return eof
-//	}
-//	return ch
-//}
-//
-//func (s *Scanner) unread() {
-//	_ = s.r.UnreadRune()
-//}
-//
-//// Scan returns the Token and literal string of the current value
-//func (s *Scanner) scan() (tok Token, lit string) {
-//	ch := s.read()
-//
-//	if isWhitespace(ch) {
-//		// space
-//		s.unread()
-//		return s.scanWhitespace()
-//	} else if isLetter(ch) {
-//		// letter
-//		s.unread()
-//		return s.scanIndent()
-//	} else if isDigit(ch) {
-//		s.unread()
-//		return s.scanIndent()
-//	}
-//
-//	switch ch {
-//	case eof:
-//		return EOF, ""
-//	case '=':
-//		return EQ, "="
-//	case '+':
-//		return PLUS, "+"
-//	case '-':
-//		return MINUS, "-"
-//	case '*':
-//		return MULTIPLY, "*"
-//	case '/':
-//		return DIVIDE, "/"
-//	case '^':
-//		return EXP, "^"
-//		//case '(':
-//		//	return EXP, "func"
-//	}
-//
-//	return ILLEGAL, string(ch)
-//}
-//
-//func (s *Scanner) scanWhitespace() (token Token, lit string) {
-//	var buf bytes.Buffer
-//	buf.WriteRune(s.read())
-//
-//	for {
-//		if ch := s.read(); ch == eof {
-//			break
-//		} else if !isWhitespace(ch) {
-//			s.unread()
-//			break
-//		} else {
-//			_, _ = buf.WriteRune(ch)
-//		}
-//	}
-//	return WS, buf.String()
-//}
-//
-//func (s *Scanner) scanIndent() (tok Token, lit string) {
-//	var buf bytes.Buffer
-//	buf.WriteRune(s.read())
-//	tok = IDENT
-//	for {
-//		if ch := s.read(); ch == eof {
-//			break
-//		} else if ch == '(' {
-//			tok = FUNC
-//			_, _ = buf.WriteRune(ch)
-//		} else if ch == ',' && tok == FUNC {
-//			_, _ = buf.WriteRune(ch)
-//		} else if isWhitespace(ch) && tok == FUNC {
-//			continue
-//		} else if ch == ')' && tok == FUNC {
-//			_, _ = buf.WriteRune(ch)
-//			break
-//		} else if !isLetter(ch) && !isDigit(ch) {
-//			s.unread()
-//			break
-//		} else {
-//			_, _ = buf.WriteRune(ch)
-//		}
-//	}
-//
-//	switch buf.String() {
-//	case "var":
-//		return VAR, buf.String()
-//	}
-//
-//	if len(buf.String()) == 1 {
-//		return Token(rune(buf.String()[0])), buf.String()
-//	}
-//	if buf.String() == "out" {
-//		return OUT, buf.String()
-//	}
-//	return IDENT, buf.String()
-//}

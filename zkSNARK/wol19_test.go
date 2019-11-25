@@ -6,7 +6,6 @@ import (
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"github.com/stretchr/testify/assert"
 	"math/big"
-	"strings"
 	"testing"
 	"time"
 )
@@ -17,61 +16,63 @@ type InOut struct {
 }
 
 type TraceCorrectnessTest struct {
-	code string
-	io   []InOut
+	code  string
+	io    []InOut
+	skipp bool
 }
 
+var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
 var correctnessEAPTests = []TraceCorrectnessTest{
-	//{
-	//	io: []InOut{{
-	//		inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
-	//		result: big.NewInt(int64(456533)),
-	//	}},
-	//	code: `
-	//def main( x  ,  z ) :
-	//	a= x * z
-	//	b = a * a
-	//	out = a * b
-	//`,
-	//},
+
 	{
+		skipp: false,
 		io: []InOut{{
-			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(3))},
-			result: big.NewInt(int64(1764)),
+			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
+			result: big.NewInt(int64(1729500084900343)),
+		}, {
+			inputs: []*big.Int{big.NewInt(int64(365235)), big.NewInt(int64(11876525))},
+
+			result: bigNumberResult1,
 		}},
 		code: `
-	def foo(x):
-		out = x * x
+	def main( x  ,  z ) {
+		return do(z) + add(x,x)
+	}		
 
-	def main( x  ,  z ) :		
-		b = g(z) * 1
-		c = b + x		
-		out = c * b 
-	`,
+	def do(x){
+		var e = x * 5
+		var b = e * 6
+		var c = b * 7
+		var f = c * 1
+		var d = c * f
+		return d * mul(d,e)
+	}
+	
+	def add(x ,k){
+		var z = k * x
+		return do(x) + mul(x,z)
+	}
+
+	def mul(a,b){
+		return a * b
+	}`,
 	},
 }
 
 func TestGenerateAndVerifyProof(t *testing.T) {
 
 	for _, test := range correctnessEAPTests {
-		parser := circuitcompiler.NewParser(strings.NewReader(test.code))
-		//TODO fix that arithmetic circuit can have different field order
-		program := circuitcompiler.NewProgram(bn256.Order, bn256.Order)
-		err := parser.Parse(program)
-
-		if err != nil {
-			panic(err)
+		if test.skipp {
+			continue
 		}
+		program := circuitcompiler.NewProgram(bn256.Order, bn256.Order)
+		parser := circuitcompiler.NewParser(test.code, false)
+		circuits := parser.Parse(true)
+
 		fmt.Println("\n unreduced")
 		fmt.Println(test.code)
 
-		program.BuildConstraintTrees()
-
-		program.PrintContraintTrees()
-
-		fmt.Println("\nReduced gates")
-		//PrintTree(froots["mul"])
-		gates := program.ReduceCombinedTree()
+		gates := program.ReduceCombinedTree(circuits)
 		program.Fields.PolynomialField.InitBases(len(gates))
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)
@@ -92,6 +93,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		//fmt.Println(o)
 
 		setup, err := GenerateTrustedSetup(program.Fields, len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
+		assert.NoError(t, err)
 
 		for _, io := range test.io {
 			inputs := io.inputs
@@ -157,56 +159,4 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 	}
 
-}
-
-//remove soon
-func TestGroupOrderModulo(t *testing.T) {
-	f := circuitcompiler.PrepareFields(bn256.Order, bn256.P)
-	for i := 1; i < 100; i++ {
-		x, _ := f.ArithmeticField.Rand()
-		assert.Equal(t, g1ScalarBaseMultiply(x), g1ScalarBaseMultiply(new(big.Int).Mod(x, bn256.Order)))
-	}
-
-}
-
-func TestBlindEvaluation(t *testing.T) {
-	{
-		f := circuitcompiler.PrepareFields(bn256.Order, bn256.P)
-		//px := []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3), big.NewInt(4), big.NewInt(5)}
-		NPoints := int64(10)
-		FakePoly := make([]*big.Int, NPoints)
-		var err error
-		for i := int64(0); i < NPoints; i++ {
-			FakePoly[i], err = f.ArithmeticField.Rand()
-			assert.Nil(t, err)
-		}
-
-		x, _ := f.CurveOrderField.Rand()
-
-		assert.Equal(t, g1ScalarBaseMultiply(x), new(bn256.G1).Add(g1ScalarBaseMultiply(x), g1ScalarBaseMultiply(big.NewInt(0))))
-
-		assert.Equal(t, g1ScalarBaseMultiply(x), new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(big.NewInt(1)), x))
-
-		ter := new(big.Int).Set(x)
-		icPubl := new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(big.NewInt(1)), FakePoly[0])
-
-		//fmt.Println(g1ScalarBaseMultiply(big.NewInt(1)).String())
-		for i := 1; i < len(FakePoly); i++ {
-			//fmt.Println(i)
-			//fmt.Println(ter.String())
-			//fmt.Println(g1ScalarBaseMultiply(f.CurveOrderField.Mul(ter, FakePoly[i])).String())
-			//fmt.Println(new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(ter), FakePoly[i]).String())
-
-			assert.Equal(t, g1ScalarBaseMultiply(f.CurveOrderField.Mul(ter, FakePoly[i])).String(), new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(ter), FakePoly[i]).String())
-
-			icPubl.Add(icPubl, new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(ter), FakePoly[i]))
-			ter = f.CurveOrderField.Mul(ter, x)
-		}
-
-		//if !bytes.Equal(icPubl.Marshal(), g1ScalarBaseMultiply(pf.Eval(px, x)).Marshal()) {
-		//	panic("ARTIFICIAL FAILED")
-		//}
-		assert.Equal(t, icPubl.String(), g1ScalarBaseMultiply(f.CurveOrderField.EvalPoly(FakePoly, x)).String())
-
-	}
 }

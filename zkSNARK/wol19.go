@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
-	fields2 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
+
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 
 	"math/big"
@@ -72,7 +73,7 @@ type Proof struct {
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials2(fields circuitcompiler.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
+func CombinePolynomials2(fields fields.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
 
 	pf := fields.PolynomialField
 
@@ -103,7 +104,7 @@ func CombinePolynomials2(fields circuitcompiler.Fields, witness []*big.Int, Tran
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials(fields circuitcompiler.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
+func CombinePolynomials(fields fields.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
 
 	pf := fields.PolynomialField
 
@@ -132,7 +133,7 @@ func g2ScalarBaseMultiply(in *big.Int) *bn256.G2 {
 }
 
 // GenerateTrustedSetup generates the Trusted Setup from a compiled Circuit. The Setup.Toxic sub data structure must be destroyed
-func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
+func GenerateTrustedSetup(fields fields.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
 	var setup = new(Setup)
 	var err error
 
@@ -250,15 +251,15 @@ func GenerateTrustedSetup(fields circuitcompiler.Fields, witnessLength, gates, p
 }
 
 // GenerateProofs generates all the parameters to proof the zkSNARK from the Circuit, Setup and the Witness
-func GenerateProofs(fields circuitcompiler.Fields, witnessLength, publicInputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
+func GenerateProofs(f fields.Fields, witnessLength, publicInputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
 	var proof = new(Proof)
 	proof.PiA = new(bn256.G1).ScalarMult(pk.G1.Lx_plus_Ex[0], w[0])
 	proof.PiB = new(bn256.G2).ScalarMult(pk.G2.Rx[0], w[0])
 	proof.PiC = new(bn256.G1).ScalarMult(pk.G1.RLEO_Delta[0], w[publicInputs+1])
 	proof.PiF = new(bn256.G1).ScalarMult(pk.G1.Ex[0], w[0])
-	Qx, r := fields.PolynomialField.Div(Px, pk.Domain)
+	Qx, r := f.PolynomialField.Div(Px, pk.Domain)
 
-	if !fields2.IsZeroArray(r) {
+	if !fields.IsZeroArray(r) {
 		panic("remainder supposed to be 0")
 	}
 

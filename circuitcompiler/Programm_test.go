@@ -14,8 +14,9 @@ type InOut struct {
 }
 
 type TraceCorrectnessTest struct {
-	code string
-	io   []InOut
+	skipp bool
+	code  string
+	io    []InOut
 }
 
 var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
@@ -24,7 +25,62 @@ var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 1
 //NOTE that the results are wrong. need to consider that division is now done on a finite field.
 //TODO compute new testcases with a python scrypt
 var correctnessTest = []TraceCorrectnessTest{
+	{skipp: false,
+		io: []InOut{{
+			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2))},
+		}},
+
+		code: `
+	def main( x  ,  z ) {
+		return a(x)*b(z)
+	}
+
+	def a(k){
+	var x=3+k
+	return x}
+def b(k){
+	var x=7+k
+	return x }
+`,
+	}, {skipp: false,
+		io: []InOut{{
+			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
+			result: big.NewInt(int64(2160900)),
+		}},
+
+		code: `
+	def main( x  ,  z ) {
+		var e = x * 5
+		var b = e * 6
+		var c = b * 7
+		var f = c * 1
+		var d = c * f
+		return d
+	}`,
+	},
 	{
+		skipp: false,
+		io: []InOut{{
+			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
+			result: big.NewInt(int64(2160900)),
+		}},
+
+		code: `
+	def main( x  ,  z ) {
+		return do(x*1)
+	}		
+
+	def do(x){
+		var e = x * 5
+		var b = e * 6
+		var c = b * 7
+		var f = c * 1
+		var d = c * f
+		return d}
+	`,
+	},
+	{
+		skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(1729500084900343)),
@@ -62,8 +118,11 @@ func TestCorrectness(t *testing.T) {
 
 	for _, test := range correctnessTest {
 
+		if test.skipp {
+			continue
+		}
+		//program := NewProgram(big.NewInt(int64(5)), big.NewInt(int64(5)))
 		program := NewProgram(bn256.Order, bn256.Order)
-
 		parser := NewParser(test.code, false)
 		circuits := parser.Parse(true)
 

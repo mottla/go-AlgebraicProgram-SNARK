@@ -13,22 +13,22 @@ import (
 // for example the Gate a*b == Gate b*a hence, we only need to compute one of both.
 
 func TestFactorSignature(t *testing.T) {
-	facNeutral := factors{&factor{multiplicative: [2]int{1, 1}}}
+	facNeutral := factors{factor{multiplicative: [2]int{1, 1}}}
 
 	//dont let the random number be to big, cuz of overflow
 	r1, r2 := rand.Intn(1<<16), rand.Intn(1<<16)
 	fmt.Println(r1, r2)
 	equalityGroups := [][]factors{
 		[]factors{ //test sign and gcd
-			{&factor{multiplicative: [2]int{r1 * 2, -r2 * 2}}},
-			{&factor{multiplicative: [2]int{-r1, r2}}},
-			{&factor{multiplicative: [2]int{r1, -r2}}},
-			{&factor{multiplicative: [2]int{r1 * 3, -r2 * 3}}},
-			{&factor{multiplicative: [2]int{r1 * r1, -r2 * r1}}},
-			{&factor{multiplicative: [2]int{r1 * r2, -r2 * r2}}},
+			{factor{multiplicative: [2]int{r1 * 2, -r2 * 2}}},
+			{factor{multiplicative: [2]int{-r1, r2}}},
+			{factor{multiplicative: [2]int{r1, -r2}}},
+			{factor{multiplicative: [2]int{r1 * 3, -r2 * 3}}},
+			{factor{multiplicative: [2]int{r1 * r1, -r2 * r1}}},
+			{factor{multiplicative: [2]int{r1 * r2, -r2 * r2}}},
 		}, []factors{ //test kommutativity
-			{&factor{multiplicative: [2]int{r1, -r2}}, &factor{multiplicative: [2]int{13, 27}}},
-			{&factor{multiplicative: [2]int{13, 27}}, &factor{multiplicative: [2]int{-r1, r2}}},
+			{factor{multiplicative: [2]int{r1, -r2}}, factor{multiplicative: [2]int{13, 27}}},
+			{factor{multiplicative: [2]int{13, 27}}, factor{multiplicative: [2]int{-r1, r2}}},
 		},
 	}
 
@@ -54,8 +54,8 @@ func TestFactorSignature(t *testing.T) {
 }
 
 func TestGate_ExtractValues(t *testing.T) {
-	facNeutral := factors{&factor{multiplicative: [2]int{8, 7}}, &factor{multiplicative: [2]int{9, 3}}}
-	facNeutral2 := factors{&factor{multiplicative: [2]int{9, 1}}, &factor{multiplicative: [2]int{13, 7}}}
+	facNeutral := factors{factor{multiplicative: [2]int{8, 7}}, factor{multiplicative: [2]int{9, 3}}}
+	facNeutral2 := factors{factor{multiplicative: [2]int{9, 1}}, factor{multiplicative: [2]int{13, 7}}}
 	fmt.Println(factorsSignature(facNeutral, facNeutral2))
 	f, fc := extractFactor(facNeutral)
 	fmt.Println(f)

@@ -14,9 +14,7 @@ const (
 type Gate struct {
 	gateType gateType
 	index    int
-	left     *Gate
-	right    *Gate
-	value    *Constraint
+	value    Token
 	leftIns  factors //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
 	rightIns factors
 	expoIns  factors

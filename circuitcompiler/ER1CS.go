@@ -106,12 +106,12 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 		rightKnowns, rightUnknowns := getKnownsAndUnknowns(gatesRightInputs)
 		exponentKnowns, exponentUnknowns := getKnownsAndUnknowns(gatesExpInputs)
 		if len(exponentUnknowns) > 0 {
-			return nil, errors.New("discret logarithm cannot be computed. if you know how. mail me! please!!")
+			return nil, errors.New(fmt.Sprintf("at gate %v: discret logarithm cannot be computed. if you know how. mail me! please!!", i))
 		}
 		outKnowns, outUnknowns := getKnownsAndUnknowns(gatesOutputs)
 
 		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) != 1 {
-			return nil, errors.New("computing more then one unknown in Gate assignment is not possible")
+			return nil, errors.New(fmt.Sprintf("at gate %v:computing more then one unknown in Gate assignment is not possible", i))
 		}
 
 		if len(leftUnknowns) == 1 {
@@ -122,7 +122,7 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 				fmt.Println(r1cs.E[i])
 				fmt.Println(r1cs.O[i])
 
-				return nil, errors.New("the summation of R inputs cannot be 0 if the unknown is in L")
+				return nil, errors.New(fmt.Sprintf("at gate %v:the summation of R inputs cannot be 0 if the unknown is in Lexer", i))
 			}
 			result := f.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
 			result = f.ArithmeticField.Div(result, sumright)
@@ -134,7 +134,7 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 		if len(rightUnknowns) == 1 {
 			sumleft := sum(leftKnowns)
 			if sumleft.Cmp(zero) == 0 {
-				return nil, errors.New("the summation of L inputs cannot be 0 if the unknown is in R")
+				return nil, errors.New(fmt.Sprintf("at gate %v:the summation of Lexer inputs cannot be 0 if the unknown is in R", i))
 			}
 			result := f.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
 			result = f.ArithmeticField.Div(result, sumleft)

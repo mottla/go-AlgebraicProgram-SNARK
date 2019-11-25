@@ -49,7 +49,7 @@ func isDeterministicExpression(c *Constraint) bool {
 }
 
 type Parser struct {
-	lexer          *L
+	lexer          *Lexer
 	ErrorHandler   func(e string)
 	Err            error
 	tokenChannel   chan Token
@@ -73,7 +73,7 @@ func (l *Parser) Error(e string, a ...interface{}) {
 func (p *Parser) NextNonBreakToken() *Token {
 	tok, done := p.lexer.NextToken()
 	if done {
-		close(p.done)
+		//close(p.done)
 		return &Token{Type: EOF}
 	}
 	for tok.Type == CommentToken {
@@ -88,7 +88,7 @@ func (p *Parser) NextNonBreakToken() *Token {
 func (p *Parser) NextToken() *Token {
 	tok, done := p.lexer.NextToken()
 	if done {
-		close(p.done)
+		//close(p.done)
 		return &Token{Type: EOF}
 	}
 	for tok.Type == CommentToken {
@@ -112,8 +112,8 @@ out:
 	for {
 		select {
 		case constraint := <-parser.constraintChan:
-			fmt.Println("#############")
-			fmt.Println(constraint)
+			//fmt.Println("#############")
+			//fmt.Println(constraint)
 
 			if checkSemantics {
 				if constraint.Output.Type == FUNCTION_DEFINE {
@@ -128,8 +128,8 @@ out:
 				circuit.SemanticCheck_RootMapUpdate(&constraint)
 			}
 
-			constraint.PrintReverseConstaintTree(0)
-			fmt.Println("#############")
+			//constraint.PrintReverseConstaintTree(0)
+			//fmt.Println("#############")
 		case <-parser.done:
 			break out
 		}
@@ -149,8 +149,12 @@ func (p *Parser) libraryMode() {
 		p.libraryMode()
 		return
 	}
+	for tok.Value != "" {
+		tok = p.NextToken()
+	}
+	close(p.done)
 	//if tok.Value == "" {
-	//	close(p.done)
+	//	//close(p.done)
 	//	return
 	//}
 	//p.Error("Function expected, got %v : %v", tok.Value, tok.Type)
@@ -344,8 +348,8 @@ func (p *Parser) statementMode(tokens []Token) {
 //arg := exp | arg,exp
 func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	//(exp)->exp
-	helpText := combineString(stack)
-	helpText += ""
+	//helpText := combineString(stack)
+	//helpText += ""
 	stack = stripOfBrackets(stack)
 
 	if len(stack) == 0 {
@@ -443,13 +447,6 @@ func (p *Parser) argumentParse(stack []Token, constraint *Constraint) {
 		p.Error("function expected, got %v ", combineString(stack[:1]))
 	}
 
-	//functionToken := Token{
-	//	Type:  typ,
-	//	Value: stack[0].Value,
-	//}
-	//functionConstraint := &Constraint{Output: functionToken}
-	//constraint.Inputs = append(constraint.Inputs, functionConstraint)
-
 	functionInput, rem, success := SplitAtClosingBrackets(stack[1:])
 	if !success {
 		p.Error("closing brackets missing")
@@ -488,14 +485,6 @@ func (p *Parser) argumentParse(stack []Token, constraint *Constraint) {
 		return
 	}
 
-}
-
-func isBinaryOperation(tok Token) bool {
-	return tok.Type == BinaryComperatorToken ||
-		tok.Type == ArithmeticOperatorToken ||
-		tok.Type == BooleanOperatorToken ||
-		tok.Type == BitOperatorToken ||
-		tok.Type == AssignmentOperatorToken
 }
 
 func removeTrailingBreaks(in []Token) (out []Token) {
