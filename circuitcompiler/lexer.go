@@ -54,7 +54,7 @@ func (ch Token) String() string {
 }
 
 var numberTokens = "0123456789"
-var syntaxTokens = "():,;\n{}"
+var syntaxTokens = "():,;\n{}[]"
 var operationTokens = "=-+*/&|><!"
 var commentToken = '#'
 
@@ -120,6 +120,8 @@ const (
 	FUNCTION_DEFINE
 	FUNCTION_CALL
 	VAR
+	ARRAY_Define
+	ARRAY_CALL
 	UNASIGNEDVAR
 	ARGUMENT
 	IF
@@ -171,6 +173,10 @@ func (ch TokenType) String() string {
 		return "Argument"
 	case RETURN:
 		return "RETURN"
+	case ARRAY_CALL:
+		return "arrayAccess"
+	case ARRAY_Define:
+		return "arrayDefine"
 
 	default:
 		return "unknown Token"

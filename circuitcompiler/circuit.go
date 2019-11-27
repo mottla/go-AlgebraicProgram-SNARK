@@ -45,7 +45,7 @@ func (circ *Circuit) updateRootsMap(constraint *Constraint) {
 
 func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 
-	if constraint.Output.Type&(ARGUMENT|NumberToken|binOp) != 0 {
+	if constraint.Output.Type&(ARGUMENT|NumberToken|binOp|ARRAY_CALL) != 0 {
 		return
 	}
 	for i := 0; i < len(constraint.Inputs); i++ {
@@ -79,6 +79,13 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 		}
 		circ.constraintMap[constraint.Output.Value] = constraint
 		break
+	case ARRAY_Define:
+
+		for i := 0; i < len(constraint.Inputs); i++ {
+			element := fmt.Sprintf("%s[%v]", constraint.Output.Value, i)
+			circ.constraintMap[element] = constraint.Inputs[i]
+		}
+		return
 	case RETURN:
 		//constraint.Output.Value= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Value))
 		constraint.Output.Value = circ.Name

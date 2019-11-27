@@ -2,6 +2,7 @@ package circuitcompiler
 
 import (
 	"fmt"
+	"math/big"
 )
 
 type gateType uint8
@@ -14,10 +15,11 @@ const (
 type Gate struct {
 	gateType gateType
 	index    int
-	value    Token
+	value    MultiplicationGateSignature
 	leftIns  factors //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
 	rightIns factors
 	expoIns  factors
+	output   *big.Int
 }
 
 func (g Gate) String() string {

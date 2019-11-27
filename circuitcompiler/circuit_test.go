@@ -31,8 +31,10 @@ var CircuitCorrectnessTest = []string{
 
 	`
 def main( a,b,c) {
-	equal(a,b)
-	return b  
+	var d = 2
+	var a[]	= {1,b,3,a}
+	var k = a[1*1]*a[d/2]*b
+	return k * b *b
   }`,
 }
 

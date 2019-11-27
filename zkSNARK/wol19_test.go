@@ -36,7 +36,7 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 		}},
 		code: `
 	def main( x  ,  z ) {
-		return do(z) + add(x,x)
+		return (do(z) + add(x,x))*x
 	}		
 
 	def do(x){

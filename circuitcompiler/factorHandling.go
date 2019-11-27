@@ -278,6 +278,11 @@ func mul2DVector(a, b [2]int) [2]int {
 	return [2]int{a[0] * b[0], a[1] * b[1]}
 }
 
+func invertVector(a [2]int) [2]int {
+
+	return [2]int{a[1], a[0]}
+}
+
 // find Least Common Multiple (LCM) via GCD
 func LCM(a, b int, integers ...int) int {
 	result := a * b / GCD(a, b)

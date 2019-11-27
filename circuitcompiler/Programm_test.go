@@ -25,7 +25,7 @@ var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 1
 //NOTE that the results are wrong. need to consider that division is now done on a finite field.
 //TODO compute new testcases with a python scrypt
 var correctnessTest = []TraceCorrectnessTest{
-	{skipp: false,
+	{skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2))},
 		}},
@@ -36,11 +36,14 @@ var correctnessTest = []TraceCorrectnessTest{
 	}
 
 	def a(k){
-	var x=3+k
-	return x}
-def b(k){
-	var x=7+k
-	return x }
+		var x=3+k
+	return x
+	}
+
+	def b(k){
+		var x=7+k
+	return x 
+	}
 `,
 	}, {skipp: false,
 		io: []InOut{{
@@ -50,16 +53,21 @@ def b(k){
 
 		code: `
 	def main( x  ,  z ) {
+			var res = do(x)+do((3)*z)
+			return res*x
+		}		
+
+	def do(x){		
 		var e = x * 5
-		var b = e * 6
+		var b = e * e
 		var c = b * 7
-		var f = c * 1
-		var d = c * f
+		var f = c * c
+		var d = c + f
 		return d
 	}`,
 	},
 	{
-		skipp: false,
+		skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),

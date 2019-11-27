@@ -113,7 +113,7 @@ out:
 		select {
 		case constraint := <-parser.constraintChan:
 			//fmt.Println("#############")
-			//fmt.Println(constraint)
+			fmt.Println(constraint)
 
 			if checkSemantics {
 				if constraint.Output.Type == FUNCTION_DEFINE {
@@ -128,7 +128,7 @@ out:
 				circuit.SemanticCheck_RootMapUpdate(&constraint)
 			}
 
-			//constraint.PrintReverseConstaintTree(0)
+			constraint.PrintReverseConstaintTree(0)
 			//fmt.Println("#############")
 		case <-parser.done:
 			break out
@@ -249,7 +249,7 @@ func (p *Parser) statementMode(tokens []Token) {
 			p.Error("';' expected, got %v", r[0])
 		}
 		r = r[1:]
-		if b, err := isAssignment(l); !b {
+		if b, err := isVariableAssignment(l); !b {
 			p.Error(err)
 		}
 		varConst := Constraint{
@@ -300,7 +300,7 @@ func (p *Parser) statementMode(tokens []Token) {
 				Value: combineString(l),
 			},
 		}
-		p.argumentParse(l[1:], &varConst)
+		p.argumentParse(l[1:], SplitAtClosingBrackets, &varConst)
 		p.constraintChan <- varConst
 		p.statementMode(r)
 	case VAR:
@@ -311,18 +311,36 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		r = r[1:]
 		//var hannes = 42
-		if b, err := isAssignment(l[1:]); !b {
-			p.Error(err)
+		if b, _ := isVariableAssignment(l[1:]); b {
+			varConst := Constraint{
+				Output: Token{
+					Type:  VAR,
+					Value: l[1].Value,
+				},
+			}
+			p.parseExpression(l[3:], &varConst)
+			p.constraintChan <- varConst
+			p.statementMode(r)
+			return
 		}
-		varConst := Constraint{
-			Output: Token{
-				Type:  VAR,
-				Value: l[1].Value,
-			},
+		//var hannes[] = {a,b,c,d}
+		if b, _ := isArrayAssignment(l[1:]); b {
+			arrayConst := Constraint{
+				Output: Token{
+					Type:  ARRAY_Define,
+					Value: l[1].Value,
+				},
+			}
+
+			rest := p.argumentParse(l[5:], SplitAtClosingSwingBrackets, &arrayConst)
+			if len(rest) > 0 {
+				panic("unexpected")
+			}
+			p.constraintChan <- arrayConst
+			p.statementMode(r)
+			return
 		}
-		p.parseExpression(l[3:], &varConst)
-		p.constraintChan <- varConst
-		p.statementMode(r)
+
 	case RETURN:
 		//return (1+a)
 		l, r := SplitTokensAtFirstString(tokens, "\n")
@@ -331,7 +349,9 @@ func (p *Parser) statementMode(tokens []Token) {
 				Type: RETURN,
 			},
 		}
-		p.parseExpression(l[1:], &returnCOnstraint)
+		if len(l) > 1 {
+			p.parseExpression(l[1:], &returnCOnstraint)
+		}
 
 		if len(removeLeadingAndTrailingBreaks(r)) != 0 {
 			panic("not supposed")
@@ -344,7 +364,7 @@ func (p *Parser) statementMode(tokens []Token) {
 	}
 }
 
-// epx := (exp) | exp Operator exp | Identifier(arg) | IN | Number
+// epx := (exp) | exp Operator exp | Identifier(arg) | Identifier | Number | Identifier[exp]
 //arg := exp | arg,exp
 func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	//(exp)->exp
@@ -367,14 +387,12 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	}
 
 	l, binOperation, r := SplitAtFirstHighestTokenType(stack, binOp)
+	l, r = stripOfBrackets(l), stripOfBrackets(r)
 
 	if binOperation.Type&binOp != 0 {
-
 		constraint.Inputs = append(constraint.Inputs, &Constraint{
 			Output: binOperation,
 		})
-
-		l, r = stripOfBrackets(l), stripOfBrackets(r)
 
 		if len(l) == 1 && len(r) == 1 {
 			p.parseExpression(l, constraint)
@@ -425,29 +443,30 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 
 	if stack[0].Type == FUNCTION_CALL {
 		constraint.Output = stack[0]
-		p.argumentParse(stack[1:], constraint)
+		restAfterBracketsClosed := p.argumentParse(stack[1:], SplitAtClosingBrackets, constraint)
+		if len(restAfterBracketsClosed) != 0 {
+			p.Error("%v", restAfterBracketsClosed)
+		}
 		return
 	}
 
-	panic("asdf")
-	newTok := Token{
-		Type: UNASIGNEDVAR,
-		//Value: "(" + combineString(withinBrackets) + ")",
-		Value: combineString(stack),
+	if stack[1].Value == "[" && stack[len(stack)-1].Value == "]" {
+		constraint.Output.Type = ARRAY_CALL
+		constraint.Output.Value = stack[0].Value
+		p.parseExpression(stack[2:len(stack)-1], constraint)
+		return
 	}
-	c1 := &Constraint{Output: newTok}
-	p.parseExpression(l, c1)
+
+	panic("unexpected reach")
+
 	return
 
 }
 
-func (p *Parser) argumentParse(stack []Token, constraint *Constraint) {
+//argument parse expects  bracket-arg-bracket
+func (p *Parser) argumentParse(stack []Token, bracketSplitFunction func(in []Token) (cutLeft, cutRight []Token, success bool), constraint *Constraint) (rest []Token) {
 
-	if stack[0].Value != "(" {
-		p.Error("function expected, got %v ", combineString(stack[:1]))
-	}
-
-	functionInput, rem, success := SplitAtClosingBrackets(stack[1:])
+	functionInput, rem, success := bracketSplitFunction(stack)
 	if !success {
 		p.Error("closing brackets missing")
 	}
@@ -469,7 +488,7 @@ func (p *Parser) argumentParse(stack []Token, constraint *Constraint) {
 		if len(v) > 1 {
 			newTok := Token{
 				Type:  UNASIGNEDVAR,
-				Value: combineString(functionInput),
+				Value: combineString(v),
 			}
 			c1 := &Constraint{Output: newTok}
 			constraint.Inputs = append(constraint.Inputs, c1)
@@ -480,10 +499,8 @@ func (p *Parser) argumentParse(stack []Token, constraint *Constraint) {
 	}
 
 	//handle what comes after the function
-	if len(rem) != 0 {
-		p.Error("%v", rem)
-		return
-	}
+
+	return rem
 
 }
 
@@ -519,7 +536,28 @@ func combineString(in []Token) string {
 	return out
 }
 
-func isAssignment(stx []Token) (yn bool, err string) {
+func isArrayAssignment(stx []Token) (yn bool, err string) {
+	if len(stx) < 5 {
+		return false, "array assignment needs min 3 tokens: a = b"
+	}
+	if stx[0].Type != IdentToken {
+		return false, "identifier expected"
+	}
+
+	if stx[1].Value != "[" || stx[2].Value != "]" {
+		return false, "brackets  expected"
+	}
+	if stx[3].Type != AssignmentOperatorToken {
+		return false, "assignment  expected"
+	}
+	if stx[4].Value != "{" {
+		return false, "assignment  expected"
+	}
+
+	return true, ""
+}
+
+func isVariableAssignment(stx []Token) (yn bool, err string) {
 	if len(stx) < 3 {
 		return false, "assignment needs min 3 tokens: a = b"
 	}
@@ -575,6 +613,7 @@ func (p *Parser) stackTillSemiCol() []Token {
 //SplitAt takes takes a string S and a token array and splits st: abScdasdSf -> ( ab,cdas, f  )
 //if S does not occur it returns ( in , []Tokens{} )
 func SplitAt(in []Token, splitAt string) (out [][]Token) {
+
 	for l, r := SplitTokensAtFirstString(in, splitAt); ; l, r = SplitTokensAtFirstString(r, splitAt) {
 		if len(l) > 0 {
 			out = append(out, l)
@@ -601,16 +640,23 @@ func SplitTokensAtFirstString(in []Token, splitAt string) (cutLeft, cutRight []T
 
 //SplitAtFirstHighestTokenType takes takes a string S and a token array and splits st:
 func SplitAtFirstHighestTokenType(in []Token, splitAt TokenType) (cutLeft []Token, tok Token, cutRight []Token) {
-	ctr := 0
+	ctr1 := 0
+	ctr2 := 0
 	for i := 0; i < len(in); i++ {
 		if in[i].Value == "(" {
-			ctr++
+			ctr1++
+		}
+		if in[i].Value == "[" {
+			ctr2++
 		}
 		if in[i].Value == ")" {
-			ctr--
+			ctr1--
+		}
+		if in[i].Value == "]" {
+			ctr2--
 		}
 
-		if (in[i].Type&splitAt) != 0 && ctr == 0 {
+		if (in[i].Type&splitAt) != 0 && ctr1 == 0 && ctr2 == 0 {
 			if i == len(in)-1 {
 				return in[:i], in[i], cutRight
 			}
@@ -645,10 +691,7 @@ func isSurroundedByBrackets(in []Token) bool {
 	if len(in) == 0 {
 		return false
 	}
-	if in[0].Value != "(" {
-		return false
-	}
-	_, r, b := SplitAtClosingBrackets(in[1:])
+	_, r, b := SplitAtClosingBrackets(in)
 	if b && len(r) == 0 {
 		return true
 	}
@@ -662,36 +705,28 @@ func isSurroundedByBrackets(in []Token) bool {
 //"(asdf)jkl" -> nil,nil,false
 //"(asdf))jkl" -> "(asdf)","jkl",true
 func SplitAtClosingBrackets(in []Token) (cutLeft, cutRight []Token, success bool) {
-	ctr := 1
-	for i := 0; i < len(in); i++ {
-		if in[i].Value == "(" {
-			ctr++
-		}
-		if in[i].Value == ")" {
-			ctr--
-			if ctr == 0 {
-				if i == len(in)-1 {
-					return in[:i], cutRight, true
-				}
-				return in[:i], in[i+1:], true
-			}
-		}
-	}
-	return nil, nil, false
+	return SplitAtClosingStringBrackets(in, "(", ")")
 }
 func SplitAtClosingSwingBrackets(in []Token) (cutLeft, cutRight []Token, success bool) {
-	ctr := 1
+	return SplitAtClosingStringBrackets(in, "{", "}")
+}
+
+func SplitAtClosingStringBrackets(in []Token, open, close string) (cutLeft, cutRight []Token, success bool) {
+	if in[0].Value != open {
+		return nil, nil, false
+	}
+	ctr := 0
 	for i := 0; i < len(in); i++ {
-		if in[i].Value == "{" {
+		if in[i].Value == open {
 			ctr++
 		}
-		if in[i].Value == "}" {
+		if in[i].Value == close {
 			ctr--
 			if ctr == 0 {
 				if i == len(in)-1 {
-					return in[:i], cutRight, true
+					return in[1:i], cutRight, true
 				}
-				return in[:i], in[i+1:], true
+				return in[1:i], in[i+1:], true
 			}
 		}
 	}

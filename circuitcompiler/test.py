@@ -18,6 +18,18 @@
 #     x=365235
 #     z=11876525
 #     print(do(z) + add(x,x))
+#######################
+def main():
+    #var res = do(x)+do((3)*x)
+    print( do(7)+do((3)*7) )#444675)
+
+def do(x):
+    e = x * 5
+    b = e * e
+    c = b * 7
+    f = c * c
+    d = c + f
+    return d
 
 ################################
 
@@ -64,16 +76,16 @@
 #     return  mul(d,c) /  mul(b,b)
 ############################
 
-def go(a,b,c,d):
-    e = a * b
-    f = c * d
-    g = e * f
-    h = g / e
-    i = h * 5
-    return  g * i
-
-def main():
-    print(go(3,5,7,11))
+# def go(a,b,c,d):
+#     e = a * b
+#     f = c * d
+#     g = e * f
+#     h = g / e
+#     i = h * 5
+#     return  g * i
+#
+# def main():
+#     print(go(3,5,7,11))
 
 if __name__ == '__main__':
     #pascal(8)
