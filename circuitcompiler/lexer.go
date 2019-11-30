@@ -96,7 +96,6 @@ func init() {
 		"if":     IF,
 		"while":  WHILE,
 		"for":    FOR,
-		"equal":  EQUAL,
 	}
 
 }
@@ -128,13 +127,11 @@ const (
 	WHILE
 	FOR
 	RETURN
-	EQUAL
 )
 
 func (ch TokenType) String() string {
 	switch ch {
-	case EQUAL:
-		return "equal"
+
 	case UNASIGNEDVAR:
 		return "UNASIGNEDVAR"
 	case IdentToken:
@@ -177,7 +174,6 @@ func (ch TokenType) String() string {
 		return "arrayAccess"
 	case ARRAY_Define:
 		return "arrayDefine"
-
 	default:
 		return "unknown Token"
 	}
@@ -379,7 +375,7 @@ func NumberState(l *Lexer) StateFunc {
 func readIdent(l *Lexer) {
 
 	r := l.Next()
-	for (r >= 'a' && r <= 'z') || r == '_' {
+	for isLetter(r) || r == '_' {
 		r = l.Next()
 	}
 	l.Rewind()

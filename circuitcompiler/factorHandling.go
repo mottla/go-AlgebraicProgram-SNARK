@@ -1,6 +1,7 @@
 package circuitcompiler
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"sort"
@@ -87,47 +88,37 @@ func extractFactor(f factors) (factors, [2]int) {
 
 }
 
-func factorsSignature(leftFactors, rightFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors, extractedRightFactors factors) {
-	leftFactors = leftFactors.clone()
-	rightFactors = rightFactors.clone()
-
-	leftFactors.normalizeAll()
-	var extractedFacLeft [2]int
-	leftFactors, extractedFacLeft = extractFactor(leftFactors)
-
-	sort.Sort(leftFactors)
-	hasher.Reset()
-	for _, fac := range leftFactors {
-		hasher.Write([]byte(fac.String()))
+func hashToBig(f factors) *big.Int {
+	sha := sha256.New()
+	for _, fac := range f {
+		sha.Write([]byte(fac.String()))
 	}
-	leftNum := new(big.Int).SetBytes(hasher.Sum(nil))
+	return new(big.Int).SetBytes(sha.Sum(nil))
+}
 
+func factorsSignature(leftFactors, rightFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors, extractedRightFactors factors) {
+	leftFactors = leftFactors.clone() //is this neccessary.. duno
+	leftFactors.normalizeAll()
+	var extractedFac [2]int
+	leftFactors, extractedFac = extractFactor(leftFactors)
+	sort.Sort(leftFactors)
+	leftNum := hashToBig(leftFactors)
+
+	rightFactors = rightFactors.clone() //is this neccessary.. duno
 	rightFactors.normalizeAll()
-
 	var extractedFacRight [2]int
 	rightFactors, extractedFacRight = extractFactor(rightFactors)
 	sort.Sort(rightFactors)
-	hasher.Reset()
-
-	for _, fac := range rightFactors {
-		hasher.Write([]byte(fac.String()))
-	}
-	rightNum := new(big.Int).SetBytes(hasher.Sum(nil))
+	rightNum := hashToBig(rightFactors)
 
 	//we did all this, because multiplication is commutativ, and we want the signature of a
 	//mulitplication Gate   factorsSignature(a,b) == factorsSignature(b,a)
+	//since we use a cryptographic hash, addition is save enough e.g. collisions are very unlikely
 	leftNum.Add(leftNum, rightNum)
 
-	res := normalizeFactor(mul2DVector(extractedFacLeft, extractedFacRight))
+	res := normalizeFactor(mul2DVector(extractedFac, extractedFacRight))
 
 	return MultiplicationGateSignature{identifier: Token{Value: leftNum.String()[:16]}, commonExtracted: res}, leftFactors, rightFactors
-}
-
-func lengthOfLongestSlice(a, b factors) int {
-	if len(a) > len(b) {
-		return len(a)
-	}
-	return len(b)
 }
 
 //multiplies factor elements and returns the result

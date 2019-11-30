@@ -25,18 +25,18 @@ var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 1
 //NOTE that the results are wrong. need to consider that division is now done on a finite field.
 //TODO compute new testcases with a python scrypt
 var correctnessTest = []TraceCorrectnessTest{
-	{skipp: true,
+	{skipp: false,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2))},
 		}},
 
 		code: `
 	def main( x  ,  z ) {
-		return a(x)*b(z)
+		return scalarBaseMultiply(a(x))/scalarBaseMultiply(x/z)
 	}
 
 	def a(k){
-		var x=3+k
+		var x=scalarBaseMultiply(3+7-1)+k
 	return x
 	}
 
@@ -45,7 +45,7 @@ var correctnessTest = []TraceCorrectnessTest{
 	return x 
 	}
 `,
-	}, {skipp: false,
+	}, {skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -147,6 +147,7 @@ func TestCorrectness(t *testing.T) {
 		r1cs := program.GatesToR1CS(gates)
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
+		fmt.Println(r1cs.E)
 		fmt.Println(r1cs.O)
 
 		for _, io := range test.io {

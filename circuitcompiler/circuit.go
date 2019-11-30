@@ -17,10 +17,15 @@ type Circuit struct {
 	//after reducing
 	//constraintMap map[string]*Constraint
 	constraintMap map[string]*Constraint
+	//specialBuild  func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool, f func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate, invert bool) (facs factors, variableEnd bool)) (facs factors, variableEnd bool)
 }
 
 func newCircuit(name string) *Circuit {
-	return &Circuit{Name: name, constraintMap: make(map[string]*Constraint), rootConstraints: make(map[string]*Constraint)}
+	c := &Circuit{Name: name, constraintMap: make(map[string]*Constraint), rootConstraints: make(map[string]*Constraint)}
+	//c.specialBuild = func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool,i func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool) (facs factors, variableEnd bool)) (facs factors, variableEnd bool) {
+	//	return i(currentCircuit, currentConstraint, orderedmGates, negate, invert)
+	//}
+	return c
 }
 
 //only identtokens can be arguments
@@ -68,7 +73,7 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 		fmt.Println("dsaf")
 		break
 	case FUNCTION_CALL:
-		constraint.Output.Value = composeNewFunctionName(constraint)
+		//constraint.Output.Value = composeNewFunctionName(constraint)
 		break
 	case EQUAL:
 
@@ -113,16 +118,6 @@ func RegisterFunctionFromConstraint(constraint *Constraint) (c *Circuit) {
 			panic("argument must be unique ")
 		}
 		duplicateMap[arg.Output.Value] = true
-		////ng := &Gate{
-		////	gateType: 0,
-		////	index:    0,
-		////	left:     nil,
-		////	right:    nil,
-		////	value:    arg,
-		////	leftIns:  nil,
-		////	rightIns: nil,
-		////	expoIns:  nil,
-		////}
 		c.constraintMap[arg.Output.Value] = arg
 	}
 	c.Inputs = constraint.Inputs

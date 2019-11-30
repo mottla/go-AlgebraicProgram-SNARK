@@ -113,7 +113,7 @@ out:
 		select {
 		case constraint := <-parser.constraintChan:
 			//fmt.Println("#############")
-			fmt.Println(constraint)
+			//fmt.Println(constraint)
 
 			if checkSemantics {
 				if constraint.Output.Type == FUNCTION_DEFINE {
@@ -128,7 +128,7 @@ out:
 				circuit.SemanticCheck_RootMapUpdate(&constraint)
 			}
 
-			constraint.PrintReverseConstaintTree(0)
+			//constraint.PrintReverseConstaintTree(0)
 			//fmt.Println("#############")
 		case <-parser.done:
 			break out
@@ -442,8 +442,14 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	}
 
 	if stack[0].Type == FUNCTION_CALL {
-		constraint.Output = stack[0]
-		restAfterBracketsClosed := p.argumentParse(stack[1:], SplitAtClosingBrackets, constraint)
+		//rtok := Token{
+		//	Type:  FUNCTION_CALL,
+		//	Value: combineString(stack),
+		//}
+		//constraint.Output.Type
+		cr := &Constraint{Output: stack[0]}
+		constraint.Inputs = append(constraint.Inputs, cr)
+		restAfterBracketsClosed := p.argumentParse(stack[1:], SplitAtClosingBrackets, cr)
 		if len(restAfterBracketsClosed) != 0 {
 			p.Error("%v", restAfterBracketsClosed)
 		}
@@ -451,9 +457,13 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	}
 
 	if stack[1].Value == "[" && stack[len(stack)-1].Value == "]" {
-		constraint.Output.Type = ARRAY_CALL
-		constraint.Output.Value = stack[0].Value
-		p.parseExpression(stack[2:len(stack)-1], constraint)
+		rtok := Token{
+			Type:  ARRAY_CALL,
+			Value: stack[0].Value,
+		}
+		cr := &Constraint{Output: rtok}
+		constraint.Inputs = append(constraint.Inputs, cr)
+		p.parseExpression(stack[2:len(stack)-1], cr)
 		return
 	}
 
@@ -479,22 +489,23 @@ func (p *Parser) argumentParse(stack []Token, bracketSplitFunction func(in []Tok
 		if len(v) == 0 {
 			p.Error("argument missing at function %v", constraint.Output)
 		}
+		p.parseExpression(v, constraint)
 		//foo(a)
-		if len(v) == 1 {
-			p.parseExpression(v, constraint)
-			continue
-		}
-		//foo(a*b)
-		if len(v) > 1 {
-			newTok := Token{
-				Type:  UNASIGNEDVAR,
-				Value: combineString(v),
-			}
-			c1 := &Constraint{Output: newTok}
-			constraint.Inputs = append(constraint.Inputs, c1)
-			p.parseExpression(v, c1)
-			continue
-		}
+		//if len(v) == 1 {
+		//	p.parseExpression(v, constraint)
+		//	continue
+		//}
+		////foo(a*b)
+		//if len(v) > 1 {
+		//	newTok := Token{
+		//		Type:  UNASIGNEDVAR,
+		//		Value: combineString(v),
+		//	}
+		//	c1 := &Constraint{Output: newTok}
+		//	constraint.Inputs = append(constraint.Inputs, c1)
+		//	p.parseExpression(v, c1)
+		//	continue
+		//}
 
 	}
 

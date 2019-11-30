@@ -1,10 +1,10 @@
 package circuitcompiler
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
 	"math/big"
+	"sort"
 	"strings"
 )
 
@@ -38,14 +38,16 @@ type Program struct {
 }
 
 func NewProgram(CurveOrder, FieldOrder *big.Int) (program *Program) {
+
+	G := newCircuit("scalarBaseMultiply")
+	E := newCircuit("equal")
+
 	program = &Program{
-		functions:    map[string]*Circuit{},
+		functions:    map[string]*Circuit{"scalarBaseMultiply": G, "equal": E},
 		globalInputs: []Token{},
 		Fields:       fields.PrepareFields(CurveOrder, FieldOrder),
 	}
-	//pointMultiplicationCircuit := program.registerFunctionFromConstraint(&Constraint{Out: "g(x)"})
-	//expGate := &Gate{gateType: egate, value: pointMultiplicationCircuit.Inputs[0].value}
-	//pointMultiplicationCircuit.root = expGate
+
 	return
 }
 
@@ -55,20 +57,22 @@ func (p *Program) GlobalInputCount() int {
 }
 
 func (p *Program) ReduceCombinedTree(functions map[string]*Circuit) (orderedmGates []*Gate) {
-	p.functions = functions
+
+	for k, v := range functions {
+		p.functions[k] = v
+	}
 	orderedmGates = []*Gate{}
 	p.globalInputs = append(p.globalInputs, Token{
 		Type:  NumberToken,
 		Value: "1",
 	})
+
 	for _, rootC := range p.getMainCircuit().Inputs {
 		p.globalInputs = append(p.globalInputs, rootC.Output)
 	}
 
-	//p.computedInContext = make(map[string]map[Token]MultiplicationGateSignature)
 	p.computedFactors = make(map[Token]MultiplicationGateSignature)
-	//rootHash := make([]byte, 10)
-	//p.computedInContext[string(rootHash)] = make(map[Token]MultiplicationGateSignature)
+
 	//TODO handle multiple returns
 	mainCircuit := p.getMainCircuit()
 	for _, root := range mainCircuit.returnConstraints {
@@ -76,38 +80,12 @@ func (p *Program) ReduceCombinedTree(functions map[string]*Circuit) (orderedmGat
 		if len(p.getMainCircuit().returnConstraints) > 1 {
 			panic("no supported yet")
 		}
-		//if len(root.Inputs)==1{
 		f, _ := p.build(p.getMainCircuit(), root, &orderedmGates, false, false)
-
-		//}
-
 		fmt.Println(f)
-		//since we extract coefficients and hold em back as long as possible, we have to multiply them back in when the main programm exits
-		//i case the retrun ends with addition, the addition will not add another gate, since its summands have been prooven already
-		//this will cause confusion so we may add the unnecessary addition at some point.
-
-		//orderedmGates[len(orderedmGates)-1].leftIns = mulFactors(orderedmGates[len(orderedmGates)-1].leftIns, factors{factor{
-		//	typ: Token{
-		//		Type: NumberToken,
-		//	},
-		//	multiplicative: facs[0].multiplicative},
-		//})
 	}
 
 	//TODo the case when return operation is addition is fucked this way
 	orderedmGates[len(orderedmGates)-1].output = p.Fields.ArithmeticField.FractionToField(invertVector(orderedmGates[len(orderedmGates)-1].value.commonExtracted))
-	//	r := p.computedFactors[v.typ]
-	//orderedmGates[len(orderedmGates)-1].leftIns[i].multiplicative = r.commonExtracted
-	//for i := 0; i < len(orderedmGates[len(orderedmGates)-1].leftIns); i++ {
-	//	v:= orderedmGates[len(orderedmGates)-1].leftIns[i]
-	//	r := p.computedFactors[v.typ]
-	//	orderedmGates[len(orderedmGates)-1].leftIns[i].multiplicative = r.commonExtracted
-	//}
-	//for i := 0; i < len(orderedmGates[len(orderedmGates)-1].rightIns); i++ {
-	//	v:= orderedmGates[len(orderedmGates)-1].rightIns[i]
-	//	r := p.computedFactors[v.typ]
-	//	orderedmGates[len(orderedmGates)-1].leftIns[i].multiplicative = r.commonExtracted
-	//}
 
 	return orderedmGates
 }
@@ -131,7 +109,7 @@ func (p *Program) changeInputs(constraint *Constraint) (nextContext *Circuit) {
 		for i, _ := range newCircut.Inputs {
 			*newCircut.Inputs[i] = *constraint.Inputs[i]
 		}
-		newCircut.returnConstraints[0].Output.Value = constraint.Output.Value
+		//newCircut.returnConstraints[0].Output.Value = constraint.Output.Value
 
 		return newCircut
 	}
@@ -142,7 +120,7 @@ func (p *Program) changeInputs(constraint *Constraint) (nextContext *Circuit) {
 //recursively walks through the parse tree to create a list of all
 //multiplication gates needed for the QAP construction
 //Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so
-func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool) (facs factors, variableEnd bool) {
+func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate, invert bool) (facs factors, variableEnd bool) {
 
 	if len(currentConstraint.Inputs) == 0 {
 		switch currentConstraint.Output.Type {
@@ -153,7 +131,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			}
 			mul := [2]int{v1, 1}
 			if invert {
-				mul = [2]int{1, v1}
+				mul = invertVector(mul)
 			}
 			return factors{{typ: Token{Type: NumberToken}, negate: negate, multiplicative: mul}}, false
 		case IdentToken:
@@ -184,24 +162,50 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 	}
 
 	if currentConstraint.Output.Type == FUNCTION_CALL {
+		if currentConstraint.Output.Value == "scalarBaseMultiply" {
+			currentConstraint.Output.Type = UNASIGNEDVAR
+			facs, _ := p.build(currentCircuit, currentConstraint, orderedmGates, false, false)
+			currentConstraint.Output.Type = FUNCTION_CALL
+			facs.normalizeAll()
+			sort.Sort(facs)
+			sig := hashToBig(facs).String()[:16]
+
+			nTok := Token{
+				Type:  FUNCTION_CALL,
+				Value: sig,
+			}
+			if _, ex := p.computedFactors[nTok]; !ex {
+				rootGate := &Gate{
+					gateType: egate,
+					index:    len(*orderedmGates),
+					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: [2]int{1, 1}},
+					expoIns:  facs,
+					output:   big.NewInt(int64(1)),
+				}
+				p.computedFactors[nTok] = rootGate.value
+				*orderedmGates = append(*orderedmGates, rootGate)
+			}
+
+			return factors{factor{
+				typ:            nTok,
+				invert:         invert,
+				negate:         negate,
+				multiplicative: [2]int{1, 1},
+			}}, true
+		}
 		nextCircuit := p.changeInputs(currentConstraint)
-		//hashTraceBuildup = hashTogether(hashTraceBuildup, []byte(nextCircuit.currentOutputName()))
 		//TODO think about this
 		//for _, v := range nextCircuit.rootConstraints {
 		//	p.build(nextCircuit, v, hashTraceBuildup, orderedmGates, false, false)
 		//}
-		//p.computedInContext[string(hashTraceBuildup)] = make(map[Token]MultiplicationGateSignature)
 		//TODO handle multiple roots
+		//nextCircuit.specialBuild(nextCircuit, nextCircuit.returnConstraints[0], orderedmGates, negate, invert, p.build)
 		return p.build(nextCircuit, nextCircuit.returnConstraints[0], orderedmGates, negate, invert)
 	}
 	if currentConstraint.Output.Type == ARRAY_CALL {
-		tmpGates := []*Gate{}
-		nc := Constraint{
-			Output: Token{
-				Type: UNASIGNEDVAR,
-			},
-			Inputs: currentConstraint.Inputs,
-		}
+		var tmpGates []*Gate
+		nc := Constraint{Output: Token{Type: UNASIGNEDVAR}, Inputs: currentConstraint.Inputs}
+
 		indexFactors, variable := p.build(currentCircuit, &nc, &tmpGates, false, false)
 		if variable {
 			panic("cannot access array dynamically in an arithmetic circuit currently")
@@ -221,14 +225,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		case VAR:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates, negate, invert)
 		case RETURN:
-			//TODO multiple returns again..
-			f, v := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates, negate, invert)
-			//if currentConstraint ==p.getMainCircuit().returnConstraints[0]{
-			//	(*orderedmGates)[len(*orderedmGates)-1].output = p.Fields.ArithmeticField.FractionToField(invertVector((*orderedmGates)[len(*orderedmGates)-1].value.commonExtracted) )
-			//	//((*orderedmGates)[len(*orderedmGates)-1]).output
-			//	//*orderedmGates[len(*orderedmGates)-1].output = p.Fields.ArithmeticField.FractionToField(invertVector(*orderedmGates[len(*orderedmGates)-1].value.commonExtracted) )
-			//}
-			return f, v
+			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates, negate, invert)
 		case UNASIGNEDVAR:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates, negate, invert)
 		case IdentToken:
@@ -403,13 +400,4 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 	}
 
 	return
-}
-
-var hasher = sha256.New()
-
-func hashTogether(a, b []byte) []byte {
-	hasher.Reset()
-	hasher.Write(a)
-	hasher.Write(b)
-	return hasher.Sum(nil)
 }
