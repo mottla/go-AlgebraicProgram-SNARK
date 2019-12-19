@@ -114,6 +114,7 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 			return nil, errors.New(fmt.Sprintf("at gate %v:computing more then one unknown in Gate assignment is not possible", i))
 		}
 
+		// (a*x + b + c..) (d+e+..) + (G^(k+v..)) = (f+g+..)   we solve for x
 		if len(leftUnknowns) == 1 {
 			sumright := sum(rightKnowns)
 			if sumright.Cmp(zero) == 0 {
@@ -127,10 +128,12 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 			result := f.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
 			result = f.ArithmeticField.Div(result, sumright)
 			result = f.ArithmeticField.Sub(result, sum(leftKnowns))
+			result = f.ArithmeticField.Div(result, gatesLeftInputs[leftUnknowns[0]]) //divide by a
 			set[leftUnknowns[0]] = true
 			witness[leftUnknowns[0]] = result
 			continue
 		}
+		// (a + b + c..) (d+e*x+..) + (G^(k+v..)) = (f+g+..)   we solve for x
 		if len(rightUnknowns) == 1 {
 			sumleft := sum(leftKnowns)
 			if sumleft.Cmp(zero) == 0 {
@@ -139,14 +142,19 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 			result := f.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
 			result = f.ArithmeticField.Div(result, sumleft)
 			result = f.ArithmeticField.Sub(result, sum(rightKnowns))
+			result = f.ArithmeticField.Div(result, gatesRightInputs[rightUnknowns[0]]) //divide by a
 			set[rightUnknowns[0]] = true
 			witness[rightUnknowns[0]] = result
 			continue
 		}
 
+		// (a + b + c..) (d+e+..) + (G^(k+v..)) = (f+x*g+..)   we solve for x
 		if len(outUnknowns) == 1 {
+
 			result := f.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
 			result = f.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = f.ArithmeticField.Sub(result, sum(outKnowns))
+			result = f.ArithmeticField.Div(result, gatesOutputs[outUnknowns[0]]) //divide by a
 			set[outUnknowns[0]] = true
 			witness[outUnknowns[0]] = result
 			continue

@@ -287,22 +287,22 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		p.statementMode(l)
 		p.statementMode(r)
-	case EQUAL:
-		//equal(args...)    equal(a,2) -> creates assertion gates s.t. a=2
-		l, r := SplitTokensAtFirstString(tokens, "\n")
-		if r[0].Value != "\n" {
-			p.Error("linebreak expected, got %v", r[0])
-		}
-		r = r[1:]
-		varConst := Constraint{
-			Output: Token{
-				Type:  EQUAL,
-				Value: combineString(l),
-			},
-		}
-		p.argumentParse(l[1:], SplitAtClosingBrackets, &varConst)
-		p.constraintChan <- varConst
-		p.statementMode(r)
+	//case EQUAL:
+	//	//equal(args...)    equal(a,2) -> creates assertion gates s.t. a=2
+	//	l, r := SplitTokensAtFirstString(tokens, "\n")
+	//	if r[0].Value != "\n" {
+	//		p.Error("linebreak expected, got %v", r[0])
+	//	}
+	//	r = r[1:]
+	//	varConst := Constraint{
+	//		Output: Token{
+	//			Type:  EQUAL,
+	//			Value: combineString(l),
+	//		},
+	//	}
+	//	p.argumentParse(l[1:], SplitAtClosingBrackets, &varConst)
+	//	p.constraintChan <- varConst
+	//	p.statementMode(r)
 	case VAR:
 
 		l, r := SplitTokensAtFirstString(tokens, "\n")
@@ -358,6 +358,23 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		p.constraintChan <- returnCOnstraint
 		return
+	case FUNCTION_CALL:
+		//fkt(args...)    equal(a,2) -> creates assertion gates s.t. a=2
+		l, r := SplitTokensAtFirstString(tokens, "\n")
+		if r[0].Value != "\n" {
+			p.Error("linebreak expected, got %v", r[0])
+		}
+		r = r[1:]
+		varConst := Constraint{
+			Output: Token{
+				//Type:  EQUAL,
+				Value: combineString(l),
+			},
+		}
+		p.argumentParse(l[1:], SplitAtClosingBrackets, &varConst)
+		p.constraintChan <- varConst
+		p.statementMode(r)
+		return
 
 	default:
 		p.Error("return missing maybe")
@@ -389,8 +406,18 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	l, binOperation, r := SplitAtFirstHighestTokenType(stack, binOp)
 	l, r = stripOfBrackets(l), stripOfBrackets(r)
 
+	// exp Operator exp
 	if binOperation.Type&binOp != 0 {
-		constraint.Inputs = append(constraint.Inputs, &Constraint{
+		newTok := Token{
+			Type:  UNASIGNEDVAR,
+			Value: combineString(stack),
+		}
+		c1 := &Constraint{Output: newTok}
+		constraint.Inputs = append(constraint.Inputs, c1)
+		constraint = c1
+		//p.parseExpression(v, c1)
+		//
+		c1.Inputs = append(c1.Inputs, &Constraint{
 			Output: binOperation,
 		})
 

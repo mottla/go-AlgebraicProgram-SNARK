@@ -10,18 +10,58 @@ var variableIndicationSign = "@"
 
 // Circuit is the data structure of the compiled circuit
 type Circuit struct {
-	Inputs            []*Constraint
-	Name              string
-	rootConstraints   map[string]*Constraint
-	returnConstraints []*Constraint
+	Inputs          []*Constraint
+	Name            string
+	rootConstraints *watchstack
 	//after reducing
 	//constraintMap map[string]*Constraint
 	constraintMap map[string]*Constraint
 	//specialBuild  func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool, f func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate, invert bool) (facs factors, variableEnd bool)) (facs factors, variableEnd bool)
 }
 
+func newWatchstack() *watchstack {
+
+	return &watchstack{
+		data:     []*Constraint{},
+		watchmap: make(map[string]bool),
+	}
+
+}
+
+type watchstack struct {
+	data     []*Constraint
+	watchmap map[string]bool
+}
+
+func (w *watchstack) len() int {
+	return len(w.data)
+}
+
+func (w *watchstack) remove(c *Constraint) {
+	if ex := w.watchmap[c.String()]; ex {
+		delete(w.watchmap, c.String())
+		for index, k := range w.data {
+			if k.String() == c.String() {
+				if index == len(w.data)-1 {
+					w.data = w.data[:index]
+					return
+				}
+				w.data = append(w.data[:index], w.data[index+1:]...)
+			}
+		}
+
+	}
+}
+
+func (w *watchstack) add(c *Constraint) {
+	if _, ex := w.watchmap[c.String()]; !ex {
+		w.watchmap[c.String()] = true
+		w.data = append(w.data, c)
+	}
+}
+
 func newCircuit(name string) *Circuit {
-	c := &Circuit{Name: name, constraintMap: make(map[string]*Constraint), rootConstraints: make(map[string]*Constraint)}
+	c := &Circuit{Name: name, constraintMap: make(map[string]*Constraint), rootConstraints: newWatchstack()}
 	//c.specialBuild = func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool,i func(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate, negate bool, invert bool) (facs factors, variableEnd bool)) (facs factors, variableEnd bool) {
 	//	return i(currentCircuit, currentConstraint, orderedmGates, negate, invert)
 	//}
@@ -43,9 +83,9 @@ func (c *Circuit) isArgument(in Token) (isArg bool, arg *Constraint) {
 func (circ *Circuit) updateRootsMap(constraint *Constraint) {
 
 	for _, v := range constraint.Inputs {
-		delete(circ.rootConstraints, v.Output.Value)
+		circ.rootConstraints.remove(v)
 	}
-	circ.rootConstraints[constraint.Output.Value] = constraint
+	circ.rootConstraints.add(constraint)
 }
 
 func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
@@ -75,9 +115,6 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 	case FUNCTION_CALL:
 		//constraint.Output.Value = composeNewFunctionName(constraint)
 		break
-	case EQUAL:
-
-		break
 	case VAR:
 		if _, ex := circ.constraintMap[constraint.Output.Value]; ex {
 			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Value))
@@ -94,7 +131,7 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 	case RETURN:
 		//constraint.Output.Value= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Value))
 		constraint.Output.Value = circ.Name
-		circ.returnConstraints = append(circ.returnConstraints, constraint)
+
 		break
 	case UNASIGNEDVAR:
 		circ.constraintMap[constraint.Output.Value] = constraint

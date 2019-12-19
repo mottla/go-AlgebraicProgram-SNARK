@@ -21,16 +21,6 @@ type Program struct {
 	functions    map[string]*Circuit
 	globalInputs []Token
 	Fields       fields.Fields //find a better name
-
-	//key 1: the hash chain indicating from where the variable is called H( H(main(a,b)) , doSomething(x,z) ), where H is a hash function.
-	//value 1 : map
-	//			with key variable name
-	//			with value variable name + hash Chain
-	//this datastructure is nice but maybe ill replace it later with something less confusing
-	//it serves the elementary purpose of not computing a variable a second time.
-	//it boosts parse time
-	//computedInContext map[string]map[Token]MultiplicationGateSignature
-
 	//to reduce the number of multiplication gates, we store each factor signature, and the variable name,
 	//so each time a variable is computed, that happens to have the very same factors, we reuse the former
 	//it boost setup and proof time
@@ -73,20 +63,18 @@ func (p *Program) ReduceCombinedTree(functions map[string]*Circuit) (orderedmGat
 
 	p.computedFactors = make(map[Token]MultiplicationGateSignature)
 
-	//TODO handle multiple returns
 	mainCircuit := p.getMainCircuit()
-	for _, root := range mainCircuit.returnConstraints {
 
-		if len(p.getMainCircuit().returnConstraints) > 1 {
-			panic("no supported yet")
+	for i := 0; i < mainCircuit.rootConstraints.len(); i++ {
+		f, _ := p.build(p.getMainCircuit(), mainCircuit.rootConstraints.data[i], &orderedmGates, false, false)
+		for _, fac := range f {
+			for k := range orderedmGates {
+				if orderedmGates[k].value.identifier.Value == fac.typ.Value {
+					orderedmGates[k].output = p.Fields.ArithmeticField.FractionToField(invertVector(fac.multiplicative))
+				}
+			}
 		}
-		f, _ := p.build(p.getMainCircuit(), root, &orderedmGates, false, false)
-		fmt.Println(f)
 	}
-
-	//TODo the case when return operation is addition is fucked this way
-	orderedmGates[len(orderedmGates)-1].output = p.Fields.ArithmeticField.FractionToField(invertVector(orderedmGates[len(orderedmGates)-1].value.commonExtracted))
-
 	return orderedmGates
 }
 
@@ -162,13 +150,14 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 	}
 
 	if currentConstraint.Output.Type == FUNCTION_CALL {
-		if currentConstraint.Output.Value == "scalarBaseMultiply" {
+		switch currentConstraint.Output.Value {
+		case "scalarBaseMultiply":
 			currentConstraint.Output.Type = UNASIGNEDVAR
-			facs, _ := p.build(currentCircuit, currentConstraint, orderedmGates, false, false)
+			secretFactors, _ := p.build(currentCircuit, currentConstraint, orderedmGates, false, false)
 			currentConstraint.Output.Type = FUNCTION_CALL
-			facs.normalizeAll()
-			sort.Sort(facs)
-			sig := hashToBig(facs).String()[:16]
+			secretFactors.normalizeAll()
+			sort.Sort(secretFactors)
+			sig := hashToBig(secretFactors).String()[:16]
 
 			nTok := Token{
 				Type:  FUNCTION_CALL,
@@ -179,7 +168,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 					gateType: egate,
 					index:    len(*orderedmGates),
 					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: [2]int{1, 1}},
-					expoIns:  facs,
+					expoIns:  secretFactors,
 					output:   big.NewInt(int64(1)),
 				}
 				p.computedFactors[nTok] = rootGate.value
@@ -192,15 +181,52 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				negate:         negate,
 				multiplicative: [2]int{1, 1},
 			}}, true
+		case "equal":
+			if len(currentConstraint.Inputs) < 2 {
+				panic("equality constraint requires min 2 arguments")
+			}
+			//for _, arg := range currentConstraint.Inputs {
+			//	//arg.
+			//}
+			secretFactors, _ := p.build(currentCircuit, currentConstraint, orderedmGates, false, false)
+			currentConstraint.Output.Type = FUNCTION_CALL
+			secretFactors.normalizeAll()
+			sort.Sort(secretFactors)
+			sig := hashToBig(secretFactors).String()[:16]
+
+			nTok := Token{
+				Type:  FUNCTION_CALL,
+				Value: sig,
+			}
+			if _, ex := p.computedFactors[nTok]; !ex {
+				rootGate := &Gate{
+					gateType: egate,
+					index:    len(*orderedmGates),
+					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: [2]int{1, 1}},
+					expoIns:  secretFactors,
+					output:   big.NewInt(int64(1)),
+				}
+				p.computedFactors[nTok] = rootGate.value
+				*orderedmGates = append(*orderedmGates, rootGate)
+			}
+
+			return factors{factor{
+				typ:            nTok,
+				invert:         invert,
+				negate:         negate,
+				multiplicative: [2]int{1, 1},
+			}}, true
+			return
+		default:
+			nextCircuit := p.changeInputs(currentConstraint)
+
+			for i := 0; i < nextCircuit.rootConstraints.len()-1; i++ {
+				p.build(nextCircuit, nextCircuit.rootConstraints.data[i], orderedmGates, false, false)
+			}
+
+			return p.build(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1], orderedmGates, negate, invert)
 		}
-		nextCircuit := p.changeInputs(currentConstraint)
-		//TODO think about this
-		//for _, v := range nextCircuit.rootConstraints {
-		//	p.build(nextCircuit, v, hashTraceBuildup, orderedmGates, false, false)
-		//}
-		//TODO handle multiple roots
-		//nextCircuit.specialBuild(nextCircuit, nextCircuit.returnConstraints[0], orderedmGates, negate, invert, p.build)
-		return p.build(nextCircuit, nextCircuit.returnConstraints[0], orderedmGates, negate, invert)
+
 	}
 	if currentConstraint.Output.Type == ARRAY_CALL {
 		var tmpGates []*Gate
@@ -237,8 +263,8 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 
 	if len(currentConstraint.Inputs) == 3 {
 
-		left := currentConstraint.Inputs[1]
-		right := currentConstraint.Inputs[2]
+		left := currentConstraint.Inputs[2]
+		right := currentConstraint.Inputs[1]
 		operation := currentConstraint.Inputs[0].Output
 		var leftFactors, rightFactors factors
 		var variableAtLeftEnd, variableAtRightEnd bool
@@ -258,16 +284,16 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates, negate, false)
 				break out
 			case "+":
-				leftFactors, variableAtLeftEnd := p.build(currentCircuit, left, orderedmGates, Xor(negate, false), invert)
-				rightFactors, variableAtRightEnd := p.build(currentCircuit, right, orderedmGates, Xor(negate, false), invert)
+				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates, Xor(negate, false), invert)
+				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates, Xor(negate, false), invert)
 				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
 			case "/":
 				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates, negate, false)
 				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates, negate, true)
 				break out
 			case "-":
-				leftFactors, variableAtLeftEnd := p.build(currentCircuit, left, orderedmGates, Xor(negate, false), invert)
-				rightFactors, variableAtRightEnd := p.build(currentCircuit, right, orderedmGates, Xor(negate, true), invert)
+				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates, Xor(negate, false), invert)
+				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates, Xor(negate, true), invert)
 				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
 			}
 			break
