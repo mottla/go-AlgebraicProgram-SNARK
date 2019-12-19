@@ -214,7 +214,7 @@ func (p *Parser) statementMode(tokens []Token) {
 	if len(tokens) == 0 {
 		return
 	}
-	var success bool
+
 	switch tokens[0].Type {
 	case IF: //if a<b { }   if (a<b) {
 		ifStatement, rest := SplitTokensAtFirstString(tokens, "{")
@@ -270,7 +270,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		r = r[1:]
 		p.parseExpression(l, &ForConst)
 		//a+=1)
-		l, r, success = SplitAtClosingBrackets(r)
+		l, r, success := SplitAtClosingBrackets(r)
 		if !success {
 			p.Error("closing brackets missing")
 		}
@@ -360,18 +360,15 @@ func (p *Parser) statementMode(tokens []Token) {
 		return
 	case FUNCTION_CALL:
 		//fkt(args...)    equal(a,2) -> creates assertion gates s.t. a=2
-		l, r := SplitTokensAtFirstString(tokens, "\n")
+
+		varConst := Constraint{
+			Output: tokens[0],
+		}
+		r := p.argumentParse(tokens[1:], SplitAtClosingBrackets, &varConst)
 		if r[0].Value != "\n" {
 			p.Error("linebreak expected, got %v", r[0])
 		}
 		r = r[1:]
-		varConst := Constraint{
-			Output: Token{
-				//Type:  EQUAL,
-				Value: combineString(l),
-			},
-		}
-		p.argumentParse(l[1:], SplitAtClosingBrackets, &varConst)
 		p.constraintChan <- varConst
 		p.statementMode(r)
 		return
@@ -427,42 +424,45 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 			return
 		}
 		if len(l) == 1 {
-			p.parseExpression(l, constraint)
-			newTok := Token{
+
+			tok := Token{
 				Type:  UNASIGNEDVAR,
 				Value: combineString(r),
 			}
-			c1 := &Constraint{Output: newTok}
-			constraint.Inputs = append(constraint.Inputs, c1)
-			p.parseExpression(r, c1)
+			c2 := &Constraint{Output: tok}
+			constraint.Inputs = append(constraint.Inputs, c2)
+			p.parseExpression(l, constraint)
+			p.parseExpression(r, c2)
 			return
 		}
 		if len(r) == 1 {
-			p.parseExpression(r, constraint)
-			newTok := Token{
+
+			tok := Token{
 				Type:  UNASIGNEDVAR,
 				Value: combineString(l),
 			}
-			c1 := &Constraint{Output: newTok}
-			constraint.Inputs = append(constraint.Inputs, c1)
-			p.parseExpression(l, c1)
+			c2 := &Constraint{Output: tok}
+			constraint.Inputs = append(constraint.Inputs, c2)
+			p.parseExpression(l, c2)
+			p.parseExpression(r, constraint)
 			return
 		}
 
 		ltok := Token{
 			Type:  UNASIGNEDVAR,
-			Value: combineString(r),
+			Value: combineString(l),
 		}
 		cl := &Constraint{Output: ltok}
 		rtok := Token{
 			Type:  UNASIGNEDVAR,
-			Value: combineString(l),
+			Value: combineString(r),
 		}
 		cr := &Constraint{Output: rtok}
 		constraint.Inputs = append(constraint.Inputs, cl)
 		constraint.Inputs = append(constraint.Inputs, cr)
-		p.parseExpression(r, cl)
-		p.parseExpression(l, cr)
+		p.parseExpression(l, cl)
+		p.parseExpression(r, cr)
+
 		return
 	} else if binOperation.Type != 0 {
 		p.Error("unsuported operation %v", binOperation)

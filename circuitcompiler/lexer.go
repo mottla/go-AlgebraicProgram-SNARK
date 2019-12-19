@@ -101,7 +101,7 @@ func init() {
 }
 
 var binOp = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
-var IN = IdentToken | ARGUMENT | VAR
+var IN = IdentToken | ARGUMENT | VAR | UNASIGNEDVAR
 
 const (
 	NumberToken TokenType = 1 << iota

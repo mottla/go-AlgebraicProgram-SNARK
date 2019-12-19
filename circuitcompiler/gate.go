@@ -8,8 +8,9 @@ import (
 type gateType uint8
 
 const (
-	mgate gateType = 1
-	egate gateType = 2
+	multiplicationGate gateType = iota
+	scalarBaseMultiplyGate
+	divisionGate
 )
 
 type Gate struct {

@@ -12,7 +12,7 @@ type factors []factor
 
 type factor struct {
 	typ            Token
-	invert, negate bool
+	invert         bool
 	multiplicative [2]int
 }
 
@@ -37,23 +37,20 @@ func (f factor) String() string {
 	if f.invert {
 		str += "^-1"
 	}
-	if f.negate {
-		str = "-" + str
-	}
 	return fmt.Sprintf("(\"%s\"  fac: %v)", str, f.multiplicative)
 }
 
 func (f factors) clone() (res factors) {
 	res = make(factors, len(f))
 	for k, v := range f {
-		res[k] = factor{multiplicative: v.multiplicative, typ: v.typ, invert: v.invert, negate: v.negate}
+		res[k] = factor{multiplicative: v.multiplicative, typ: v.typ, invert: v.invert}
 	}
 	return
 }
 
 func (f factors) normalizeAll() {
 	for i, _ := range f {
-		f[i].multiplicative = normalizeFactor(f[i].multiplicative)
+		f[i].multiplicative = normalizeVector(f[i].multiplicative)
 	}
 }
 
@@ -96,29 +93,31 @@ func hashToBig(f factors) *big.Int {
 	return new(big.Int).SetBytes(sha.Sum(nil))
 }
 
-func factorsSignature(leftFactors, rightFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors, extractedRightFactors factors) {
-	leftFactors = leftFactors.clone() //is this neccessary.. duno
-	leftFactors.normalizeAll()
-	var extractedFac [2]int
-	leftFactors, extractedFac = extractFactor(leftFactors)
-	sort.Sort(leftFactors)
-	leftNum := hashToBig(leftFactors)
+func extractConstant(leftFactors, rightFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors, extractedRightFactors factors) {
+
+	mulL, facL := factorSignature(leftFactors)
+	mulR, facR := factorSignature(rightFactors)
+
+	//we did all this, because multiplication is commutativ, and we want the signature of a
+	//mulitplication Gate   factorsSignature(a,b) == factorsSignature(b,a)
+	//since we use a cryptographic hash, addition is save enough e.g. collisions are very unlikely
+	mul := append(facL, facR...)
+	sort.Sort(mul)
+	hash := hashToBig(mul)
+
+	res := normalizeVector(mul2DVector(mulL, mulR))
+
+	return MultiplicationGateSignature{identifier: Token{Value: hash.String()[:16]}, commonExtracted: res}, facL, facR
+}
+
+func factorSignature(rightFactors factors) (extractedConstants [2]int, extractedRightFactors factors) {
 
 	rightFactors = rightFactors.clone() //is this neccessary.. duno
 	rightFactors.normalizeAll()
 	var extractedFacRight [2]int
 	rightFactors, extractedFacRight = extractFactor(rightFactors)
 	sort.Sort(rightFactors)
-	rightNum := hashToBig(rightFactors)
-
-	//we did all this, because multiplication is commutativ, and we want the signature of a
-	//mulitplication Gate   factorsSignature(a,b) == factorsSignature(b,a)
-	//since we use a cryptographic hash, addition is save enough e.g. collisions are very unlikely
-	leftNum.Add(leftNum, rightNum)
-
-	res := normalizeFactor(mul2DVector(extractedFac, extractedFacRight))
-
-	return MultiplicationGateSignature{identifier: Token{Value: leftNum.String()[:16]}, commonExtracted: res}, leftFactors, rightFactors
+	return extractedFacRight, rightFactors
 }
 
 //multiplies factor elements and returns the result
@@ -136,27 +135,27 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 		for _, right := range rightFactors {
 
 			if left.typ.Type == NumberToken && right.typ.Type&IN != 0 {
-				leftFactors[i] = factor{typ: right.typ, negate: Xor(left.negate, right.negate), invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = factor{typ: right.typ, invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if left.typ.Type&IN != 0 && right.typ.Type == NumberToken {
-				leftFactors[i] = factor{typ: left.typ, negate: Xor(left.negate, right.negate), invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = factor{typ: left.typ, invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if right.typ.Type&left.typ.Type == NumberToken {
-				leftFactors[i] = factor{typ: left.typ, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = factor{typ: left.typ, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 				continue
 
 			}
 			//tricky part here
-			//this one should only be reached, after a true mgate had its left and right braches computed. here we
+			//this one should only be reached, after a true multiplicationGate had its left and right braches computed. here we
 			//a factor can appear at most in quadratic form. we reduce terms a*a^-1 here.
 			if right.typ.Type&left.typ.Type&IN != 0 {
 				if left.typ.Value == right.typ.Value {
 					if right.invert != left.invert {
-						leftFactors[i] = factor{typ: Token{Type: NumberToken}, negate: Xor(right.negate, left.negate), multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+						leftFactors[i] = factor{typ: Token{Type: NumberToken}, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
 						continue
 					}
 				}
@@ -186,33 +185,18 @@ func abs(n int) (val int, positive bool) {
 func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
 	if facLeft.typ.Type&facRight.typ.Type == NumberToken {
 		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
-		if facLeft.negate {
-			a0 *= -1
-		}
-		if facRight.negate {
-			b0 *= -1
-		}
-		absValue, positive := abs(a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0)
-
 		return true, factor{typ: Token{
 			Type: NumberToken,
-		}, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
+		}, multiplicative: [2]int{a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
 
 	}
-	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.invert == facRight.invert && facLeft.typ.Value == facRight.typ.Value {
+	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.typ.Value == facRight.typ.Value {
 		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
-		if facLeft.negate {
-			a0 *= -1
-		}
-		if facRight.negate {
-			b0 *= -1
-		}
-		absValue, positive := abs(a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0)
 
-		return true, factor{typ: facRight.typ, invert: facRight.invert, negate: !positive, multiplicative: [2]int{absValue, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
+		return true, factor{typ: facRight.typ, multiplicative: [2]int{a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
 
 	}
-
+	//panic("unexpected")
 	return false, factor{}
 
 }
@@ -249,9 +233,22 @@ func addFactors(leftFactors, rightFactors factors) factors {
 
 	return res
 }
+func negateFactors(leftFactors factors) factors {
+	for i := range leftFactors {
+		leftFactors[i].multiplicative[0] = leftFactors[i].multiplicative[0] * -1
+	}
+	return leftFactors
+}
+func invertFactors(leftFactors factors) factors {
+	for i := range leftFactors {
+		leftFactors[i].multiplicative = invertVector(leftFactors[i].multiplicative)
+		leftFactors[i].invert = !leftFactors[i].invert
+	}
+	return leftFactors
+}
 
 // -4/-5 -> 4/5  ;  5/-7 -> -5/7  ; 6 /2 -> 3 / 1
-func normalizeFactor(b [2]int) [2]int {
+func normalizeVector(b [2]int) [2]int {
 	resa, signa := abs(b[0])
 	resb, signb := abs(b[1])
 
@@ -270,8 +267,8 @@ func mul2DVector(a, b [2]int) [2]int {
 }
 
 func invertVector(a [2]int) [2]int {
-
-	return [2]int{a[1], a[0]}
+	a[0], a[1] = a[1], a[0]
+	return a
 }
 
 // find Least Common Multiple (LCM) via GCD

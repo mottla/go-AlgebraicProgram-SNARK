@@ -32,13 +32,14 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main( x  ,  z ) {
-		#return scalarBaseMultiply(a(x))/scalarBaseMultiply(x/z)
-		#var l = b(x,z*z*8)
-		return (x*7)/(z*8)
+		scalarBaseMultiply(a(x))
+		var k = (9-9)-4
+		#var l = b(k,z*z*8)
+		return k*z*x
 	}
 
 	def a(k){
-		var x=scalarBaseMultiply(3+7-1)+k
+		var x=scalarBaseMultiply(3+7-1)+k*2
 	return x
 	}
 
