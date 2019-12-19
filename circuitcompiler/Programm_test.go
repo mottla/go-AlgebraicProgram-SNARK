@@ -32,14 +32,12 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main( x  ,  z ) {
-		scalarBaseMultiply(a(x))
-		var k = (9-9)-4
-		#var l = b(k,z*z*8)
-		return k*z*x
+		equal(x*2,z*3)
+		return a(x)*a(x+4)
 	}
 
 	def a(k){
-		var x=scalarBaseMultiply(3+7-1)+k*2
+		var x=scalarBaseMultiply(3+k)+k*2
 	return x
 	}
 
@@ -161,7 +159,7 @@ func TestCorrectness(t *testing.T) {
 			assert.NoError(t, err)
 			fmt.Println("witness")
 			fmt.Println(w)
-			assert.Equal(t, io.result, w[len(w)-1])
+
 		}
 	}
 }

@@ -13,7 +13,7 @@ type Constraint struct {
 
 func (c Constraint) String() string {
 	//fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
-	return fmt.Sprintf("|%v|", c.Output)
+	return fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
 }
 
 func (c Constraint) PrintConstaintTree(depth int) {

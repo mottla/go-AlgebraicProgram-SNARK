@@ -85,15 +85,8 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 		return
 	}
 
-	sum := func(array []*big.Int) (sum *big.Int) {
-		sum = new(big.Int)
-		for i, val := range array {
-			if val.Cmp(zero) != 0 {
-				sum.Add(sum, new(big.Int).Mul(val, witness[i]))
-			}
-
-		}
-		return
+	sum := func(array []*big.Int) *big.Int {
+		return f.ArithmeticField.ScalarProduct(array, witness)
 	}
 
 	for i := 0; i < len(r1cs.L); i++ {
@@ -110,7 +103,16 @@ func (r1cs *ER1CS) CalculateWitness(input []*big.Int, f fields.Fields) (witness 
 		}
 		outKnowns, outUnknowns := getKnownsAndUnknowns(gatesOutputs)
 
-		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) != 1 {
+		//equality gate
+		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) == 0 {
+			result := f.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+			if result.Cmp(sum(outKnowns)) != 0 {
+				return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. we cannot process", i))
+			}
+
+		}
+
+		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) > 1 {
 			return nil, errors.New(fmt.Sprintf("at gate %v:computing more then one unknown in Gate assignment is not possible", i))
 		}
 

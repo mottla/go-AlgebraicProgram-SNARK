@@ -131,7 +131,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			}
 			panic("asdf")
 		case RETURN:
-			panic("empty return not implemented yet")
+			//panic("empty return not implemented yet")
 			fac := factor{typ: Token{
 				Type: NumberToken,
 			}, multiplicative: [2]int{1, 1}}
@@ -150,9 +150,11 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 	if currentConstraint.Output.Type == FUNCTION_CALL {
 		switch currentConstraint.Output.Value {
 		case "scalarBaseMultiply":
-			currentConstraint.Output.Type = UNASIGNEDVAR
-			secretFactors, _ := p.build(currentCircuit, currentConstraint, orderedmGates)
-			currentConstraint.Output.Type = FUNCTION_CALL
+			if len(currentConstraint.Inputs) != 1 {
+				panic("scalarBaseMultiply argument missmatch")
+			}
+			secretFactors, _ := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+
 			secretFactors.normalizeAll()
 			sort.Sort(secretFactors)
 			sig := hashToBig(secretFactors).String()[:16]
@@ -178,17 +180,18 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				multiplicative: [2]int{1, 1},
 			}}, true
 		case "equal":
-			if len(currentConstraint.Inputs) < 2 {
-				panic("equality constraint requires min 2 arguments")
+			if len(currentConstraint.Inputs) != 2 {
+				panic("equality constraint requires 2 arguments")
 			}
-			//for _, arg := range currentConstraint.Inputs {
-			//	//arg.
-			//}
-			secretFactors, _ := p.build(currentCircuit, currentConstraint, orderedmGates)
-			currentConstraint.Output.Type = FUNCTION_CALL
-			secretFactors.normalizeAll()
-			sort.Sort(secretFactors)
-			sig := hashToBig(secretFactors).String()[:16]
+
+			l, _ := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			r, _ := p.build(currentCircuit, currentConstraint.Inputs[1], orderedmGates)
+			sort.Sort(l)
+			sort.Sort(r)
+			hl := hashToBig(l)
+			hr := hashToBig(r)
+			//this way equal(a,b) = equal(b,a). collision is unlikely but possible
+			sig := new(big.Int).Add(hl, hr).String()[:16]
 
 			nTok := Token{
 				Type:  FUNCTION_CALL,
@@ -196,10 +199,11 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			}
 			if _, ex := p.computedFactors[nTok]; !ex {
 				rootGate := &Gate{
-					gateType: scalarBaseMultiplyGate,
+					gateType: equalityGate,
 					index:    len(*orderedmGates),
 					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: [2]int{1, 1}},
-					expoIns:  secretFactors,
+					leftIns:  l,
+					rightIns: r,
 					output:   big.NewInt(int64(1)),
 				}
 				p.computedFactors[nTok] = rootGate.value
@@ -374,7 +378,8 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 
 	for _, g := range mGates {
 
-		if g.gateType == multiplicationGate {
+		switch g.gateType {
+		case multiplicationGate:
 			aConstraint := fields.ArrayOfBigZeros(size)
 			bConstraint := fields.ArrayOfBigZeros(size)
 			eConstraint := fields.ArrayOfBigZeros(size)
@@ -400,8 +405,8 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
 			r1CS.O = append(r1CS.O, cConstraint)
-
-		} else if g.gateType == scalarBaseMultiplyGate {
+			break
+		case scalarBaseMultiplyGate:
 			aConstraint := fields.ArrayOfBigZeros(size)
 			bConstraint := fields.ArrayOfBigZeros(size)
 			eConstraint := fields.ArrayOfBigZeros(size)
@@ -413,17 +418,37 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 
 			cConstraint[indexMap[g.value.identifier]] = big.NewInt(int64(1))
 
-			//if g.value.invert {
-			//	panic("not a m Gate")
-			//}
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
 			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		case equalityGate:
+			aConstraint := fields.ArrayOfBigZeros(size)
+			bConstraint := fields.ArrayOfBigZeros(size)
+			eConstraint := fields.ArrayOfBigZeros(size)
+			cConstraint := fields.ArrayOfBigZeros(size)
 
-		} else {
-			panic("not a m Gate")
+			for _, val := range g.leftIns {
+				insertValue(val, aConstraint)
+			}
+
+			for _, val := range g.rightIns {
+				insertValue(val, cConstraint)
+			}
+
+			bConstraint[0] = big.NewInt(int64(1))
+
+			r1CS.L = append(r1CS.L, aConstraint)
+			r1CS.R = append(r1CS.R, bConstraint)
+			r1CS.E = append(r1CS.E, eConstraint)
+			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		default:
+			panic("no supported gate type")
+
 		}
+
 	}
 
 	return

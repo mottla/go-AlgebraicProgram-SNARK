@@ -10,7 +10,7 @@ type gateType uint8
 const (
 	multiplicationGate gateType = iota
 	scalarBaseMultiplyGate
-	divisionGate
+	equalityGate
 )
 
 type Gate struct {

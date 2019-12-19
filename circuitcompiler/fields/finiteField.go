@@ -53,6 +53,19 @@ func (f Fq) FractionToField(in [2]int) *big.Int {
 
 }
 
+func (fq Fq) ScalarProduct(l, r []*big.Int) (sum *big.Int) {
+	if len(l) != len(r) {
+		panic("vector lengths missmatch")
+	}
+	return fq.scalarProduct(l, r)
+}
+func (fq Fq) scalarProduct(l, r []*big.Int) (sum *big.Int) {
+	if len(l) == 0 {
+		return bigZero
+	}
+	return fq.Add(new(big.Int).Mul(l[0], r[0]), fq.ScalarProduct(l[1:], r[1:]))
+}
+
 // Add performs an addition on the Fq
 func (fq Fq) Add(a, b *big.Int) *big.Int {
 	r := new(big.Int).Add(a, b)
