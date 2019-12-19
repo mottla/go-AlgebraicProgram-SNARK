@@ -32,7 +32,8 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main( x  ,  z ) {
-		equal(x*2,z*3)
+		equal(x*2,6)
+		equal((x*2)+2,(z*3)+2)
 		return a(x)*a(x+4)
 	}
 
