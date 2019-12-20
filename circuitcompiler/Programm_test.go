@@ -27,18 +27,22 @@ var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 1
 var correctnessTest = []TraceCorrectnessTest{
 	{skipp: false,
 		io: []InOut{{
-			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2))},
+			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2)), big.NewInt(328329)},
 		}},
 
 		code: `
-	def main( x  ,  z ) {
+	def main(x,z,w) {
 		var k = x*x	
-		k = z*z	
-		return 
+		var arra[]={k,1,2,3}
+		k = arra[0]*k
+		var l = mul( (k*7)+(3*z) )
+		equal(l,w)
+		return l*(k*arra[2])
 	}
+
 	def mul(a){
-	return a*a	
-}
+		return a*a	
+	}
 `,
 	}, {skipp: true,
 		io: []InOut{{

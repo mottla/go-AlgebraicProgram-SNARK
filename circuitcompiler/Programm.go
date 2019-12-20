@@ -234,10 +234,11 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 
 	}
 	if currentConstraint.Output.Type == ARRAY_CALL {
-		var tmpGates []*Gate
-		nc := Constraint{Output: Token{Type: UNASIGNEDVAR}, Inputs: currentConstraint.Inputs}
 
-		indexFactors, variable := p.build(currentCircuit, &nc, &tmpGates)
+		if len(currentConstraint.Inputs) != 1 {
+			panic("scalarBaseMultiply argument missmatch")
+		}
+		indexFactors, variable := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		if variable {
 			panic("cannot access array dynamically in an arithmetic circuit currently")
 		}
@@ -276,7 +277,6 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		var leftFactors, rightFactors factors
 		var variableAtLeftEnd, variableAtRightEnd bool
 
-	out:
 		switch operation.Type {
 		case BinaryComperatorToken:
 			break
@@ -289,7 +289,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			case "*":
 				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
 				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
-				break out
+				break
 			case "+":
 				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
 				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
@@ -298,8 +298,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
 				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
 				rightFactors = invertFactors(rightFactors)
-
-				break out
+				break
 			case "-":
 				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
 				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
@@ -359,6 +358,10 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 	}
 
 	for _, v := range mGates {
+		if v.gateType == equalityGate {
+			size = size - 1
+			continue
+		}
 		if _, ex := indexMap[v.value.identifier]; !ex {
 			indexMap[v.value.identifier] = len(indexMap)
 		} else {

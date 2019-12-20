@@ -115,9 +115,8 @@ out:
 	for {
 		select {
 		case constraint := <-parser.constraintChan:
-			fmt.Println("#############")
-			fmt.Println(constraint)
-
+			//fmt.Println("#############")
+			//fmt.Println(constraint)
 			if checkSemantics {
 				if constraint.Output.Type == FUNCTION_DEFINE {
 					if _, ex := circuits[constraint.Output.Value]; ex {
@@ -127,10 +126,8 @@ out:
 					circuits[constraint.Output.Value] = circuit
 					continue
 				}
-
 				circuit.SemanticCheck_RootMapUpdate(&constraint)
 			}
-
 			//constraint.PrintReverseConstaintTree(0)
 			//fmt.Println("#############")
 		case <-parser.done:

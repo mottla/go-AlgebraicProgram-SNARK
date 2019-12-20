@@ -140,6 +140,10 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 
 		break
 	case UNASIGNEDVAR:
+		if v, ex := circ.constraintMap[constraint.Output.Value]; ex {
+			*constraint = *v
+			break
+		}
 		circ.constraintMap[constraint.Output.Value] = constraint
 		break
 	default:
