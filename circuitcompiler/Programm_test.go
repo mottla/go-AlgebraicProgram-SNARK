@@ -32,20 +32,13 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main( x  ,  z ) {
-		equal(x*2,6)
-		equal((x*2)+2,(z*3)+2)
-		return a(x)*a(x+4)
+		var k = x*x	
+		k = z*z	
+		return 
 	}
-
-	def a(k){
-		var x=scalarBaseMultiply(3+k)+k*2
-	return x
-	}
-
-	def b(k,l){
-		var x=l*k
-	return x 
-	}
+	def mul(a){
+	return a*a	
+}
 `,
 	}, {skipp: true,
 		io: []InOut{{

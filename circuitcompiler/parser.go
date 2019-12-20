@@ -13,7 +13,10 @@ type Constraint struct {
 
 func (c Constraint) String() string {
 	//fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
-	return fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
+	if c.Output.Type == FUNCTION_CALL {
+		return fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
+	}
+	return fmt.Sprintf("|%v|", c.Output)
 }
 
 func (c Constraint) PrintConstaintTree(depth int) {
@@ -112,8 +115,8 @@ out:
 	for {
 		select {
 		case constraint := <-parser.constraintChan:
-			//fmt.Println("#############")
-			//fmt.Println(constraint)
+			fmt.Println("#############")
+			fmt.Println(constraint)
 
 			if checkSemantics {
 				if constraint.Output.Type == FUNCTION_DEFINE {
@@ -138,10 +141,6 @@ out:
 }
 
 func (p *Parser) libraryMode() {
-	if p.log {
-		fmt.Println("library mode")
-	}
-
 	tok := p.NextNonBreakToken()
 
 	if tok.Type == FUNCTION_DEFINE {
@@ -153,18 +152,9 @@ func (p *Parser) libraryMode() {
 		tok = p.NextToken()
 	}
 	close(p.done)
-	//if tok.Value == "" {
-	//	//close(p.done)
-	//	return
-	//}
-	//p.Error("Function expected, got %v : %v", tok.Value, tok.Type)
-
 }
 
 func (p *Parser) functionMode() {
-	if p.log {
-		fmt.Println("function mode")
-	}
 	tok := p.NextToken()
 	if tok.Type != FUNCTION_CALL {
 		p.Error("Function Identifier expected, got %v : %v", tok.Value, tok.Type)
@@ -175,6 +165,7 @@ func (p *Parser) functionMode() {
 	}
 
 	tok = p.NextToken()
+
 	if tok.Value != "(" {
 		p.Error("Function expected, got %v ", tok)
 	}
@@ -200,16 +191,14 @@ func (p *Parser) functionMode() {
 		p.Error("invalid function declaration, got %v : %v", tok.Value, tok.Type)
 	}
 	p.constraintChan <- *FuncConstraint
-	toks := p.stackTillSwingBracketsClose()
+	toks := p.stackTillSwingBracketsClose() //we collect everything inside the function body
 	p.statementMode(toks)
 	return
 
 }
 
 func (p *Parser) statementMode(tokens []Token) {
-	if p.log {
-		fmt.Println("statement mode")
-	}
+
 	tokens = removeLeadingAndTrailingBreaks(tokens)
 	if len(tokens) == 0 {
 		return
@@ -254,7 +243,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		varConst := Constraint{
 			Output: Token{
-				Type:  VAR,
+				Type:  VARIABLE_DECLARE,
 				Value: l[0].Value,
 			},
 		}
@@ -287,23 +276,26 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		p.statementMode(l)
 		p.statementMode(r)
-	//case EQUAL:
-	//	//equal(args...)    equal(a,2) -> creates assertion gates s.t. a=2
-	//	l, r := SplitTokensAtFirstString(tokens, "\n")
-	//	if r[0].Value != "\n" {
-	//		p.Error("linebreak expected, got %v", r[0])
-	//	}
-	//	r = r[1:]
-	//	varConst := Constraint{
-	//		Output: Token{
-	//			Type:  EQUAL,
-	//			Value: combineString(l),
-	//		},
-	//	}
-	//	p.argumentParse(l[1:], SplitAtClosingBrackets, &varConst)
-	//	p.constraintChan <- varConst
-	//	p.statementMode(r)
-	case VAR:
+	case IdentToken: //variable overloading -> a = a * 4
+		l, r := SplitTokensAtFirstString(tokens, "\n")
+		if r[0].Value != "\n" {
+			p.Error("linebreak expected, got %v", r[0])
+		}
+		r = r[1:]
+		//hannes = 42
+		if b, _ := isVariableAssignment(l); b {
+			varConst := Constraint{
+				Output: Token{
+					Type:  VARIABLE_OVERLOAD,
+					Value: l[0].Value,
+				},
+			}
+			p.parseExpression(l[2:], &varConst)
+			p.constraintChan <- varConst
+			p.statementMode(r)
+			return
+		}
+	case VARIABLE_DECLARE:
 
 		l, r := SplitTokensAtFirstString(tokens, "\n")
 		if r[0].Value != "\n" {
@@ -314,7 +306,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		if b, _ := isVariableAssignment(l[1:]); b {
 			varConst := Constraint{
 				Output: Token{
-					Type:  VAR,
+					Type:  VARIABLE_DECLARE,
 					Value: l[1].Value,
 				},
 			}
@@ -608,24 +600,31 @@ func isVariableAssignment(stx []Token) (yn bool, err string) {
 	return true, ""
 }
 
-//the closing } is not in the returned tokens array
+func (p *Parser) stackTillBracketsClose() (tokens []Token) {
+	return p.stackTillBrackets("(", ")")
+}
+
 func (p *Parser) stackTillSwingBracketsClose() (tokens []Token) {
+	return p.stackTillBrackets("{", "}")
+}
+
+//the closing } is not in the returned tokens array
+func (p *Parser) stackTillBrackets(open, close string) (tokens []Token) {
 	var stack []Token
 	ctr := 1
 	for tok := p.NextToken(); tok.Type != EOF; tok = p.NextToken() {
-		if tok.Value == "{" {
+		if tok.Value == open {
 			ctr++
 		}
-		if tok.Value == "}" {
+		if tok.Value == close {
 			ctr--
 			if ctr == 0 {
 				return stack
 			}
-
 		}
 		stack = append(stack, *tok)
 	}
-	p.Error("closing } missing")
+	p.Error("closing %v missing", close)
 	return
 }
 

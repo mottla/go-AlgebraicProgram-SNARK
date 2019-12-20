@@ -253,13 +253,15 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 
 	if len(currentConstraint.Inputs) == 1 {
 		switch currentConstraint.Output.Type {
-		case VAR:
+		case VARIABLE_DECLARE:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case RETURN:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case UNASIGNEDVAR:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case IdentToken:
+			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+		case VARIABLE_OVERLOAD:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		default:
 			panic("")

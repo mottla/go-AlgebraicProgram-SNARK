@@ -50,7 +50,7 @@ type Token struct {
 }
 
 func (ch Token) String() string {
-	return fmt.Sprintf("(%v <> %v )", ch.Value, ch.Type)
+	return fmt.Sprintf("(%v <> %v)", ch.Value, ch.Type)
 }
 
 var numberTokens = "0123456789"
@@ -92,7 +92,7 @@ func init() {
 	keyWordMap = map[string]TokenType{
 		"return": RETURN,
 		"def":    FUNCTION_DEFINE,
-		"var":    VAR,
+		"var":    VARIABLE_DECLARE,
 		"if":     IF,
 		"while":  WHILE,
 		"for":    FOR,
@@ -101,7 +101,7 @@ func init() {
 }
 
 var binOp = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
-var IN = IdentToken | ARGUMENT | VAR | UNASIGNEDVAR
+var IN = IdentToken | ARGUMENT | VARIABLE_DECLARE | UNASIGNEDVAR
 
 const (
 	NumberToken TokenType = 1 << iota
@@ -118,7 +118,8 @@ const (
 
 	FUNCTION_DEFINE
 	FUNCTION_CALL
-	VAR
+	VARIABLE_DECLARE
+	VARIABLE_OVERLOAD
 	ARRAY_Define
 	ARRAY_CALL
 	UNASIGNEDVAR
@@ -158,7 +159,7 @@ func (ch TokenType) String() string {
 		return "def"
 	case FUNCTION_CALL:
 		return "call"
-	case VAR:
+	case VARIABLE_DECLARE:
 		return "var"
 	case IF:
 		return "if"

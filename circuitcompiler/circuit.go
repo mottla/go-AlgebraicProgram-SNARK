@@ -112,10 +112,16 @@ func (circ *Circuit) SemanticCheck_RootMapUpdate(constraint *Constraint) {
 	case IF:
 		fmt.Println("dsaf")
 		break
+	case VARIABLE_OVERLOAD:
+		if _, ex := circ.constraintMap[constraint.Output.Value]; !ex {
+			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Value))
+		}
+		circ.constraintMap[constraint.Output.Value] = constraint
+		break
 	case FUNCTION_CALL:
 		//constraint.Output.Value = composeNewFunctionName(constraint)
 		break
-	case VAR:
+	case VARIABLE_DECLARE:
 		if _, ex := circ.constraintMap[constraint.Output.Value]; ex {
 			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Value))
 		}
