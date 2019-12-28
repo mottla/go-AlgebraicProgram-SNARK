@@ -3,17 +3,23 @@ package circuitcompiler
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"math/big"
 	"sort"
 	"strings"
 )
 
-type factors []factor
+var field = fields.NewFq(bn256.Order)
+var bigZero = big.NewInt(0)
+var bigOne = big.NewInt(1)
+
+type factors []*factor
 
 type factor struct {
 	typ            Token
 	invert         bool
-	multiplicative [2]int
+	multiplicative *big.Int
 }
 
 func (f factors) Len() int {
@@ -43,45 +49,22 @@ func (f factor) String() string {
 func (f factors) clone() (res factors) {
 	res = make(factors, len(f))
 	for k, v := range f {
-		res[k] = factor{multiplicative: v.multiplicative, typ: v.typ, invert: v.invert}
+		res[k] = &factor{multiplicative: new(big.Int).Set(v.multiplicative), typ: v.typ, invert: v.invert}
 	}
 	return
 }
 
-func (f factors) normalizeAll() {
-	for i, _ := range f {
-		f[i].multiplicative = normalizeVector(f[i].multiplicative)
-	}
-}
+func extractGCD(f factors) (factors, *big.Int) {
 
-// find Least Common Multiple (LCM) via GCD
-func LCMsmall(a, b int) int {
-	result := a * b / GCD(a, b)
-	return result
-}
-
-func extractFactor(f factors) (factors, [2]int) {
-
-	lcm := f[0].multiplicative[1]
-
+	gcd := f[0].multiplicative
 	for i := 1; i < len(f); i++ {
-		lcm = LCMsmall(f[i].multiplicative[1], lcm)
-	}
-
-	for i := 0; i < len(f); i++ {
-		f[i].multiplicative[0] = (lcm / f[i].multiplicative[1]) * f[i].multiplicative[0]
-	}
-
-	gcd := f[0].multiplicative[0]
-	for i := 1; i < len(f); i++ {
-		gcd = GCD(f[i].multiplicative[0], gcd)
+		gcd = new(big.Int).GCD(nil, nil, f[i].multiplicative, gcd)
 	}
 	for i := 0; i < len(f); i++ {
-		f[i].multiplicative[0] = f[i].multiplicative[0] / gcd
-		f[i].multiplicative[1] = 1
-	}
+		f[i].multiplicative = field.Div(f[i].multiplicative, gcd)
 
-	return f, [2]int{gcd, lcm}
+	}
+	return f, gcd
 
 }
 
@@ -105,19 +88,16 @@ func extractConstant(leftFactors, rightFactors factors) (sig MultiplicationGateS
 	sort.Sort(mul)
 	hash := hashToBig(mul)
 
-	res := normalizeVector(mul2DVector(mulL, mulR))
+	res := field.Mul(mulL, mulR)
 
 	return MultiplicationGateSignature{identifier: Token{Value: hash.String()[:16]}, commonExtracted: res}, facL, facR
 }
 
-func factorSignature(rightFactors factors) (extractedConstants [2]int, extractedRightFactors factors) {
-
-	rightFactors = rightFactors.clone() //is this neccessary.. duno
-	rightFactors.normalizeAll()
-	var extractedFacRight [2]int
-	rightFactors, extractedFacRight = extractFactor(rightFactors)
+func factorSignature(rightFactors factors) (gcd *big.Int, extractedRightFactors factors) {
+	rightFactors = rightFactors.clone()
+	rightFactors, gcd = extractGCD(rightFactors)
 	sort.Sort(rightFactors)
-	return extractedFacRight, rightFactors
+	return gcd, rightFactors
 }
 
 //multiplies factor elements and returns the result
@@ -135,17 +115,17 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 		for _, right := range rightFactors {
 
 			if left.typ.Type == NumberToken && right.typ.Type&IN != 0 {
-				leftFactors[i] = factor{typ: right.typ, invert: right.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: right.typ, invert: right.invert, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if left.typ.Type&IN != 0 && right.typ.Type == NumberToken {
-				leftFactors[i] = factor{typ: left.typ, invert: left.invert, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: left.typ, invert: left.invert, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if right.typ.Type&left.typ.Type == NumberToken {
-				leftFactors[i] = factor{typ: left.typ, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: left.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 
 			}
@@ -155,7 +135,7 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 			if right.typ.Type&left.typ.Type&IN != 0 {
 				if left.typ.Value == right.typ.Value {
 					if right.invert != left.invert {
-						leftFactors[i] = factor{typ: Token{Type: NumberToken}, multiplicative: mul2DVector(right.multiplicative, left.multiplicative)}
+						leftFactors[i] = &factor{typ: Token{Type: NumberToken}, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 						continue
 					}
 				}
@@ -182,22 +162,19 @@ func abs(n int) (val int, positive bool) {
 }
 
 //adds two factors to one iff they are both are constants or of the same variable
-func addFactor(facLeft, facRight factor) (couldAdd bool, sum factor) {
+func addFactor(facLeft, facRight *factor) (couldAdd bool, sum *factor) {
 	if facLeft.typ.Type&facRight.typ.Type == NumberToken {
-		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
-		return true, factor{typ: Token{
+		return true, &factor{typ: Token{
 			Type: NumberToken,
-		}, multiplicative: [2]int{a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
+		}, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
 
 	}
 	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.typ.Value == facRight.typ.Value {
-		var a0, b0 = facLeft.multiplicative[0], facRight.multiplicative[0]
-
-		return true, factor{typ: facRight.typ, multiplicative: [2]int{a0*facRight.multiplicative[1] + facLeft.multiplicative[1]*b0, facLeft.multiplicative[1] * facRight.multiplicative[1]}}
+		return true, &factor{typ: facRight.typ, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
 
 	}
 	//panic("unexpected")
-	return false, factor{}
+	return false, &factor{}
 
 }
 
@@ -211,7 +188,7 @@ func addFactors(leftFactors, rightFactors factors) factors {
 		found = false
 		for i, facRight := range rightFactors {
 
-			var sum factor
+			var sum *factor
 			found, sum = addFactor(facLeft, facRight)
 
 			if found {
@@ -225,8 +202,9 @@ func addFactors(leftFactors, rightFactors factors) factors {
 		}
 	}
 
+	//not that we should keep at leost one 0 factor, in case all are 0
 	for _, val := range rightFactors {
-		if val.multiplicative[0] != 0 {
+		if val.multiplicative.Cmp(bigZero) != 0 {
 			res = append(res, val)
 		}
 	}
@@ -235,59 +213,14 @@ func addFactors(leftFactors, rightFactors factors) factors {
 }
 func negateFactors(leftFactors factors) factors {
 	for i := range leftFactors {
-		leftFactors[i].multiplicative[0] = leftFactors[i].multiplicative[0] * -1
+		leftFactors[i].multiplicative = field.Neg(leftFactors[i].multiplicative)
 	}
 	return leftFactors
 }
 func invertFactors(leftFactors factors) factors {
 	for i := range leftFactors {
-		leftFactors[i].multiplicative = invertVector(leftFactors[i].multiplicative)
+		leftFactors[i].multiplicative = field.Inverse(leftFactors[i].multiplicative)
 		leftFactors[i].invert = !leftFactors[i].invert
 	}
 	return leftFactors
-}
-
-// -4/-5 -> 4/5  ;  5/-7 -> -5/7  ; 6 /2 -> 3 / 1
-func normalizeVector(b [2]int) [2]int {
-	resa, signa := abs(b[0])
-	resb, signb := abs(b[1])
-
-	gcd := GCD(resa, resb)
-
-	if Xor(signa, signb) {
-		resa = -resa
-	}
-	return [2]int{resa / gcd, resb / gcd}
-}
-
-//naive component multiplication
-func mul2DVector(a, b [2]int) [2]int {
-
-	return [2]int{a[0] * b[0], a[1] * b[1]}
-}
-
-func invertVector(a [2]int) [2]int {
-	a[0], a[1] = a[1], a[0]
-	return a
-}
-
-// find Least Common Multiple (LCM) via GCD
-func LCM(a, b int, integers ...int) int {
-	result := a * b / GCD(a, b)
-
-	for i := 0; i < len(integers); i++ {
-		result = LCM(result, integers[i])
-	}
-
-	return result
-}
-
-//euclidean algo to determine greates common divisor
-func GCD(a, b int) int {
-	for b != 0 {
-		t := b
-		b = a % b
-		a = t
-	}
-	return a
 }

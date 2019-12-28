@@ -65,14 +65,13 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		if test.skipp {
 			continue
 		}
-		program := circuitcompiler.NewProgram(bn256.Order, bn256.Order)
-		parser := circuitcompiler.NewParser(test.code, false)
-		circuits := parser.Parse(true)
+
+		program := circuitcompiler.Parse(test.code, true)
 
 		fmt.Println("\n unreduced")
 		fmt.Println(test.code)
 
-		gates := program.ReduceCombinedTree(circuits)
+		gates := program.ReduceCombinedTree()
 		program.Fields.PolynomialField.InitBases(len(gates))
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)

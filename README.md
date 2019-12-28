@@ -20,21 +20,24 @@ Currently supported:
 - declare variable: var x = expression
 - variable overloading: x = expression
 - array declaration: var k[]={expression,expression,..}
+- equality check. call equal(a,b), to ensure that a is equal to b at a given point of code execution.
+ use this to verify signatures etc.
+ - scalarBaseMultiply(x): to perform a point multiplication on the source group with just one gate. If its never called we have a normal zkSNARK toolchain.
 
 This language then gets compiled into a R1CS form, with focus on gate reduction.
-We reuse gates whenever possible, exploit homomorphic properties of the gates etc.
+We reuse gates whenever possible, exploit commutative properties of the gates, extract constant factors as long as possible etc.
 
 **Example of classic SNARK** (without the extention explained in the ![PDF](algebraicProgramSNARK.pdf))
 
 ```
 def main(x,z,w) {
-    var k = x*x	
+    var k = x*x*(7-4)	
     var arra[]={k,1,2,3}
     k = arra[0]*k
     var l = mul( (k*7)+(3*z) )
     equal(l,w)
     #this is a comment
-    return l*(k*arra[2])
+    return l*(k*arra[2*2/2])
 }
 
 def mul(a){

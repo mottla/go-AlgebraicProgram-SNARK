@@ -5,12 +5,11 @@ import (
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
 	"math/big"
 	"sort"
-	"strings"
 )
 
 type MultiplicationGateSignature struct {
 	identifier      Token
-	commonExtracted [2]int //if the multiplicationGate had a extractable factor, it will be stored here
+	commonExtracted *big.Int //if the multiplicationGate had a extractable factor, it will be stored here
 }
 
 func (m MultiplicationGateSignature) String() string {
@@ -27,13 +26,11 @@ type Program struct {
 	computedFactors map[Token]MultiplicationGateSignature
 }
 
-func NewProgram(CurveOrder, FieldOrder *big.Int) (program *Program) {
-
-	G := newCircuit("scalarBaseMultiply")
-	E := newCircuit("equal")
+func newProgram(CurveOrder, FieldOrder *big.Int) (program *Program) {
 
 	program = &Program{
-		functions:    map[string]*Circuit{"scalarBaseMultiply": G, "equal": E},
+		//functions:    map[string]*Circuit{"scalarBaseMultiply": G, "equal": E},
+		functions:    map[string]*Circuit{},
 		globalInputs: []Token{},
 		Fields:       fields.PrepareFields(CurveOrder, FieldOrder),
 	}
@@ -46,11 +43,8 @@ func (p *Program) GlobalInputCount() int {
 	return len(p.globalInputs)
 }
 
-func (p *Program) ReduceCombinedTree(functions map[string]*Circuit) (orderedmGates []*Gate) {
+func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
 
-	for k, v := range functions {
-		p.functions[k] = v
-	}
 	orderedmGates = []*Gate{}
 	p.globalInputs = append(p.globalInputs, Token{
 		Type:  NumberToken,
@@ -66,12 +60,12 @@ func (p *Program) ReduceCombinedTree(functions map[string]*Circuit) (orderedmGat
 	mainCircuit := p.getMainCircuit()
 
 	for i := 0; i < mainCircuit.rootConstraints.len(); i++ {
-		f, _ := p.build(p.getMainCircuit(), mainCircuit.rootConstraints.data[i], &orderedmGates)
+		f, _ := p.build(mainCircuit, mainCircuit.rootConstraints.data[i], &orderedmGates)
 		fmt.Println(f)
 		for _, fac := range f {
 			for k := range orderedmGates {
 				if orderedmGates[k].value.identifier.Value == fac.typ.Value {
-					orderedmGates[k].output = p.Fields.ArithmeticField.FractionToField(invertVector(fac.multiplicative))
+					orderedmGates[k].output = p.Fields.ArithmeticField.Inverse(fac.multiplicative)
 				}
 			}
 		}
@@ -83,27 +77,39 @@ func (p *Program) getMainCircuit() *Circuit {
 	return p.functions["main"]
 }
 
-func (p *Program) changeInputs(constraint *Constraint) (nextContext *Circuit) {
+func (p *Program) rereferenceFunctionInputs(currentCircuit *Circuit, functionName string, newInputs []*Constraint) (oldInputs []*Constraint, nextContext *Circuit) {
 
-	if constraint.Output.Type != FUNCTION_CALL {
-		panic("not a function")
-	}
-
-	if newCircut, v := p.functions[strings.Split(constraint.Output.Value, "(")[0]]; v {
-
-		if len(newCircut.Inputs) != len(constraint.Inputs) {
+	//first we check if the function is defined internally
+	if newCircut, v := currentCircuit.functions[functionName]; v {
+		if len(newCircut.Inputs) != len(newInputs) {
 			panic("argument size missmatch")
 		}
-
+		oldInputss := make([]*Constraint, len(newCircut.Inputs))
 		for i, _ := range newCircut.Inputs {
-			*newCircut.Inputs[i] = *constraint.Inputs[i]
+			oldInputss[i] = newCircut.Inputs[i].clone()
+			*newCircut.Inputs[i] = *newInputs[i]
 		}
-		//newCircut.returnConstraints[0].Output.Value = constraint.Output.Value
+		return oldInputss, newCircut
 
-		return newCircut
+	}
+
+	//now we check if its defined externally. maybe we remove this when we make the program a circuit too.
+	if newCircut, v := p.functions[functionName]; v {
+
+		if len(newCircut.Inputs) != len(newInputs) {
+			panic("argument size missmatch")
+		}
+		oldInputss := make([]*Constraint, len(newCircut.Inputs))
+		for i, _ := range newCircut.Inputs {
+			oldInputss[i] = newCircut.Inputs[i].clone()
+			*newCircut.Inputs[i] = *newInputs[i]
+
+		}
+
+		return oldInputss, newCircut
 	}
 	panic("undeclared function call. check your source")
-	return nil
+	return nil, nil
 }
 
 //recursively walks through the parse tree to create a list of all
@@ -114,12 +120,12 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 	if len(currentConstraint.Inputs) == 0 {
 		switch currentConstraint.Output.Type {
 		case NumberToken:
-			b1, v1 := isValue(currentConstraint.Output.Value)
-			if !b1 {
+
+			value, success := p.Fields.ArithmeticField.StringToFieldElement(currentConstraint.Output.Value)
+			if !success {
 				panic("not a constant")
 			}
-			mul := [2]int{v1, 1}
-			return factors{{typ: Token{Type: NumberToken}, multiplicative: mul}}, false
+			return factors{{typ: Token{Type: NumberToken}, multiplicative: value}}, false
 		case IdentToken:
 			if con, ex := currentCircuit.constraintMap[currentConstraint.Output.Value]; ex {
 				return p.build(currentCircuit, con, orderedmGates)
@@ -132,15 +138,15 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			panic("asdf")
 		case RETURN:
 			//panic("empty return not implemented yet")
-			fac := factor{typ: Token{
+			fac := &factor{typ: Token{
 				Type: NumberToken,
-			}, multiplicative: [2]int{1, 1}}
+			}, multiplicative: big.NewInt(1)}
 			return factors{fac}, false
 		case ARGUMENT:
-			fac := factor{typ: Token{
+			fac := &factor{typ: Token{
 				Type:  ARGUMENT,
 				Value: currentConstraint.Output.Value, //+string(hashTraceBuildup),
-			}, multiplicative: [2]int{1, 1}}
+			}, multiplicative: big.NewInt(1)}
 			return factors{fac}, true
 		default:
 			panic("")
@@ -155,7 +161,6 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			}
 			secretFactors, _ := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 
-			secretFactors.normalizeAll()
 			sort.Sort(secretFactors)
 			sig := hashToBig(secretFactors).String()[:16]
 
@@ -167,25 +172,26 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				rootGate := &Gate{
 					gateType: scalarBaseMultiplyGate,
 					index:    len(*orderedmGates),
-					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: [2]int{1, 1}},
+					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
 					expoIns:  secretFactors,
-					output:   big.NewInt(int64(1)),
+					output:   bigOne,
 				}
 				p.computedFactors[nTok] = rootGate.value
 				*orderedmGates = append(*orderedmGates, rootGate)
 			}
 
-			return factors{factor{
+			return factors{&factor{
 				typ:            nTok,
-				multiplicative: [2]int{1, 1},
+				multiplicative: bigOne,
 			}}, true
 		case "equal":
 			if len(currentConstraint.Inputs) != 2 {
 				panic("equality constraint requires 2 arguments")
 			}
-
-			l, _ := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
-			r, _ := p.build(currentCircuit, currentConstraint.Inputs[1], orderedmGates)
+			leftClone := currentConstraint.Inputs[0].clone()
+			rightClone := currentConstraint.Inputs[1].clone()
+			l, _ := p.build(currentCircuit, leftClone, orderedmGates)
+			r, _ := p.build(currentCircuit, rightClone, orderedmGates)
 			sort.Sort(l)
 			sort.Sort(r)
 			hl := hashToBig(l)
@@ -201,35 +207,37 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				rootGate := &Gate{
 					gateType: equalityGate,
 					index:    len(*orderedmGates),
-					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: [2]int{1, 1}},
+					value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
 					leftIns:  l,
 					rightIns: r,
-					output:   big.NewInt(int64(1)),
+					output:   bigOne,
 				}
 				p.computedFactors[nTok] = rootGate.value
 				*orderedmGates = append(*orderedmGates, rootGate)
 			}
 
-			return factors{factor{
+			return factors{&factor{
 				typ:            nTok,
-				multiplicative: [2]int{1, 1},
+				multiplicative: bigOne,
 			}}, true
 			return
 		default:
-			nextCircuit := p.changeInputs(currentConstraint)
+			oldInputss, nextCircuit := p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Value, currentConstraint.Inputs)
 
 			for i := 0; i < nextCircuit.rootConstraints.len()-1; i++ {
 				f, _ := p.build(nextCircuit, nextCircuit.rootConstraints.data[i], orderedmGates)
 				for _, fac := range f {
 					for k := range *orderedmGates {
 						if (*orderedmGates)[k].value.identifier.Value == fac.typ.Value {
-							(*orderedmGates)[k].output = p.Fields.ArithmeticField.FractionToField(invertVector(fac.multiplicative))
+							(*orderedmGates)[k].output = p.Fields.ArithmeticField.Inverse(fac.multiplicative)
 						}
 					}
 				}
 			}
 
-			return p.build(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1], orderedmGates)
+			facss, varEnd := p.build(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1], orderedmGates)
+			p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Value, oldInputss)
+			return facss, varEnd
 		}
 
 	}
@@ -245,7 +253,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		if len(facs) > 1 {
 			panic("unexpected")
 		}
-		elementName := fmt.Sprintf("%s[%v]", currentConstraint.Output.Value, int(indexFactors[0].multiplicative[0]/indexFactors[0].multiplicative[1]))
+		elementName := fmt.Sprintf("%s[%v]", currentConstraint.Output.Value, indexFactors[0].multiplicative.String())
 		if con, ex := currentCircuit.constraintMap[elementName]; ex {
 			return p.build(currentCircuit, con, orderedmGates)
 		}
@@ -370,13 +378,13 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
 
 	}
 
-	insertValue := func(val factor, arr []*big.Int) {
+	insertValue := func(val *factor, arr []*big.Int) {
 		if val.typ.Type != NumberToken {
 			if _, ex := indexMap[val.typ]; !ex {
 				panic(fmt.Sprintf("%v index not found!!!", val))
 			}
 		}
-		value := p.Fields.ArithmeticField.FractionToField(val.multiplicative)
+		value := val.multiplicative
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
 		arr[indexMap[val.typ]] = value
 	}

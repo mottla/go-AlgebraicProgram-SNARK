@@ -2,7 +2,6 @@ package circuitcompiler
 
 import (
 	"fmt"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -32,17 +31,30 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main(x,z,w) {
-		var k = x*x	
-		var arra[]={k,1,2,3}
-		k = arra[0]*k
-		var l = mul( (k*7)+(3*z) )
-		equal(l,w)
-		return l*(k*arra[2])
+		var arra[]={x,1,2,3}
+		var mul = func(a,b){
+			return x*b*7
+		}
+			var a =1
+		var c = w
+		
+		for( a<3;a=a+1){
+			var b = 3
+			for( b<4;b=b+2){
+				c = mul(c,c)
+			}				
+		}
+
+		#arra[2]=3
+		var k = mul(z,z)
+		var l = k*k
+		return l*(k*arra[2])*x*x
 	}
 
-	def mul(a){
-		return a*a	
+	def mul(a,b){
+	return a*b
 	}
+	
 `,
 	}, {skipp: true,
 		io: []InOut{{
@@ -52,17 +64,14 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main( x  ,  z ) {
-			var res = do(x)+do((3)*z)
-			return res*x
+			x=x*x	
+			do(4*x)			
+			return
 		}		
 
-	def do(x){		
-		var e = x * 5
-		var b = e * e
-		var c = b * 7
-		var f = c * c
-		var d = c + f
-		return d
+	def do(lx){	
+		lx=lx*lx
+		return 3
 	}`,
 	},
 	{
@@ -73,18 +82,31 @@ var correctnessTest = []TraceCorrectnessTest{
 		}},
 
 		code: `
-	def main( x  ,  z ) {
-		return do(x*1)
-	}		
 
-	def do(x){
-		var e = x * 5
-		var b = e * 6
-		var c = b * 7
-		var f = c * 1
-		var d = c * f
-		return d}
-	`,
+
+	def main( x  ,  z ) {
+		var a =1
+		var c = 45345146
+		for( a<3;a=a+1){
+			var b = 3
+			for( b<4;b=b+2){
+				c = foo(c,b)
+			}	
+			b = 3
+			for( b<4;b=b+2){
+				c = fooX(c,b)
+			}
+		}
+		return c*x*x 
+	}	
+
+	def foo(x,y){
+		return x*y
+	}
+	
+	def fooX(x,y){
+		return x/y
+	}`,
 	},
 	{
 		skipp: true,
@@ -128,15 +150,14 @@ func TestCorrectness(t *testing.T) {
 		if test.skipp {
 			continue
 		}
-		//program := NewProgram(big.NewInt(int64(5)), big.NewInt(int64(5)))
-		program := NewProgram(bn256.Order, bn256.Order)
-		parser := NewParser(test.code, false)
-		circuits := parser.Parse(true)
+		//program := newProgram(big.NewInt(int64(5)), big.NewInt(int64(5)))
+
+		program := Parse(test.code, true)
 
 		fmt.Println("\n unreduced")
 		fmt.Println(test.code)
 
-		gates := program.ReduceCombinedTree(circuits)
+		gates := program.ReduceCombinedTree()
 
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)

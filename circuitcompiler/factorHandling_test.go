@@ -1,10 +1,5 @@
 package circuitcompiler
 
-import (
-	"fmt"
-	"testing"
-)
-
 //factors are essential to identify, if a specific Gate has been computed already
 //eg. if we can extract a factor from a Gate that is independent of commutativity, multiplicativitz we will do much better, in finding and reusing old outputs do
 //minimize the multiplication Gate number
@@ -55,19 +50,13 @@ import (
 //	facNeutral := factors{factor{multiplicative: [2]int{8, 7}}, factor{multiplicative: [2]int{9, 3}}}
 //	facNeutral2 := factors{factor{multiplicative: [2]int{9, 1}}, factor{multiplicative: [2]int{13, 7}}}
 //	fmt.Println(factorsSignature(facNeutral, facNeutral2))
-//	f, fc := extractFactor(facNeutral)
+//	f, fc := extractGCD(facNeutral)
 //	fmt.Println(f)
 //	fmt.Println(fc)
 //
-//	f2, _ := extractFactor(facNeutral2)
+//	f2, _ := extractGCD(facNeutral2)
 //	fmt.Println(f)
 //	fmt.Println(fc)
 //	fmt.Println(factorsSignature(facNeutral, facNeutral2))
 //	fmt.Println(factorsSignature(f, f2))
 //}
-
-func TestGCD(t *testing.T) {
-	fmt.Println(LCM(10, 15))
-	fmt.Println(LCM(10, 15, 20))
-	fmt.Println(LCM(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
-}

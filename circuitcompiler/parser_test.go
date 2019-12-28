@@ -29,8 +29,7 @@ func Test_Parser(t *testing.T) {
 	`
 	fmt.Println(code)
 
-	parser := NewParser(code, false)
-	parser.Parse(false)
+	Parse(code, false)
 }
 
 //only to see the difference between the split funcitons
@@ -59,11 +58,11 @@ func TestParser_SplitAt(t *testing.T) {
 		},
 	}
 
-	fmt.Println(SplitTokensAtFirstString(toks, ")"))
+	fmt.Println(splitTokensAtFirstString(toks, ")"))
 
-	fmt.Println(SplitAt(toks, ")"))
+	fmt.Println(splitAt(toks, ")"))
 
-	fmt.Println(SplitAtClosingBrackets(toks))
+	fmt.Println(splitAtClosingBrackets(toks))
 
 }
 

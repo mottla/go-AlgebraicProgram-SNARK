@@ -44,6 +44,10 @@ const (
 	EmptyToken TokenType = 0
 )
 
+type Tokens struct {
+	toks []Token
+}
+
 type Token struct {
 	Type  TokenType
 	Value string
@@ -51,6 +55,15 @@ type Token struct {
 
 func (ch Token) String() string {
 	return fmt.Sprintf("(%v <> %v)", ch.Value, ch.Type)
+}
+
+func (t *Tokens) next() (r Token) {
+	if len(t.toks) == 0 {
+		return Token{}
+	}
+	r = t.toks[0]
+	t.toks = t.toks[1:]
+	return r
 }
 
 var numberTokens = "0123456789"
@@ -96,6 +109,7 @@ func init() {
 		"if":     IF,
 		"while":  WHILE,
 		"for":    FOR,
+		"func":   FUNCTION_DEFINE_Internal,
 	}
 
 }
@@ -117,6 +131,7 @@ const (
 	IdentToken
 
 	FUNCTION_DEFINE
+	FUNCTION_DEFINE_Internal
 	FUNCTION_CALL
 	VARIABLE_DECLARE
 	VARIABLE_OVERLOAD
@@ -127,6 +142,7 @@ const (
 	IF
 	WHILE
 	FOR
+	NESTED_STATEMENT_END
 	RETURN
 )
 
@@ -151,16 +167,22 @@ func (ch TokenType) String() string {
 		return "BinaryComperatorToken"
 	//case	UnaryOperatorToken:
 	//	return "UnaryOperatorToken"
+	case NESTED_STATEMENT_END:
+		return "For ends"
 	case SyntaxToken:
 		return "syntaxToken"
 	case NumberToken:
 		return "numberToken"
 	case FUNCTION_DEFINE:
 		return "def"
+	case FUNCTION_DEFINE_Internal:
+		return "func"
 	case FUNCTION_CALL:
 		return "call"
 	case VARIABLE_DECLARE:
 		return "var"
+	case VARIABLE_OVERLOAD:
+		return "VARIABLE_OVERLOAD"
 	case IF:
 		return "if"
 	case WHILE:
@@ -175,7 +197,9 @@ func (ch TokenType) String() string {
 		return "arrayAccess"
 	case ARRAY_Define:
 		return "arrayDefine"
+
 	default:
+		panic("unknown TOken")
 		return "unknown Token"
 	}
 }
@@ -316,7 +340,7 @@ func (l *Lexer) Take(chars string) {
 	l.Rewind() // last next wasn't a match
 }
 
-// NextToken returns the next token from the lexer and a value to denote whether
+// nextToken returns the next token from the lexer and a value to denote whether
 // or not the token is finished.
 func (l *Lexer) NextToken() (*Token, bool) {
 	if tok, ok := <-l.tokens; ok {

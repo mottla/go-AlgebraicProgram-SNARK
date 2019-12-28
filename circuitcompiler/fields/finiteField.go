@@ -47,10 +47,9 @@ func (fq Fq) One() *big.Int {
 	return big.NewInt(int64(1))
 }
 
-//given [b,a] returns bigInt(b* a^-1) on the finite field
-func (f Fq) FractionToField(in [2]int) *big.Int {
-	return f.Mul(big.NewInt(int64(in[0])), f.Inverse(big.NewInt(int64(in[1]))))
-
+func (fq Fq) StringToFieldElement(a string) (v *big.Int, s bool) {
+	v, s = new(big.Int).SetString(a, 10)
+	return v.Mod(v, fq.Q), s
 }
 
 func (fq Fq) ScalarProduct(l, r []*big.Int) (sum *big.Int) {
