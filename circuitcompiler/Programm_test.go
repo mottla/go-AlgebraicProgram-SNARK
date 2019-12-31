@@ -31,6 +31,11 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main(x,z,w) {
+	if ( (4*7) == 28){
+			x=x*x
+		}else{
+			x=z*z
+		}
 		var arra[]={x,1,2,3}
 		var mul = func(a,b){
 			return x*b*7
@@ -56,7 +61,7 @@ var correctnessTest = []TraceCorrectnessTest{
 	}
 	
 `,
-	}, {skipp: true,
+	}, {skipp: false,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -64,18 +69,28 @@ var correctnessTest = []TraceCorrectnessTest{
 
 		code: `
 	def main( x  ,  z ) {
-			x=x*x	
-			do(4*x)			
-			return
+		if ( 1==2){
+			x=x*x
+		}else if 3==3{
+			x=z*z
+		}else{
+			x=x*z
+		}
+		if ( 1==2){
+			x=x*x
+		}else if 3==3{
+			x=x*x
+		}else{
+			x=x*z
+		}
+	#	var b = x*x
+		
+		return
 		}		
-
-	def do(lx){	
-		lx=lx*lx
-		return 3
-	}`,
+`,
 	},
 	{
-		skipp: true,
+		skipp: false,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -90,14 +105,11 @@ var correctnessTest = []TraceCorrectnessTest{
 		for( a<3;a=a+1){
 			var b = 3
 			for( b<4;b=b+2){
-				c = foo(c,b)
+				c = foo(x,c)*x
 			}	
-			b = 3
-			for( b<4;b=b+2){
-				c = fooX(c,b)
-			}
+			
 		}
-		return c*x*x 
+		return
 	}	
 
 	def foo(x,y){

@@ -3,7 +3,7 @@ package zkSNARK
 import (
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"

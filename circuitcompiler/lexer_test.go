@@ -14,8 +14,9 @@ func Test_LexerError2(t *testing.T) {
 	//
 	code := `
 	def main( x  ,  z ) {
-		var a= B(3)+x
-		return a(x)*b(z)
+		if 3 < 4{
+		}
+		var a = func(x){return x}
 	}
 
 `

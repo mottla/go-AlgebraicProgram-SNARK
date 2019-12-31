@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"math/big"
 )
 

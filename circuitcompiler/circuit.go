@@ -133,7 +133,9 @@ func (circ *Circuit) semanticCheck_RootMapUpdate(constraint *Constraint) *Constr
 
 	switch constraint.Output.Type {
 	case IF:
-		break
+		return constraint
+	case ELSE:
+		return constraint
 	case VARIABLE_OVERLOAD:
 		if _, ex := circ.constraintMap[constraint.Output.Value]; !ex {
 			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Value))
@@ -202,30 +204,168 @@ func RegisterFunctionFromConstraint(constraint *Constraint) (c *Circuit) {
 	return
 }
 
+func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint, success bool) {
+
+	ctr := 0
+	start := 1
+	if cs[0].Output.Type != IF {
+		ctr++
+		start = 0
+	}
+
+	for i, c := range cs {
+		if c.Output.Type == IF {
+			ctr++
+		}
+		if c.Output.Type == IF_ELSE_CHAIN_END {
+			ctr--
+		}
+		if ctr == 0 {
+			if i == len(cs)-1 {
+				return cs[1:i], outside, true
+			}
+			return cs[start:i], cs[i+1:], true
+		}
+	}
+	return
+}
+
 func splitAtNestedEnd(cs []*Constraint) (insideNested, outsideNested []*Constraint, success bool) {
 
-	ctr := 1
+	ctr := 0
+	start := 1
+	if !(cs[0].Output.Type == ELSE || cs[0].Output.Type == FOR || cs[0].Output.Type == FUNCTION_DEFINE_Internal || cs[0].Output.Type == IF) {
+		ctr++
+		start = 0
+	}
+
 	for i, c := range cs {
-		if c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE_Internal {
+		if c.Output.Type == ELSE || c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE_Internal || c.Output.Type == IF {
 			ctr++
 		}
 		if c.Output.Type == NESTED_STATEMENT_END {
 			ctr--
 		}
 		if ctr == 0 {
-
-			return cs[:i], cs[i:], true
+			if i == len(cs)-1 {
+				return cs[1:i], outsideNested, true
+			}
+			return cs[start:i], cs[i+1:], true
 		}
 	}
 	return
 }
 
-func (p *Program) internal(currentCircuit *Circuit, constraintStack []*Constraint) {
+func (p *Program) checkStaticCondition(currentCircuit *Circuit, c *Constraint) (isSatisfied bool) {
+	//unelegant...
+	if len(c.Inputs) != 3 {
+		panic("not a condition")
+	}
+	var factorsA, factorsB factors
+	var varEndA, varEndB bool
+	var A, B *big.Int
+
+	factorsA, varEndA = p.build(currentCircuit, c.Inputs[1], &[]*Gate{})
+	factorsB, varEndB = p.build(currentCircuit, c.Inputs[2], &[]*Gate{})
+
+	A = factorsA[0].multiplicative
+	B = factorsB[0].multiplicative
+
+	if varEndA || varEndB {
+		panic("no dynamic looping supported")
+	}
+	switch c.Inputs[0].Output.Value {
+	case "==":
+		if A.Cmp(B) != 0 {
+			return false
+		}
+		break
+	case "!=":
+		if A.Cmp(B) == 0 {
+			return false
+		}
+		break
+	case ">":
+		if A.Cmp(B) != 1 {
+			return false
+		}
+		break
+	case ">=":
+		if A.Cmp(B) == -1 {
+			return false
+		}
+		break
+	case "<":
+		if A.Cmp(B) != -1 {
+			return false
+		}
+		break
+	case "<=":
+		if A.Cmp(B) == 1 {
+			return false
+		}
+		break
+	default:
+		panic(c.Inputs[0].Output.String())
+
+	}
+	return true
+}
+
+func (p *Program) preCompile(currentCircuit *Circuit, constraintStack []*Constraint) {
 	if len(constraintStack) == 0 {
 		return
 	}
 	currentConstraint := constraintStack[0]
 	switch currentConstraint.Output.Type {
+	case IF:
+		insideIf, outsideIf, succ := splitAtIfEnd(constraintStack)
+		constraintStack = outsideIf
+
+		if !succ {
+			panic("unexpected, should be detected at parsing")
+		}
+
+		condition, rest, succ2 := splitAtNestedEnd(insideIf)
+		if !succ2 {
+			panic("unexpected, should be detected at parsing")
+		}
+		//if and else if
+		if p.checkStaticCondition(currentCircuit, currentConstraint.Inputs[0]) {
+			snap2 := currentCircuit.snapshot()
+			p.preCompile(currentCircuit, condition)
+			currentCircuit.restore(snap2)
+		} else {
+			p.preCompile(currentCircuit, rest)
+		}
+
+		p.preCompile(currentCircuit, constraintStack)
+
+		return
+	case ELSE:
+		//else only
+		if len(currentConstraint.Inputs) == 0 {
+			snap2 := currentCircuit.snapshot()
+			p.preCompile(currentCircuit, constraintStack[1:])
+			currentCircuit.restore(snap2)
+			return
+		}
+
+		condition, rest, succ2 := splitAtNestedEnd(constraintStack)
+		if !succ2 {
+			panic("unexpected, should be detected at parsing")
+		}
+		//if and else if
+		if p.checkStaticCondition(currentCircuit, currentConstraint.Inputs[0]) {
+			snap2 := currentCircuit.snapshot()
+			p.preCompile(currentCircuit, condition)
+			currentCircuit.restore(snap2)
+		} else {
+			p.preCompile(currentCircuit, rest)
+		}
+		return
+	case IF_ELSE_CHAIN_END:
+		break
 	case FUNCTION_DEFINE:
 		if _, ex := p.functions[currentConstraint.Output.Value]; ex {
 			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Value))
@@ -234,7 +374,7 @@ func (p *Program) internal(currentCircuit *Circuit, constraintStack []*Constrain
 		p.functions[currentConstraint.Output.Value] = currentCircuit
 		break
 	case FUNCTION_DEFINE_Internal:
-		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack[1:])
+		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack)
 		if !succ {
 			panic("unexpected, should be detected at parsing")
 		}
@@ -251,82 +391,32 @@ func (p *Program) internal(currentCircuit *Circuit, constraintStack []*Constrain
 			}
 		}
 
-		p.internal(newFunc, insideFunc)
+		p.preCompile(newFunc, insideFunc)
 
-		p.internal(currentCircuit, outsideFunc)
+		p.preCompile(currentCircuit, outsideFunc)
 		return
 	case FOR:
 		//gather stuff, then evaluate
-		insideFor, outsideFor, succ := splitAtNestedEnd(constraintStack[1:])
+		insideFor, outsideFor, succ := splitAtNestedEnd(constraintStack)
 		if !succ {
 			panic("unexpected, should be detected at parsing")
 		}
-		var factorsA, factorsB factors
-		var varEndA, varEndB bool
-		var A, B *big.Int
-	out:
+
 		for {
-			factorsA, varEndA = p.build(currentCircuit, currentConstraint.Inputs[0].Inputs[1], &[]*Gate{})
-			factorsB, varEndB = p.build(currentCircuit, currentConstraint.Inputs[0].Inputs[2], &[]*Gate{})
-
-			A = factorsA[0].multiplicative
-			B = factorsB[0].multiplicative
-			if varEndA || varEndB {
-				panic("no dynamic looping supported")
-			}
-			switch currentConstraint.Inputs[0].Inputs[0].Output.Value {
-			case "==":
-				if A.Cmp(B) != 0 {
-					break out
-				}
+			if !p.checkStaticCondition(currentCircuit, currentConstraint.Inputs[0]) {
 				break
-			case "!=":
-				if A.Cmp(B) == 0 {
-					break out
-				}
-				break
-			case ">":
-				if A.Cmp(B) != 1 {
-					break out
-				}
-				break
-			case ">=":
-				if A.Cmp(B) == -1 {
-					break out
-				}
-				break
-			case "<":
-				if A.Cmp(B) != -1 {
-					break out
-				}
-				break
-			case "<=":
-				if A.Cmp(B) == 1 {
-					break out
-				}
-				break
-			default:
-				panic("unsupported loop condition ")
-
 			}
 			snap2 := currentCircuit.snapshot()
-			//n := make([]*Constraint,len(insideFor))
-			//for i,v:=range insideFor{
-			//	n[i]=v.clone()
-			//}
-			//p.internal(currentCircuit, n)
-			p.internal(currentCircuit, insideFor)
+			p.preCompile(currentCircuit, insideFor)
+			//allow overwriting of variables declared within the loop body
 			currentCircuit.restore(snap2)
-			//a = a+1
+			//call the increment condition
 			currentCircuit.semanticCheck_RootMapUpdate(currentConstraint.Inputs[1].clone())
 			//currentCircuit.restore(snap2)
 		}
 		//cut of the part within the for loop
-		constraintStack = outsideFor
-
-		//currentCircuit.restore(snap1)
-		//p.internal(currentCircuit, constraintStack)
-		break
+		p.preCompile(currentCircuit, outsideFor)
+		return
 	case NESTED_STATEMENT_END:
 		//skippp over
 		break
@@ -334,7 +424,7 @@ func (p *Program) internal(currentCircuit *Circuit, constraintStack []*Constrain
 		currentCircuit.semanticCheck_RootMapUpdate(constraintStack[0].clone())
 
 	}
-	p.internal(currentCircuit, constraintStack[1:])
+	p.preCompile(currentCircuit, constraintStack[1:])
 }
 
 func (circ *Circuit) currentOutputName() string {
@@ -363,7 +453,6 @@ func (circ *Circuit) currentOutputs() []string {
 	}
 
 	return renamedInputs
-
 }
 
 func composeNewFunction(fname string, inputs []string) string {

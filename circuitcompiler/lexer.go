@@ -107,7 +107,7 @@ func init() {
 		"def":    FUNCTION_DEFINE,
 		"var":    VARIABLE_DECLARE,
 		"if":     IF,
-		"while":  WHILE,
+		"else":   ELSE,
 		"for":    FOR,
 		"func":   FUNCTION_DEFINE_Internal,
 	}
@@ -140,9 +140,10 @@ const (
 	UNASIGNEDVAR
 	ARGUMENT
 	IF
-	WHILE
+	ELSE
 	FOR
 	NESTED_STATEMENT_END
+	IF_ELSE_CHAIN_END
 	RETURN
 )
 
@@ -185,10 +186,10 @@ func (ch TokenType) String() string {
 		return "VARIABLE_OVERLOAD"
 	case IF:
 		return "if"
-	case WHILE:
-		return "while"
+	case ELSE:
+		return "else"
 	case FOR:
-		return "FOR"
+		return "for"
 	case ARGUMENT:
 		return "Argument"
 	case RETURN:
@@ -422,21 +423,23 @@ func IdentState(l *Lexer) StateFunc {
 		l.Next()
 		l.Emit(SyntaxToken)
 		return ProbablyWhitespaceState
-	} else if val, ex := operationMap[string(peek)]; ex {
+	}
 
-		//look if its a operators that has two runes (==,+=,..)
-		if val, ex := operationMap[l.PeekTwo()]; ex {
-			l.Next()
-			l.Next()
-			l.Emit(val)
-			return ProbablyWhitespaceState
-		}
-
+	//look if its a operators that has two runes (==,+=,..)
+	if val, ex := operationMap[l.PeekTwo()]; ex {
+		l.Next()
 		l.Next()
 		l.Emit(val)
 		return ProbablyWhitespaceState
+	}
 
-	} else if peek == commentToken {
+	if val, ex := operationMap[string(peek)]; ex {
+		l.Next()
+		l.Emit(val)
+		return ProbablyWhitespaceState
+	}
+
+	if peek == commentToken {
 		readCommentLine(l)
 		l.Emit(CommentToken)
 		return WhitespaceState
@@ -449,6 +452,7 @@ func IdentState(l *Lexer) StateFunc {
 		l.Emit(val)
 		return ProbablyWhitespaceState
 	}
+
 	peek = l.Peek()
 	if peek == '(' {
 		//l.Next()

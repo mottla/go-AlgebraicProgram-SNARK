@@ -15,6 +15,9 @@ It would be nice, since a shielded transaction (Zcash) would take milliseconds i
 **Circuit Language**
 This toolchain comes along with a compiler fully written in go.
 Currently supported:
+- if-else support for static expressions
+- static for loops
+- declare function inside functions via: var foo = func(..){..}; call with: foo(args...)
 - declare multiple functions via:
  func identifier (arguments...){...}
 - declare variable: var x = expression
@@ -30,32 +33,54 @@ We reuse gates whenever possible, exploit commutative properties of the gates, e
 **Example of classic SNARK** (without the extention explained in the ![PDF](algebraicProgramSNARK.pdf))
 
 ```
-def main(x,z,w) {
-    var k = x*x*(7-4)	
-    var arra[]={k,1,2,3}
-    k = arra[0]*k
-    var l = mul( (k*7)+(3*z) )
-    equal(l,w)
-    #this is a comment
-    return l*(k*arra[2*2/2])
-}
+	def main(x,z,w) {
+	if ( (4*7) == 28){
+			x=x*x
+		}else{
+			x=z*z
+		}
+		var arra[]={x,1,2,3}
+		var mul = func(a,b){
+			return x*b*7
+		}
+			var a =1
+		var c = w
+		
+		for( a<3;a=a+1){
+			var b = 3
+			for( b<4;b=b+2){
+				c = mul(c,c)
+			}				
+		}
 
-def mul(a){
-    return a*a	
-}
+		#arra[2]=3
+		var k = mul(z,z)
+		var l = k*k
+		return l*(k*arra[2])*x*x
+	}
 
+	def mul(a,b){
+	return a*b
+	}
+	```
 
+```
 R1SC form of the code above. 
 Note that the big number at the end is because we do arithmetic on a finite field and we extract factors as long as possible to reduce gates.
 so inverses and negative numbers are likely huge.
-[[0 1 0 0 0 0 0 0] [0 0 0 0 1 0 0 0] [0 0 3 0 0 7 0 0] [0 0 0 0 0 0 1 0] [0 0 0 0 0 1 0 0]]
-[[0 1 0 0 0 0 0 0] [0 0 0 0 1 0 0 0] [0 0 3 0 0 7 0 0] [1 0 0 0 0 0 0 0] [0 0 0 0 0 0 1 0]]
-[[0 0 0 0 1 0 0 0] [0 0 0 0 0 1 0 0] [0 0 0 0 0 0 1 0] [0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 10944121435919637611123202872628637544274182200208017171849102093287904247809]]
-input
-[x=3 z=2 w=328329]
-witness
-[1 3 2 328329 9 81 328329 53189298]
---- PASS: TestCorrectness (0.00s)
-PASS
+The R1CS of the code above:
+```
+[[0 0 0 1 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 1 0 0 0 0 0 0 0] [0 0 1 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 0 0 1 0 0]]
+[[0 0 0 1 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 1 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 1 0]]
+[[0 0 0 0 1 0 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 0 3126891838834182174606629392179610726935480628630862049099743455225115499374 0 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 0 1 0 0 0] [0 0 0 0 0 0 0 0 0 1 0 0] [0 0 0 0 0 0 0 0 0 0 1 0] [0 0 0 0 0 0 0 0 0 0 0 10752679078439993804514633726168661377318948692332658270883811677661876768255]]
 
 ```
+Calculate the witness given the R1CS 
+input
+
+[x=3 z=2 w=328329]
+
+gives witness witness
+
+[1 x=3 z=2 w=328329 107799932241 9 6791395731183 18 81 1458 324 324060912]
+

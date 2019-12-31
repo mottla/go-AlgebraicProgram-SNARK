@@ -273,7 +273,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		case VARIABLE_OVERLOAD:
 			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		default:
-			panic("")
+			panic(currentConstraint.String())
 		}
 	}
 

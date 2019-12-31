@@ -4,7 +4,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/pairing"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"hash"
 )
 
@@ -122,8 +122,8 @@ out:
 	for {
 		select {
 		case constraint := <-parser.constraintChan:
-			fmt.Println("#############")
-			fmt.Println(constraint)
+			//fmt.Println("#############")
+			//fmt.Println(constraint)
 			if checkSemantics {
 				constraintStack = append(constraintStack, constraint)
 
@@ -135,7 +135,7 @@ out:
 		}
 	}
 	p = newProgram(bn256.Order, bn256.Order)
-	p.internal(nil, constraintStack)
+	p.preCompile(nil, constraintStack)
 	return p
 }
 
@@ -204,27 +204,46 @@ func (p *Parser) statementMode(tokens []Token) {
 	}
 
 	switch tokens[0].Type {
-	//TODO
+
 	case IF: //if a<b { }   if (a<b) {
-		ifStatement, rest := splitTokensAtFirstString(tokens, "{")
-		if len(rest) == 0 || rest[0].Value != "{" {
-			p.error("if statement requires { }")
-		}
-		insideIf, outsideIf, success := splitAtClosingSwingBrackets(rest[1:])
-		if !success {
-			p.error("closing } brackets missing around IF body")
+
+		var condition []Token
+		var success bool
+		rest := tokens
+
+		var handeFunc = func(skip int, pareseExpression bool, typ TokenType) {
+			condition, rest = splitTokensAtFirstString(rest, "{")
+			IfConst := &Constraint{Output: Token{Type: typ}}
+			if pareseExpression {
+				p.parseExpression(condition[skip:], IfConst)
+			}
+			condition, rest, success = splitAtClosingSwingBrackets(rest)
+			if !success {
+				p.error("closing } brackets missing around IF body")
+			}
+			p.constraintChan <- IfConst
+			p.statementMode(condition)
+			p.constraintChan <- &Constraint{Output: Token{Type: NESTED_STATEMENT_END}}
 		}
 
-		ifStatement = removeTrailingBreaks(ifStatement)
-		IfConst := &Constraint{
-			Output: Token{
-				Type: IF,
-			},
+		handeFunc(1, true, IF)
+
+		hasElseIf := false
+		for rest[0].Type == ELSE && rest[1].Type == IF {
+			handeFunc(2, true, ELSE)
+			hasElseIf = true
 		}
-		p.parseExpression(ifStatement[1:], IfConst)
-		p.constraintChan <- IfConst
-		p.statementMode(insideIf)
-		p.statementMode(outsideIf)
+
+		if rest[0].Type != ELSE && hasElseIf {
+			p.error("you used else if, so a else at the end is required")
+		}
+
+		if rest[0].Type == ELSE {
+			handeFunc(1, false, ELSE)
+		}
+		p.constraintChan <- &Constraint{Output: Token{Type: IF_ELSE_CHAIN_END}}
+
+		p.statementMode(rest)
 		return
 	case FOR:
 		// for (  a<5 ; a+=1)
@@ -441,8 +460,6 @@ func (p *Parser) statementMode(tokens []Token) {
 //arg := exp | arg,exp
 func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	//(exp)->exp
-	//helpText := combineString(stack)
-	//helpText += ""
 	stack = stripOfBrackets(stack)
 
 	if len(stack) == 0 {
@@ -621,19 +638,6 @@ func isArrayAssignment(stx []Token) (yn bool, err string) {
 
 	return true, ""
 }
-
-//func isAssignment(stx []Token) (yn bool,tok Token,rest []Token) {
-//	if stx[0].Type != IdentToken {
-//		return
-//	}
-//	if stx[1].Value=="["{
-//		arg,rest,success:=splitAtClosingStringBrackets(stx,"[","]")
-//		if !success{
-//			panic("")
-//		}
-//	}
-//
-//}
 
 func isVariableAssignment(stx []Token) (yn bool, rem []Token, err string) {
 	if len(stx) < 3 {
