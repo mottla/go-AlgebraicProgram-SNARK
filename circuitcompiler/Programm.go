@@ -112,6 +112,136 @@ func (p *Program) rereferenceFunctionInputs(currentCircuit *Circuit, functionNam
 	return nil, nil
 }
 
+//func (p *Program) rebalanceAVL(currentCircuit *Circuit, currentConstraint *Constraint) (weight int) {
+//
+//	if len(currentConstraint.Inputs) == 0 {
+//		return 1
+//	}
+//
+//	if currentConstraint.Output.Type == FUNCTION_CALL {
+//		switch currentConstraint.Output.Value {
+//		case "scalarBaseMultiply":
+//
+//			return 1
+//		case "equal":
+//			return 1
+//		default:
+//			oldInputss, nextCircuit := p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Value, currentConstraint.Inputs)
+//
+//			for i := 0; i < nextCircuit.rootConstraints.len()-1; i++ {
+//				p.rebalanceAVL(nextCircuit, nextCircuit.rootConstraints.data[i])
+//			}
+//
+//			v := p.rebalanceAVL(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1])
+//			p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Value, oldInputss)
+//			return v
+//		}
+//
+//	}
+//	if currentConstraint.Output.Type == ARRAY_CALL {
+//
+//		indexFactors, variable := p.build(currentCircuit, currentConstraint.Inputs[0], &[]*Gate{})
+//		if variable {
+//			panic("cannot access array dynamically in an arithmetic circuit currently")
+//		}
+//
+//		elementName := fmt.Sprintf("%s[%v]", currentConstraint.Output.Value, indexFactors[0].multiplicative.String())
+//		if con, ex := currentCircuit.constraintMap[elementName]; ex {
+//			return p.rebalanceAVL(currentCircuit, con)
+//		}
+//		panic(fmt.Sprintf("entry %v not found", elementName))
+//	}
+//
+//	if len(currentConstraint.Inputs) == 1 {
+//		switch currentConstraint.Output.Type {
+//		case VARIABLE_DECLARE:
+//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
+//		case RETURN:
+//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
+//		case UNASIGNEDVAR:
+//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
+//		case IdentToken:
+//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
+//		case VARIABLE_OVERLOAD:
+//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
+//		default:
+//			panic(currentConstraint.String())
+//		}
+//	}
+//
+//	if len(currentConstraint.Inputs) == 3 {
+//
+//		left := currentConstraint.Inputs[1]
+//		right := currentConstraint.Inputs[2]
+//		operation := currentConstraint.Inputs[0].Output
+//
+//		switch operation.Type {
+//		case BinaryComperatorToken:
+//			break
+//		case BitOperatorToken:
+//			break
+//		case BooleanOperatorToken:
+//			break
+//		case ArithmeticOperatorToken:
+//			switch operation.Value {
+//			case "*":
+//				variableAtLeftEnd = p.rebalanceAVL(currentCircuit, left)
+//				 variableAtRightEnd = p.rebalanceAVL(currentCircuit, right)
+//				break
+//			case "+":
+//				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
+//				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+//				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
+//			case "/":
+//				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
+//				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+//				rightFactors = invertFactors(rightFactors)
+//				break
+//			case "-":
+//				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
+//				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+//				rightFactors = negateFactors(rightFactors)
+//				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
+//			}
+//			break
+//		case AssignmentOperatorToken:
+//			break
+//		default:
+//			panic("unsupported operation")
+//		}
+//
+//		if !(variableAtLeftEnd && variableAtRightEnd) {
+//			return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
+//		}
+//		sig, newLef, newRigh := extractConstant(leftFactors, rightFactors)
+//		if out, ex := p.computedFactors[sig.identifier]; ex {
+//			return factors{{typ: out.identifier, multiplicative: sig.commonExtracted}}, true
+//		}
+//		//currentConstraint.Output.Value += "@"
+//		//currentConstraint.Output.Value += sig.identifier.Value
+//		nTok := Token{
+//			Type: currentConstraint.Output.Type,
+//			//Value: currentConstraint.Output.Value + "@" + sig.identifier.Value,
+//			Value: sig.identifier.Value,
+//		}
+//		rootGate := &Gate{
+//			gateType: multiplicationGate,
+//			index:    len(*orderedmGates),
+//			value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: sig.commonExtracted},
+//			leftIns:  newLef,
+//			rightIns: newRigh,
+//			output:   big.NewInt(int64(1)),
+//		}
+//
+//		p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: nTok, commonExtracted: sig.commonExtracted}
+//		*orderedmGates = append(*orderedmGates, rootGate)
+//
+//		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true
+//	}
+//
+//	panic(currentConstraint)
+//}
+
 //recursively walks through the parse tree to create a list of all
 //multiplication gates needed for the QAP construction
 //Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so

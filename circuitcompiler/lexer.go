@@ -104,12 +104,11 @@ func init() {
 	//}
 	keyWordMap = map[string]TokenType{
 		"return": RETURN,
-		"def":    FUNCTION_DEFINE,
 		"var":    VARIABLE_DECLARE,
 		"if":     IF,
 		"else":   ELSE,
 		"for":    FOR,
-		"func":   FUNCTION_DEFINE_Internal,
+		"func":   FUNCTION_DEFINE,
 	}
 
 }

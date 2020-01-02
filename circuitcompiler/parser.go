@@ -118,6 +118,7 @@ func Parse(code string, checkSemantics bool) (p *Program) {
 
 	var constraintStack []*Constraint
 	go parser.libraryMode()
+	//go parser.statementMode(parser.stackAllTokens())
 out:
 	for {
 		select {
@@ -204,6 +205,49 @@ func (p *Parser) statementMode(tokens []Token) {
 	}
 
 	switch tokens[0].Type {
+	case FUNCTION_DEFINE:
+		toks := Tokens{toks: tokens}
+		var tok = toks.next() //func
+		tok = toks.next()
+
+		FuncConstraint := &Constraint{
+			Output: Token{Type: FUNCTION_DEFINE, Value: tok.Value},
+		}
+
+		tok = toks.next()
+		if tok.Value != "(" {
+			p.error("Function expected, got %v ", tok)
+		}
+
+		rest := p.argumentParse(toks.toks, splitAtClosingBrackets, FuncConstraint)
+		for _, v := range FuncConstraint.Inputs {
+			if v.Output.Type != IdentToken {
+				p.error("Invalid function header, got %v : %v", v.Output.Value, v.Output.Type)
+			}
+		}
+		toks.toks = rest
+		tok = toks.next()
+		if tok.Value != "{" {
+			p.error("invalid function declaration, got %v : %v", tok.Value, tok.Type)
+		}
+		p.constraintChan <- FuncConstraint
+		l, r, b := splitAtClosingSwingBrackets(toks.toks)
+		if !b {
+			panic("closing brackets missing")
+		}
+		p.statementMode(l)
+		p.constraintChan <- &Constraint{
+			Output: Token{
+				Type: NESTED_STATEMENT_END,
+			},
+		}
+		//got a function definition plus its call
+		//var a = func(){}()
+		if r[0].Value == "(" {
+			panic("instantly calling function not supported yet")
+		}
+		p.statementMode(r)
+		return
 
 	case IF: //if a<b { }   if (a<b) {
 
@@ -342,7 +386,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		if b, rem, _ := isVariableAssignment(tokens[1:]); b {
 
 			//var a = func(){}
-			if rem[0].Type == FUNCTION_DEFINE_Internal {
+			if rem[0].Type == FUNCTION_DEFINE {
 
 				toks := Tokens{toks: rem}
 				var tok = toks.next() //func
@@ -678,6 +722,13 @@ func (p *Parser) stackTillBrackets(open, close string) (tokens []Token) {
 	}
 	p.error("closing %v missing", close)
 	return
+}
+func (p *Parser) stackAllTokens() []Token {
+	var stack []Token
+	for tok := p.nextToken(); tok.Type == EOF; tok = p.nextToken() {
+		stack = append(stack, *tok)
+	}
+	return stack
 }
 
 func (p *Parser) stackTillBreak() []Token {

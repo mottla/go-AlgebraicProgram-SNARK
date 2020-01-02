@@ -30,8 +30,8 @@ var correctnessTest = []TraceCorrectnessTest{
 		}},
 
 		code: `
-	def main(x,z,w) {
-	if ( (4*7) == 28){
+	func main(x,z,w) {
+		if ( (4*7) == 28){
 			x=x*x
 		}else{
 			x=z*z
@@ -56,7 +56,7 @@ var correctnessTest = []TraceCorrectnessTest{
 		return l*(k*arra[2])*x*x
 	}
 
-	def mul(a,b){
+	func mul(a,b){
 	return a*b
 	}
 	
@@ -68,7 +68,7 @@ var correctnessTest = []TraceCorrectnessTest{
 		}},
 
 		code: `
-	def main( x  ,  z ) {
+	func main( x  ,  z ) {
 		if ( 1==2){
 			x=x*x
 		}else if 3==3{
@@ -99,11 +99,12 @@ var correctnessTest = []TraceCorrectnessTest{
 		code: `
 
 
-	def main( x  ,  z ) {
+	func main( x  ,  z ) {
 		var a =1
 		var c = 45345146
 		for( a<3;a=a+1){
 			var b = 3
+			#c = foo(x,c)*x
 			for( b<4;b=b+2){
 				c = foo(x,c)*x
 			}	
@@ -112,11 +113,11 @@ var correctnessTest = []TraceCorrectnessTest{
 		return
 	}	
 
-	def foo(x,y){
+	func foo(x,y){
 		return x*y
 	}
 	
-	def fooX(x,y){
+	func fooX(x,y){
 		return x/y
 	}`,
 	},
@@ -131,11 +132,11 @@ var correctnessTest = []TraceCorrectnessTest{
 			result: bigNumberResult1,
 		}},
 		code: `
-	def main( x  ,  z ) {
+	func main( x  ,  z ) {
 		return do(z) + add(x,x)
 	}		
 
-	def do(x){
+	func do(x){
 		var e = x * 5
 		var b = e * 6
 		var c = b * 7
@@ -144,12 +145,12 @@ var correctnessTest = []TraceCorrectnessTest{
 		return d * mul(d,e)
 	}
 	
-	def add(x ,k){
+	func add(x ,k){
 		var z = k * x
 		return do(x) + mul(x,z)
 	}
 
-	def mul(a,b){
+	func mul(a,b){
 		return a * b
 	}`,
 	},

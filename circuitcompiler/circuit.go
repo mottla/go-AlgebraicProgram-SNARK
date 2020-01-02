@@ -13,8 +13,7 @@ type Circuit struct {
 	Inputs          []*Constraint
 	Name            string
 	rootConstraints *watchstack
-	//after reducing
-	//constraintMap map[string]*Constraint
+
 	constraintMap map[string]*Constraint
 
 	functions map[string]*Circuit
@@ -207,11 +206,6 @@ func RegisterFunctionFromConstraint(constraint *Constraint) (c *Circuit) {
 func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint, success bool) {
 
 	ctr := 0
-	start := 1
-	if cs[0].Output.Type != IF {
-		ctr++
-		start = 0
-	}
 
 	for i, c := range cs {
 		if c.Output.Type == IF {
@@ -222,9 +216,9 @@ func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint, success bool
 		}
 		if ctr == 0 {
 			if i == len(cs)-1 {
-				return cs[1:i], outside, true
+				return cs[:i], outside, true
 			}
-			return cs[start:i], cs[i+1:], true
+			return cs[:i], cs[i+1:], true
 		}
 	}
 	return
@@ -233,11 +227,6 @@ func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint, success bool
 func splitAtNestedEnd(cs []*Constraint) (insideNested, outsideNested []*Constraint, success bool) {
 
 	ctr := 0
-	start := 1
-	if !(cs[0].Output.Type == ELSE || cs[0].Output.Type == FOR || cs[0].Output.Type == FUNCTION_DEFINE_Internal || cs[0].Output.Type == IF) {
-		ctr++
-		start = 0
-	}
 
 	for i, c := range cs {
 		if c.Output.Type == ELSE || c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE_Internal || c.Output.Type == IF {
@@ -248,9 +237,9 @@ func splitAtNestedEnd(cs []*Constraint) (insideNested, outsideNested []*Constrai
 		}
 		if ctr == 0 {
 			if i == len(cs)-1 {
-				return cs[1:i], outsideNested, true
+				return cs[0:i], outsideNested, true
 			}
-			return cs[start:i], cs[i+1:], true
+			return cs[0:i], cs[i+1:], true
 		}
 	}
 	return
@@ -333,14 +322,13 @@ func (p *Program) preCompile(currentCircuit *Circuit, constraintStack []*Constra
 		//if and else if
 		if p.checkStaticCondition(currentCircuit, currentConstraint.Inputs[0]) {
 			snap2 := currentCircuit.snapshot()
-			p.preCompile(currentCircuit, condition)
+			p.preCompile(currentCircuit, condition[1:])
 			currentCircuit.restore(snap2)
-		} else {
-			p.preCompile(currentCircuit, rest)
+			p.preCompile(currentCircuit, constraintStack)
+			return
 		}
-
+		p.preCompile(currentCircuit, rest)
 		p.preCompile(currentCircuit, constraintStack)
-
 		return
 	case ELSE:
 		//else only
@@ -358,11 +346,11 @@ func (p *Program) preCompile(currentCircuit *Circuit, constraintStack []*Constra
 		//if and else if
 		if p.checkStaticCondition(currentCircuit, currentConstraint.Inputs[0]) {
 			snap2 := currentCircuit.snapshot()
-			p.preCompile(currentCircuit, condition)
+			p.preCompile(currentCircuit, condition[1:])
 			currentCircuit.restore(snap2)
-		} else {
-			p.preCompile(currentCircuit, rest)
+			return
 		}
+		p.preCompile(currentCircuit, rest)
 		return
 	case IF_ELSE_CHAIN_END:
 		break
@@ -391,7 +379,7 @@ func (p *Program) preCompile(currentCircuit *Circuit, constraintStack []*Constra
 			}
 		}
 
-		p.preCompile(newFunc, insideFunc)
+		p.preCompile(newFunc, insideFunc[1:])
 
 		p.preCompile(currentCircuit, outsideFunc)
 		return
@@ -401,13 +389,16 @@ func (p *Program) preCompile(currentCircuit *Circuit, constraintStack []*Constra
 		if !succ {
 			panic("unexpected, should be detected at parsing")
 		}
-
+		if len(insideFor) == 0 {
+			p.preCompile(currentCircuit, outsideFor)
+			return
+		}
 		for {
 			if !p.checkStaticCondition(currentCircuit, currentConstraint.Inputs[0]) {
 				break
 			}
 			snap2 := currentCircuit.snapshot()
-			p.preCompile(currentCircuit, insideFor)
+			p.preCompile(currentCircuit, insideFor[1:])
 			//allow overwriting of variables declared within the loop body
 			currentCircuit.restore(snap2)
 			//call the increment condition
