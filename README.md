@@ -30,40 +30,70 @@ Currently supported:
 This language then gets compiled into a R1CS form, with focus on gate reduction.
 We reuse gates whenever possible, exploit commutative properties of the gates, extract constant factors as long as possible etc.
 
+**Example of extended algebraic program SNARK**
+
+the predefined function *scalarBaseMultiply(a)* performs a point multiplication on
+the elliptic curve that defines the the source group G1 of the BN256 pairing implementation and returns
+the points x coordinate.
+Loosely speaking: With this we can prove knowledge of a privateKey in just one gate, instead of approx. 1000, as in classic implementations
+```
+#if we trun this code to a snark, the privatekey argument will not be part of the public statement naturaly.
+func main(publicKey, privateKey){
+    #var pub = x <- (x,y) <- g^private , where g is generator of G1 of BN256
+    var pub = scalarBaseMultiply(privateKey)
+    #create a constraint that can only be satisfied if the input publicKey is equal to the computed value pub 
+    equal(pub,publicKey)
+    return
+}
+```
+The EAP then has the form:
+```
+[[0 0 0 0] [0 0 0 1]]
+[[0 0 0 0] [1 0 0 0]]
+[[0 0 1 0] [0 0 0 0]]
+[[0 0 0 1] [0 1 0 0]]
+```
+when we pick the input s.t. publicKey = X(g^42) we get
+[publicKey=4312786488925573964619847916436127219510912864504589785209181363209026354996 privateKey=42]
+and the witness trace
+[1 4312786488925573964619847916436127219510912864504589785209181363209026354996 42 4312786488925573964619847916436127219510912864504589785209181363209026354996]
+
 **Example of classic SNARK** (without the extention explained in the ![PDF](algebraicProgramSNARK.pdf))
 
 ```
-	def main(x,z,w) {
-	if ( (4*7) == 28){
-			x=x*x
-		}else{
-			x=z*z
-		}
-		var arra[]={x,1,2,3}
-		var mul = func(a,b){
-			return x*b*7
-		}
-			var a =1
-		var c = w
-		
-		for( a<3;a=a+1){
-			var b = 3
-			for( b<4;b=b+2){
-				c = mul(c,c)
-			}				
-		}
+func main(x,z,w) {
+    #this is a comment
+    if ( (4*7) == 28){
+        x=x*x
+    }else{
+        x=z*z
+    }
 
-		#arra[2]=3
-		var k = mul(z,z)
-		var l = k*k
-		return l*(k*arra[2])*x*x
-	}
+    var arra[]={x,1,2,3}
 
-	def mul(a,b){
-	return a*b
-	}
-	```
+    #functions can be declared within functions. therby we overload outside scope
+    var mul = func(a,b){
+        return x*b*7
+    }
+    var a =1
+    var c = w
+    
+    for( a<3;a=a+1){
+        var b = 3
+        for( b<4;b=b+2){
+            c = mul(c,c)
+        }				
+    }
 
+    #arra[2]=3
+    var k = mul(z,z)
+    var l = k*k
+    return l*(k*arra[2])*x*x
+}
+
+func mul(a,b){
+    return a*b
+}
 ```
 R1SC form of the code above. 
 Note that the big number at the end is because we do arithmetic on a finite field and we extract factors as long as possible to reduce gates.

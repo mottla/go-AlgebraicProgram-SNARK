@@ -136,6 +136,7 @@ out:
 		}
 	}
 	p = newProgram(bn256.Order, bn256.Order)
+	//p = newProgram(big.NewInt(1993), big.NewInt(1993))
 	p.preCompile(nil, constraintStack)
 	return p
 }
@@ -375,7 +376,7 @@ func (p *Parser) statementMode(tokens []Token) {
 			p.statementMode(r)
 			return
 		}
-		panic("array element overloading not supported yet")
+		p.error("missing assignment")
 	case VARIABLE_DECLARE:
 		l, r := splitTokensAtFirstString(tokens, "\n")
 		if r != nil && r[0].Value != "\n" {

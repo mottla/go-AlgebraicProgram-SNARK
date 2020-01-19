@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
+	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTranspose(t *testing.T) {
@@ -97,13 +96,12 @@ func TestPol(t *testing.T) {
 
 func TestLagrangeInterpolation(t *testing.T) {
 	// new Finite Field
-
+	var Npoints = int64(100)
 	r := new(big.Int).Set(bn256.P)
 	f := NewFq(r)
 	// new Polynomial Field
-	pf := NewPolynomialFieldPrecomputedLagriangian(f, 100)
+	pf := NewPolynomialFieldPrecomputedLagriangian(f, int(Npoints))
 
-	var Npoints = int64(100)
 	var err error
 
 	Xpoints := make([]*big.Int, Npoints)
@@ -126,5 +124,4 @@ func TestLagrangeInterpolation(t *testing.T) {
 			}
 		}
 	}
-
 }

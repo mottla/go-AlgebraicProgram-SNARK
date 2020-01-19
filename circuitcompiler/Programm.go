@@ -60,7 +60,7 @@ func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
 	mainCircuit := p.getMainCircuit()
 
 	for i := 0; i < mainCircuit.rootConstraints.len(); i++ {
-		f, _ := p.build(mainCircuit, mainCircuit.rootConstraints.data[i], &orderedmGates)
+		f, _ := p.compile(mainCircuit, mainCircuit.rootConstraints.data[i], &orderedmGates)
 		fmt.Println(f)
 		for _, fac := range f {
 			for k := range orderedmGates {
@@ -140,7 +140,7 @@ func (p *Program) rereferenceFunctionInputs(currentCircuit *Circuit, functionNam
 //	}
 //	if currentConstraint.Output.Type == ARRAY_CALL {
 //
-//		indexFactors, variable := p.build(currentCircuit, currentConstraint.Inputs[0], &[]*Gate{})
+//		indexFactors, variable := p.compile(currentCircuit, currentConstraint.Inputs[0], &[]*Gate{})
 //		if variable {
 //			panic("cannot access array dynamically in an arithmetic circuit currently")
 //		}
@@ -189,17 +189,17 @@ func (p *Program) rereferenceFunctionInputs(currentCircuit *Circuit, functionNam
 //				 variableAtRightEnd = p.rebalanceAVL(currentCircuit, right)
 //				break
 //			case "+":
-//				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-//				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+//				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+//				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 //				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
 //			case "/":
-//				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-//				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+//				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+//				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 //				rightFactors = invertFactors(rightFactors)
 //				break
 //			case "-":
-//				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-//				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+//				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+//				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 //				rightFactors = negateFactors(rightFactors)
 //				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
 //			}
@@ -245,7 +245,7 @@ func (p *Program) rereferenceFunctionInputs(currentCircuit *Circuit, functionNam
 //recursively walks through the parse tree to create a list of all
 //multiplication gates needed for the QAP construction
 //Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so
-func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate) (facs factors, variableEnd bool) {
+func (p *Program) compile(currentCircuit *Circuit, currentConstraint *Constraint, orderedmGates *[]*Gate) (facs factors, variableEnd bool) {
 
 	if len(currentConstraint.Inputs) == 0 {
 		switch currentConstraint.Output.Type {
@@ -258,12 +258,12 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			return factors{{typ: Token{Type: NumberToken}, multiplicative: value}}, false
 		case IdentToken:
 			if con, ex := currentCircuit.constraintMap[currentConstraint.Output.Value]; ex {
-				return p.build(currentCircuit, con, orderedmGates)
+				return p.compile(currentCircuit, con, orderedmGates)
 			}
 			panic("asdf")
 		case UNASIGNEDVAR:
 			if con, ex := currentCircuit.constraintMap[currentConstraint.Output.Value]; ex {
-				return p.build(currentCircuit, con, orderedmGates)
+				return p.compile(currentCircuit, con, orderedmGates)
 			}
 			panic("asdf")
 		case RETURN:
@@ -289,7 +289,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			if len(currentConstraint.Inputs) != 1 {
 				panic("scalarBaseMultiply argument missmatch")
 			}
-			secretFactors, _ := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			secretFactors, _ := p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 
 			sort.Sort(secretFactors)
 			sig := hashToBig(secretFactors).String()[:16]
@@ -320,8 +320,8 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			}
 			leftClone := currentConstraint.Inputs[0].clone()
 			rightClone := currentConstraint.Inputs[1].clone()
-			l, _ := p.build(currentCircuit, leftClone, orderedmGates)
-			r, _ := p.build(currentCircuit, rightClone, orderedmGates)
+			l, _ := p.compile(currentCircuit, leftClone, orderedmGates)
+			r, _ := p.compile(currentCircuit, rightClone, orderedmGates)
 			sort.Sort(l)
 			sort.Sort(r)
 			hl := hashToBig(l)
@@ -355,7 +355,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 			oldInputss, nextCircuit := p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Value, currentConstraint.Inputs)
 
 			for i := 0; i < nextCircuit.rootConstraints.len()-1; i++ {
-				f, _ := p.build(nextCircuit, nextCircuit.rootConstraints.data[i], orderedmGates)
+				f, _ := p.compile(nextCircuit, nextCircuit.rootConstraints.data[i], orderedmGates)
 				for _, fac := range f {
 					for k := range *orderedmGates {
 						if (*orderedmGates)[k].value.identifier.Value == fac.typ.Value {
@@ -365,7 +365,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 				}
 			}
 
-			facss, varEnd := p.build(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1], orderedmGates)
+			facss, varEnd := p.compile(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1], orderedmGates)
 			p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Value, oldInputss)
 			return facss, varEnd
 		}
@@ -376,7 +376,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		if len(currentConstraint.Inputs) != 1 {
 			panic("scalarBaseMultiply argument missmatch")
 		}
-		indexFactors, variable := p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+		indexFactors, variable := p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		if variable {
 			panic("cannot access array dynamically in an arithmetic circuit currently")
 		}
@@ -385,7 +385,7 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		}
 		elementName := fmt.Sprintf("%s[%v]", currentConstraint.Output.Value, indexFactors[0].multiplicative.String())
 		if con, ex := currentCircuit.constraintMap[elementName]; ex {
-			return p.build(currentCircuit, con, orderedmGates)
+			return p.compile(currentCircuit, con, orderedmGates)
 		}
 		panic(fmt.Sprintf("entry %v not found", elementName))
 	}
@@ -393,15 +393,15 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 	if len(currentConstraint.Inputs) == 1 {
 		switch currentConstraint.Output.Type {
 		case VARIABLE_DECLARE:
-			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			return p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case RETURN:
-			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			return p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case UNASIGNEDVAR:
-			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			return p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case IdentToken:
-			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			return p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		case VARIABLE_OVERLOAD:
-			return p.build(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
+			return p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		default:
 			panic(currentConstraint.String())
 		}
@@ -425,21 +425,21 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 		case ArithmeticOperatorToken:
 			switch operation.Value {
 			case "*":
-				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 				break
 			case "+":
-				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
 			case "/":
-				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 				rightFactors = invertFactors(rightFactors)
 				break
 			case "-":
-				leftFactors, variableAtLeftEnd = p.build(currentCircuit, left, orderedmGates)
-				rightFactors, variableAtRightEnd = p.build(currentCircuit, right, orderedmGates)
+				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
+				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
 				rightFactors = negateFactors(rightFactors)
 				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
 			}
@@ -483,8 +483,11 @@ func (p *Program) build(currentCircuit *Circuit, currentConstraint *Constraint, 
 }
 
 // GenerateR1CS generates the ER1CS polynomials from the Circuit
-func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS ER1CS) {
+func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS *ER1CS) {
 	// from flat code to ER1CS
+	r1CS = &ER1CS{
+		f: p.Fields,
+	}
 
 	offset := len(p.globalInputs)
 	//  one + in1 +in2+... + gate1 + gate2 .. + out

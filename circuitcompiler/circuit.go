@@ -254,8 +254,8 @@ func (p *Program) checkStaticCondition(currentCircuit *Circuit, c *Constraint) (
 	var varEndA, varEndB bool
 	var A, B *big.Int
 
-	factorsA, varEndA = p.build(currentCircuit, c.Inputs[1], &[]*Gate{})
-	factorsB, varEndB = p.build(currentCircuit, c.Inputs[2], &[]*Gate{})
+	factorsA, varEndA = p.compile(currentCircuit, c.Inputs[1], &[]*Gate{})
+	factorsB, varEndB = p.compile(currentCircuit, c.Inputs[2], &[]*Gate{})
 
 	A = factorsA[0].multiplicative
 	B = factorsB[0].multiplicative

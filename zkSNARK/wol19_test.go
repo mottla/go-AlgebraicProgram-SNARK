@@ -35,11 +35,11 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 			result: bigNumberResult1,
 		}},
 		code: `
-	def main( x  ,  z ) {
+	func main( x  ,  z ) {
 		return (do(z) + add(x,x))*x
 	}		
 
-	def do(x){
+	func do(x){
 		var e = x * 5
 		var b = e * 6
 		var c = b * 7
@@ -48,12 +48,12 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 		return d * mul(d,e)
 	}
 	
-	def add(x ,k){
+	func add(x ,k){
 		var z = k * x
 		return do(x) + mul(x,z)
 	}
 
-	def mul(a,b){
+	func mul(a,b){
 		return a * b
 	}`,
 	},
@@ -96,7 +96,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 		for _, io := range test.io {
 			inputs := io.inputs
-			w, err := r1cs.CalculateWitness(inputs, program.Fields)
+			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
 			assert.NoError(t, err)
 			fmt.Println("input")
 			fmt.Println(inputs)

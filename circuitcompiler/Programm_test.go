@@ -20,11 +20,38 @@ type TraceCorrectnessTest struct {
 
 var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
 var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 10)
+var pubkeyOf42OnBn256_G1, _ = new(big.Int).SetString("4312786488925573964619847916436127219510912864504589785209181363209026354996", 10)
 
 //NOTE that the results are wrong. need to consider that division is now done on a finite field.
 //TODO compute new testcases with a python scrypt
 var correctnessTest = []TraceCorrectnessTest{
-	{skipp: false,
+	{
+		skipp: false,
+		io: []InOut{{
+			inputs: []*big.Int{big.NewInt(int64(3))},
+		}},
+
+		code: `
+	func main(x){
+		var c = x*x
+		return x*x
+	}
+`,
+	}, {
+		skipp: false,
+		io: []InOut{{
+			inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(42))},
+		}},
+
+		code: `
+	func main(publicKey, privateKey){
+		var pub = scalarBaseMultiply(privateKey)
+		equal(pub,publicKey)
+	return
+}
+`,
+	},
+	{skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2)), big.NewInt(328329)},
 		}},
@@ -61,7 +88,7 @@ var correctnessTest = []TraceCorrectnessTest{
 	}
 	
 `,
-	}, {skipp: false,
+	}, {skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -90,7 +117,7 @@ var correctnessTest = []TraceCorrectnessTest{
 `,
 	},
 	{
-		skipp: false,
+		skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -187,7 +214,7 @@ func TestCorrectness(t *testing.T) {
 			inputs := io.inputs
 			fmt.Println("input")
 			fmt.Println(inputs)
-			w, err := r1cs.CalculateWitness(inputs, program.Fields)
+			w, err := CalculateWitness(r1cs, inputs)
 			assert.NoError(t, err)
 			fmt.Println("witness")
 			fmt.Println(w)

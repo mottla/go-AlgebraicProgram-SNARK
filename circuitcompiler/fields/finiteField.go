@@ -138,17 +138,27 @@ func (fq Fq) Exp(base *big.Int, e *big.Int) *big.Int {
 	return res
 }
 
+//EvalPoly Evaluates a polynomial v at position x, using the Horners Rule
 func (fq Fq) EvalPoly(v []*big.Int, x *big.Int) *big.Int {
-	r := new(big.Int).Set(v[0])
-	for i := int64(1); i < int64(len(v)); i++ {
-		if v[i].Cmp(bigZero) != 0 {
-			//note since we expect the polynomials to be sparse, we compute the x^i straight away.. maybe incremental would still be more efficient
-			r = fq.Add(r, fq.Mul(v[i], fq.Exp(x, big.NewInt(i))))
-		}
-
+	if len(v) == 1 {
+		return v[0]
 	}
-	return r
+	return fq.Add(fq.Mul(fq.EvalPoly(v[1:], x), x), v[0])
 }
+
+//this is the same function as above, but imperative style. the speed difference turned out to be marginally better this way, however FAR LESS ELEGANT
+//WE KEEP THIS AS REMINDER HOW SHIT IMPERATIVE PROGRAMMING IS
+//func (fq Fq) EvalPoly3(v []*big.Int, x *big.Int) *big.Int {
+//	r := new(big.Int).Set(v[len(v)-1])
+//	for i := len(v)-2; i >= 0; i-- {
+//		if v[i].Cmp(bigZero) != 0 {
+//			//note since we expect the polynomials to be sparse, we compute the x^i straight away.. maybe incremental would still be more efficient
+//			r = fq.Add(fq.Mul(r, x),v[i])
+//		}
+//
+//	}
+//	return r
+//}
 
 func BigIsOdd(n *big.Int) bool {
 	return n.Bit(0) == 1
