@@ -88,7 +88,7 @@ func (p *Parser) nextNonBreakToken() *Token {
 	for tok.Type == CommentToken {
 		tok = p.nextToken()
 	}
-	for tok.Value == "\n" {
+	for tok.Identifier == "\n" {
 		tok = p.nextToken()
 	}
 	return tok
@@ -149,7 +149,7 @@ func (p *Parser) libraryMode() {
 		p.libraryMode()
 		return
 	}
-	for tok.Value != "" {
+	for tok.Identifier != "" {
 		tok = p.nextToken()
 	}
 	close(p.done)
@@ -158,38 +158,38 @@ func (p *Parser) libraryMode() {
 func (p *Parser) functionMode() {
 	tok := p.nextToken()
 	if tok.Type != FUNCTION_CALL {
-		p.error("Function Identifier expected, got %v : %v", tok.Value, tok.Type)
+		p.error("Function Identifier expected, got %v : %v", tok.Identifier, tok.Type)
 	}
 
 	FuncConstraint := &Constraint{
-		Output: Token{Type: FUNCTION_DEFINE, Value: tok.Value},
+		Output: Token{Type: FUNCTION_DEFINE, Identifier: tok.Identifier},
 	}
 
 	tok = p.nextToken()
 
-	if tok.Value != "(" {
+	if tok.Identifier != "(" {
 		p.error("Function expected, got %v ", tok)
 	}
 
 	for {
 		tok = p.nextToken()
 		if tok.Type == IdentToken {
-			FuncConstraint.Inputs = append(FuncConstraint.Inputs, &Constraint{Output: Token{Type: ARGUMENT, Value: tok.Value}})
+			FuncConstraint.Inputs = append(FuncConstraint.Inputs, &Constraint{Output: Token{Type: ARGUMENT, Identifier: tok.Identifier}})
 
 			continue
 		}
-		if tok.Value == "," {
+		if tok.Identifier == "," {
 			continue
 		}
-		if tok.Value == ")" {
+		if tok.Identifier == ")" {
 			break
 		}
-		p.error("Invalid function header, got %v : %v", tok.Value, tok.Type)
+		p.error("Invalid function header, got %v : %v", tok.Identifier, tok.Type)
 
 	}
 	tok = p.nextToken()
-	if tok.Value != "{" {
-		p.error("invalid function declaration, got %v : %v", tok.Value, tok.Type)
+	if tok.Identifier != "{" {
+		p.error("invalid function declaration, got %v : %v", tok.Identifier, tok.Type)
 	}
 	p.constraintChan <- FuncConstraint
 	toks := p.stackTillSwingBracketsClose() //we collect everything inside the function body
@@ -212,24 +212,24 @@ func (p *Parser) statementMode(tokens []Token) {
 		tok = toks.next()
 
 		FuncConstraint := &Constraint{
-			Output: Token{Type: FUNCTION_DEFINE, Value: tok.Value},
+			Output: Token{Type: FUNCTION_DEFINE, Identifier: tok.Identifier},
 		}
 
 		tok = toks.next()
-		if tok.Value != "(" {
+		if tok.Identifier != "(" {
 			p.error("Function expected, got %v ", tok)
 		}
 
 		rest := p.argumentParse(toks.toks, splitAtClosingBrackets, FuncConstraint)
 		for _, v := range FuncConstraint.Inputs {
 			if v.Output.Type != IdentToken {
-				p.error("Invalid function header, got %v : %v", v.Output.Value, v.Output.Type)
+				p.error("Invalid function header, got %v : %v", v.Output.Identifier, v.Output.Type)
 			}
 		}
 		toks.toks = rest
 		tok = toks.next()
-		if tok.Value != "{" {
-			p.error("invalid function declaration, got %v : %v", tok.Value, tok.Type)
+		if tok.Identifier != "{" {
+			p.error("invalid function declaration, got %v : %v", tok.Identifier, tok.Type)
 		}
 		p.constraintChan <- FuncConstraint
 		l, r, b := splitAtClosingSwingBrackets(toks.toks)
@@ -244,7 +244,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		//got a function definition plus its call
 		//var a = func(){}()
-		if r[0].Value == "(" {
+		if r[0].Identifier == "(" {
 			panic("instantly calling function not supported yet")
 		}
 		p.statementMode(r)
@@ -294,12 +294,12 @@ func (p *Parser) statementMode(tokens []Token) {
 		// for (  a<5 ; a+=1)
 		ForConst := &Constraint{Output: Token{Type: FOR}, Inputs: []*Constraint{}}
 		var success bool
-		if tokens[1].Value != "(" {
+		if tokens[1].Identifier != "(" {
 			p.error("brackets '(' missing, got %v", tokens[1])
 		}
 		// a = 4;
 		//l, r := splitTokensAtFirstString(tokens[2:], ";")
-		//if r[0].Value != ";" {
+		//if r[0].Identifier != ";" {
 		//	p.error("';' expected, got %v", r[0])
 		//}
 		//r = r[1:]
@@ -309,7 +309,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		//varConst := &Constraint{
 		//	Output: Token{
 		//		Type:  VARIABLE_DECLARE,
-		//		Value: l[1].Value,
+		//		Identifier: l[1].Identifier,
 		//	},
 		//}
 		//p.parseExpression(l[3:], varConst)
@@ -317,7 +317,7 @@ func (p *Parser) statementMode(tokens []Token) {
 
 		// a <5;
 		l, r := splitTokensAtFirstString(tokens[2:], ";")
-		if r[0].Value != ";" {
+		if r[0].Identifier != ";" {
 			p.error("';' expected, got %v", r[0])
 		}
 		r = r[1:]
@@ -333,8 +333,8 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		varConst := &Constraint{
 			Output: Token{
-				Type:  VARIABLE_OVERLOAD,
-				Value: l[0].Value,
+				Type:       VARIABLE_OVERLOAD,
+				Identifier: l[0].Identifier,
 			},
 		}
 		p.parseExpression(l[2:], varConst)
@@ -343,7 +343,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		p.constraintChan <- ForConst
 		r = removeLeadingBreaks(r)
 
-		if r[0].Value != "{" {
+		if r[0].Identifier != "{" {
 			p.error("brackets '{' missing, got %v", r[0])
 		}
 		l, r, success = splitAtClosingSwingBrackets(r[1:])
@@ -360,15 +360,15 @@ func (p *Parser) statementMode(tokens []Token) {
 		break
 	case IdentToken: //variable overloading -> a = a * 4
 		l, r := splitTokensAtFirstString(tokens, "\n")
-		if r != nil && r[0].Value != "\n" {
+		if r != nil && r[0].Identifier != "\n" {
 			p.error("linebreak expected, got %v", r[0])
 		}
 		//hannes = 42
 		if b, rem, _ := isVariableAssignment(l); b {
 			varConst := &Constraint{
 				Output: Token{
-					Type:  VARIABLE_OVERLOAD,
-					Value: l[0].Value,
+					Type:       VARIABLE_OVERLOAD,
+					Identifier: l[0].Identifier,
 				},
 			}
 			p.parseExpression(rem, varConst)
@@ -379,7 +379,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		p.error("missing assignment")
 	case VARIABLE_DECLARE:
 		l, r := splitTokensAtFirstString(tokens, "\n")
-		if r != nil && r[0].Value != "\n" {
+		if r != nil && r[0].Identifier != "\n" {
 			p.error("linebreak expected, got %v", r[0])
 		}
 
@@ -393,24 +393,24 @@ func (p *Parser) statementMode(tokens []Token) {
 				var tok = toks.next() //func
 
 				FuncConstraint := &Constraint{
-					Output: Token{Type: FUNCTION_DEFINE_Internal, Value: tokens[1].Value},
+					Output: Token{Type: FUNCTION_DEFINE_Internal, Identifier: tokens[1].Identifier},
 				}
 
 				tok = toks.next()
-				if tok.Value != "(" {
+				if tok.Identifier != "(" {
 					p.error("Function expected, got %v ", tok)
 				}
 
 				rest := p.argumentParse(toks.toks, splitAtClosingBrackets, FuncConstraint)
 				for _, v := range FuncConstraint.Inputs {
 					if v.Output.Type != IdentToken {
-						p.error("Invalid function header, got %v : %v", v.Output.Value, v.Output.Type)
+						p.error("Invalid function header, got %v : %v", v.Output.Identifier, v.Output.Type)
 					}
 				}
 				toks.toks = rest
 				tok = toks.next()
-				if tok.Value != "{" {
-					p.error("invalid function declaration, got %v : %v", tok.Value, tok.Type)
+				if tok.Identifier != "{" {
+					p.error("invalid function declaration, got %v : %v", tok.Identifier, tok.Type)
 				}
 				p.constraintChan <- FuncConstraint
 				l, r, b := splitAtClosingSwingBrackets(toks.toks)
@@ -425,7 +425,7 @@ func (p *Parser) statementMode(tokens []Token) {
 				}
 				//got a function definition plus its call
 				//var a = func(){}()
-				if r[0].Value == "(" {
+				if r[0].Identifier == "(" {
 					panic("instantly calling function not supported yet")
 				}
 				p.statementMode(r)
@@ -435,8 +435,8 @@ func (p *Parser) statementMode(tokens []Token) {
 			//var x = expression
 			varConst := &Constraint{
 				Output: Token{
-					Type:  VARIABLE_DECLARE,
-					Value: l[1].Value,
+					Type:       VARIABLE_DECLARE,
+					Identifier: l[1].Identifier,
 				},
 			}
 			p.parseExpression(l[3:], varConst)
@@ -449,8 +449,8 @@ func (p *Parser) statementMode(tokens []Token) {
 		if b, _ := isArrayAssignment(l[1:]); b {
 			arrayConst := &Constraint{
 				Output: Token{
-					Type:  ARRAY_Define,
-					Value: l[1].Value,
+					Type:       ARRAY_Define,
+					Identifier: l[1].Identifier,
 				},
 			}
 
@@ -488,7 +488,7 @@ func (p *Parser) statementMode(tokens []Token) {
 			Output: tokens[0],
 		}
 		r := p.argumentParse(tokens[1:], splitAtClosingBrackets, varConst)
-		if r != nil && r[0].Value != "\n" {
+		if r != nil && r[0].Identifier != "\n" {
 			p.error("linebreak expected, got %v", r[0])
 		}
 		//r = r[1:]
@@ -527,8 +527,8 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 	// exp Operator exp
 	if binOperation.Type&binOp != 0 {
 		newTok := Token{
-			Type:  UNASIGNEDVAR,
-			Value: combineString(stack),
+			Type:       UNASIGNEDVAR,
+			Identifier: combineString(stack),
 		}
 		c1 := &Constraint{Output: newTok}
 		constraint.Inputs = append(constraint.Inputs, c1)
@@ -547,8 +547,8 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 		if len(l) == 1 {
 
 			tok := Token{
-				Type:  UNASIGNEDVAR,
-				Value: combineString(r),
+				Type:       UNASIGNEDVAR,
+				Identifier: combineString(r),
 			}
 			c2 := &Constraint{Output: tok}
 			constraint.Inputs = append(constraint.Inputs, c2)
@@ -559,8 +559,8 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 		if len(r) == 1 {
 
 			tok := Token{
-				Type:  UNASIGNEDVAR,
-				Value: combineString(l),
+				Type:       UNASIGNEDVAR,
+				Identifier: combineString(l),
 			}
 			c2 := &Constraint{Output: tok}
 			constraint.Inputs = append(constraint.Inputs, c2)
@@ -588,10 +588,10 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 		return
 	}
 
-	if stack[1].Value == "[" && stack[len(stack)-1].Value == "]" {
+	if stack[1].Identifier == "[" && stack[len(stack)-1].Identifier == "]" {
 		rtok := Token{
-			Type:  ARRAY_CALL,
-			Value: stack[0].Value,
+			Type:       ARRAY_CALL,
+			Identifier: stack[0].Identifier,
 		}
 		cr := &Constraint{Output: rtok}
 		constraint.Inputs = append(constraint.Inputs, cr)
@@ -635,7 +635,7 @@ func removeTrailingBreaks(in []Token) (out []Token) {
 	if len(in) == 0 {
 		return
 	}
-	if in[len(in)-1].Value == "\n" {
+	if in[len(in)-1].Identifier == "\n" {
 		return removeLeadingBreaks(in[:len(in)-1])
 	}
 	return in
@@ -648,7 +648,7 @@ func removeLeadingBreaks(in []Token) (out []Token) {
 	if len(in) == 0 {
 		return
 	}
-	if in[0].Value == "\n" {
+	if in[0].Identifier == "\n" {
 		return removeLeadingBreaks(in[1:])
 	}
 	return in
@@ -658,7 +658,7 @@ func removeLeadingBreaks(in []Token) (out []Token) {
 func combineString(in []Token) string {
 	out := ""
 	for _, s := range in {
-		out += s.Value
+		out += s.Identifier
 	}
 	return out
 }
@@ -671,13 +671,13 @@ func isArrayAssignment(stx []Token) (yn bool, err string) {
 		return false, "identifier expected"
 	}
 
-	if stx[1].Value != "[" || stx[2].Value != "]" {
+	if stx[1].Identifier != "[" || stx[2].Identifier != "]" {
 		return false, "brackets  expected"
 	}
 	if stx[3].Type != AssignmentOperatorToken {
 		return false, "assignment  expected"
 	}
-	if stx[4].Value != "{" {
+	if stx[4].Identifier != "{" {
 		return false, "assignment  expected"
 	}
 
@@ -710,10 +710,10 @@ func (p *Parser) stackTillBrackets(open, close string) (tokens []Token) {
 	var stack []Token
 	ctr := 1
 	for tok := p.nextToken(); tok.Type != EOF; tok = p.nextToken() {
-		if tok.Value == open {
+		if tok.Identifier == open {
 			ctr++
 		}
-		if tok.Value == close {
+		if tok.Identifier == close {
 			ctr--
 			if ctr == 0 {
 				return stack
@@ -734,15 +734,15 @@ func (p *Parser) stackAllTokens() []Token {
 
 func (p *Parser) stackTillBreak() []Token {
 	var stack []Token
-	for tok := p.nextToken(); tok.Value != "\n" || tok.Type == EOF; tok = p.nextToken() {
+	for tok := p.nextToken(); tok.Identifier != "\n" || tok.Type == EOF; tok = p.nextToken() {
 		stack = append(stack, *tok)
 	}
 	return stack
 }
 func (p *Parser) stackTillSemiCol() []Token {
 	var stack []Token
-	for tok := p.nextToken(); tok.Value != "\n" || tok.Type != EOF; tok = p.nextToken() {
-		if tok.Value == ";" {
+	for tok := p.nextToken(); tok.Identifier != "\n" || tok.Type != EOF; tok = p.nextToken() {
+		if tok.Identifier == ";" {
 			return stack
 		}
 		stack = append(stack, *tok)
@@ -751,7 +751,7 @@ func (p *Parser) stackTillSemiCol() []Token {
 	return nil
 }
 
-//splitAt takes takes a string S and a token array and splits st: abScdasdSf -> ( ab,cdas, f  )
+//splitAt takes takes a string S and a token array and splits st: abScdasdSf -> ( ab,cdas, F  )
 //if S does not occur it returns ( in , []Tokens{} )
 func splitAt(in []Token, splitAt string) (out [][]Token) {
 
@@ -760,7 +760,7 @@ func splitAt(in []Token, splitAt string) (out [][]Token) {
 			out = append(out, l)
 			continue
 		}
-		if len(r) > 1 && r[0].Value == splitAt {
+		if len(r) > 1 && r[0].Identifier == splitAt {
 			r = r[1:]
 			continue
 		}
@@ -772,7 +772,7 @@ func splitAt(in []Token, splitAt string) (out [][]Token) {
 //if S does not occur it returns ( in , []Tokens{} )
 func splitTokensAtFirstString(in []Token, splitAt string) (cutLeft, cutRight []Token) {
 	for i := 0; i < len(in); i++ {
-		if in[i].Value == splitAt {
+		if in[i].Identifier == splitAt {
 			return in[:i], in[i:]
 		}
 	}
@@ -784,16 +784,16 @@ func splitAtFirstHighestTokenType(in []Token, splitAt TokenType) (cutLeft []Toke
 	ctr1 := 0
 	ctr2 := 0
 	for i := 0; i < len(in); i++ {
-		if in[i].Value == "(" {
+		if in[i].Identifier == "(" {
 			ctr1++
 		}
-		if in[i].Value == "[" {
+		if in[i].Identifier == "[" {
 			ctr2++
 		}
-		if in[i].Value == ")" {
+		if in[i].Identifier == ")" {
 			ctr1--
 		}
-		if in[i].Value == "]" {
+		if in[i].Identifier == "]" {
 			ctr2--
 		}
 
@@ -855,16 +855,16 @@ func splitAtClosingSwingBrackets(in []Token) (cutLeft, cutRight []Token, success
 func splitAtClosingStringBrackets(in []Token, open, close string) (cutLeft, cutRight []Token, success bool) {
 	ctr := 0
 	start := 1
-	if in[0].Value != open {
+	if in[0].Identifier != open {
 		ctr = 1
 		start = 0
 	}
 
 	for i := 0; i < len(in); i++ {
-		if in[i].Value == open {
+		if in[i].Identifier == open {
 			ctr++
 		}
-		if in[i].Value == close {
+		if in[i].Identifier == close {
 			ctr--
 			if ctr == 0 {
 				if i == len(in)-1 {
@@ -881,7 +881,7 @@ func (p *Parser) cutAtSemiCol(in []Token) (cut []Token) {
 	if len(in) == 0 {
 		return
 	}
-	if in[len(in)-1].Value == ";" {
+	if in[len(in)-1].Identifier == ";" {
 		return in[:len(in)-1]
 	}
 

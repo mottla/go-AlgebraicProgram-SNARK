@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
-	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
-
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
 
 	"math/big"
 )
@@ -73,7 +72,7 @@ type Proof struct {
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials2(fields fields.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
+func CombinePolynomials2(fields utils.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
 
 	pf := fields.PolynomialField
 
@@ -104,7 +103,7 @@ func CombinePolynomials2(fields fields.Fields, witness []*big.Int, TransposedR1c
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials(fields fields.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
+func CombinePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
 
 	pf := fields.PolynomialField
 
@@ -125,6 +124,29 @@ func CombinePolynomials(fields fields.Fields, witness []*big.Int, Li, Ri, Ei, Oi
 	c := pf.Sub(b, OVec)
 	return Gx, c
 }
+
+// CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
+//func CombineSparsePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi []utils.SparseArray) (Gx, Px utils.SparseArray) {
+//
+//	fq := fields.PolynomialField.F
+//	LVec := fq.AddPolynomials(fq.LinearCombine(Li, witness))
+//	RVec := pf.AddPolynomials(pf.LinearCombine(Ri, witness))
+//	EVec := pf.AddPolynomials(pf.LinearCombine(Ei, witness))
+//	OVec := pf.AddPolynomials(pf.LinearCombine(Oi, witness))
+//
+//	var mG_pointsVec []*big.Int
+//	for i := 0; i < len(EVec); i++ {
+//		val := fields.ArithmeticField.EvalPoly(EVec, new(big.Int).SetInt64(int64(i)))
+//		p := g1ScalarBaseMultiply(val)
+//		mG_pointsVec = append(mG_pointsVec, p.X())
+//	}
+//	Gx = pf.LagrangeInterpolation(mG_pointsVec)
+//	a := pf.Mul(LVec, RVec)
+//	b := pf.Add(a, Gx)
+//	c := pf.Sub(b, OVec)
+//	return Gx, c
+//}
+
 func g1ScalarBaseMultiply(in *big.Int) *bn256.G1 {
 	return new(bn256.G1).ScalarBaseMult(in)
 }
@@ -133,7 +155,7 @@ func g2ScalarBaseMultiply(in *big.Int) *bn256.G2 {
 }
 
 // GenerateTrustedSetup generates the Trusted Setup from a compiled Circuit. The Setup.Toxic sub data structure must be destroyed
-func GenerateTrustedSetup(fields fields.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
+func GenerateTrustedSetup(fields utils.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
 	var setup = new(Setup)
 	var err error
 
@@ -251,7 +273,7 @@ func GenerateTrustedSetup(fields fields.Fields, witnessLength, gates, publicinpu
 }
 
 // GenerateProofs generates all the parameters to proof the zkSNARK from the Circuit, Setup and the Witness
-func GenerateProofs(f fields.Fields, witnessLength, publicInputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
+func GenerateProofs(f utils.Fields, witnessLength, publicInputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
 	var proof = new(Proof)
 	proof.PiA = new(bn256.G1).ScalarMult(pk.G1.Lx_plus_Ex[0], w[0])
 	proof.PiB = new(bn256.G2).ScalarMult(pk.G2.Rx[0], w[0])
@@ -259,7 +281,7 @@ func GenerateProofs(f fields.Fields, witnessLength, publicInputs int, pk *Pk, w 
 	proof.PiF = new(bn256.G1).ScalarMult(pk.G1.Ex[0], w[0])
 	Qx, r := f.PolynomialField.Div(Px, pk.Domain)
 
-	if !fields.IsZeroArray(r) {
+	if !utils.IsZeroArray(r) {
 		panic("remainder supposed to be 0")
 	}
 

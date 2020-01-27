@@ -51,7 +51,7 @@ var correctnessTest = []TraceCorrectnessTest{
 }
 `,
 	},
-	{skipp: true,
+	{skipp: false,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2)), big.NewInt(328329)},
 		}},
@@ -88,7 +88,7 @@ var correctnessTest = []TraceCorrectnessTest{
 	}
 	
 `,
-	}, {skipp: true,
+	}, {skipp: false,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -167,8 +167,8 @@ var correctnessTest = []TraceCorrectnessTest{
 		var e = x * 5
 		var b = e * 6
 		var c = b * 7
-		var f = c * 1
-		var d = c * f
+		var F = c * 1
+		var d = c * F
 		return d * mul(d,e)
 	}
 	
@@ -211,9 +211,9 @@ func TestCorrectness(t *testing.T) {
 		fmt.Println(r1cs.O)
 
 		for _, io := range test.io {
-			inputs := io.inputs
 			fmt.Println("input")
-			fmt.Println(inputs)
+			fmt.Println(io.inputs)
+			inputs := CombineInputs(program.GlobalInputs, io.inputs)
 			w, err := CalculateWitness(r1cs, inputs)
 			assert.NoError(t, err)
 			fmt.Println("witness")

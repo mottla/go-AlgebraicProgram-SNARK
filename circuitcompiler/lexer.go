@@ -23,12 +23,12 @@ type Tokens struct {
 }
 
 type Token struct {
-	Type  TokenType
-	Value string
+	Type       TokenType
+	Identifier string
 }
 
 func (ch Token) String() string {
-	return fmt.Sprintf("(%v <> %v)", ch.Value, ch.Type)
+	return fmt.Sprintf("(%v <> %v)", ch.Identifier, ch.Type)
 }
 
 func (t *Tokens) next() (r Token) {
@@ -231,8 +231,8 @@ func (l *Lexer) Current() string {
 // value into the tokens channel.
 func (l *Lexer) Emit(t TokenType) {
 	tok := Token{
-		Type:  t,
-		Value: l.Current(),
+		Type:       t,
+		Identifier: l.Current(),
 	}
 	l.tokens <- tok
 	l.start = l.position
@@ -319,9 +319,9 @@ func (l *Lexer) Take(chars string) {
 func (l *Lexer) NextToken() (*Token, bool) {
 	if tok, ok := <-l.tokens; ok {
 		//this way we only return the first \n we encounter, if multiple \n\n\n.. follow, we skip the consecutive ones
-		if tok.Value == "\n" && !l.alreadyNewline {
+		if tok.Identifier == "\n" && !l.alreadyNewline {
 			l.alreadyNewline = true
-		} else if tok.Value == "\n" && l.alreadyNewline {
+		} else if tok.Identifier == "\n" && l.alreadyNewline {
 			return l.NextToken()
 		} else {
 			l.alreadyNewline = false

@@ -1,4 +1,4 @@
-package fields
+package utils
 
 import (
 	"math/big"
@@ -24,7 +24,7 @@ func Transpose(matrix [][]*big.Int) [][]*big.Int {
 func ArrayOfBigZeros(num int) []*big.Int {
 
 	var r = make([]*big.Int, num, num)
-	for i := 0; i < num; i++ {
+	for i := int(0); i < num; i++ {
 		r[i] = bigZero
 	}
 	return r
@@ -102,6 +102,18 @@ func (pf PolynomialField) Mul(a, b []*big.Int) []*big.Int {
 	r := ArrayOfBigZeros(len(a) + len(b) - 1)
 	for i := 0; i < len(a); i++ {
 		for j := 0; j < len(b); j++ {
+			//if a[i].Cmp(bigZero)==0{
+			//	r[i+j] = pf.F.Add(
+			//		r[i+j],
+			//		bigZero)
+			//	continue
+			//}
+			//if b[i].Cmp(bigZero)==0{
+			//	r[i+j] = pf.F.Add(
+			//		r[i+j],
+			//		bigZero)
+			//	continue
+			//}
 			r[i+j] = pf.F.Add(
 				r[i+j],
 				pf.F.Mul(a[i], b[j]))
@@ -112,7 +124,7 @@ func (pf PolynomialField) Mul(a, b []*big.Int) []*big.Int {
 
 // Mul multiplies two polinomials over the Finite Field
 func (pf PolynomialField) MulSimple(a, b []*big.Int) []*big.Int {
-	r := ArrayOfBigZeros(max(len(a), len(b)))
+	r := ArrayOfBigZeros(maxInt(len(a), len(b)))
 	for i := 0; i < len(a); i++ {
 		r[i] = pf.F.Add(r[i], a[i])
 	}
@@ -139,7 +151,7 @@ func (pf PolynomialField) Div(a, b []*big.Int) ([]*big.Int, []*big.Int) {
 	return r, rem
 }
 
-func max(a, b int) int {
+func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
@@ -148,7 +160,7 @@ func max(a, b int) int {
 
 // Add adds two polinomials over the Finite Field
 func (pf PolynomialField) Add(a, b []*big.Int) []*big.Int {
-	r := ArrayOfBigZeros(max(len(a), len(b)))
+	r := ArrayOfBigZeros(maxInt(len(a), len(b)))
 	for i := 0; i < len(a); i++ {
 		r[i] = pf.F.Add(r[i], a[i])
 	}
@@ -160,7 +172,7 @@ func (pf PolynomialField) Add(a, b []*big.Int) []*big.Int {
 
 // Sub subtracts two polinomials over the Finite Field
 func (pf PolynomialField) Sub(a, b []*big.Int) []*big.Int {
-	r := ArrayOfBigZeros(max(len(a), len(b)))
+	r := ArrayOfBigZeros(maxInt(len(a), len(b)))
 	for i := 0; i < len(a); i++ {
 		r[i] = pf.F.Add(r[i], a[i])
 	}

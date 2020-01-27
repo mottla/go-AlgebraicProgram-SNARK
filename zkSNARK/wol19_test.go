@@ -72,7 +72,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		fmt.Println(test.code)
 
 		gates := program.ReduceCombinedTree()
-		program.Fields.PolynomialField.InitBases(len(gates))
+		program.Fields.PolynomialField.InitBases(len(gates) + 1)
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)
 		}
@@ -95,7 +95,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, io := range test.io {
-			inputs := io.inputs
+			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.inputs)
 			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
 			assert.NoError(t, err)
 			fmt.Println("input")
@@ -107,7 +107,6 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			mf, px := CombinePolynomials2(program.Fields, w, trasposedR1Cs)
 			_, px2 := CombinePolynomials(program.Fields, w, l, r, e, o)
 			assert.Equal(t, px, px2)
-
 			var bigZero = big.NewInt(int64(0))
 
 			//Test if P(x) is indeed 0 at each gate index
@@ -132,7 +131,6 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 				x, _ := program.Fields.CurveOrderField.Rand()
 
 				assert.Equal(t, g1ScalarBaseMultiply(x), new(bn256.G1).Add(g1ScalarBaseMultiply(x), g1ScalarBaseMultiply(big.NewInt(0))))
-
 				assert.Equal(t, g1ScalarBaseMultiply(x), new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(big.NewInt(1)), x))
 
 				ter := new(big.Int).Set(x)
@@ -146,12 +144,9 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 				assert.Equal(t, icPubl.String(), g1ScalarBaseMultiply(program.Fields.CurveOrderField.EvalPoly(px, x)).String())
 
 			}
-
 			fmt.Println("proof generation time elapsed:", time.Since(before))
 			assert.Nil(t, err)
-
 			before = time.Now()
-
 			assert.True(t, VerifyProof(&setup.Pk, proof, w[:3], true))
 			fmt.Println("verify proof time elapsed:", time.Since(before))
 		}

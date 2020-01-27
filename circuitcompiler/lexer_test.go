@@ -26,7 +26,7 @@ func Test_LexerError2(t *testing.T) {
 	l.Start()
 	tok, done := l.NextToken()
 	for !done {
-		fmt.Printf("%v , %q \n", tok.Type, tok.Value)
+		fmt.Printf("%v , %q \n", tok.Type, tok.Identifier)
 		tok, done = l.NextToken()
 	}
 

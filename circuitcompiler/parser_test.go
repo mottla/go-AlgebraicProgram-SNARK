@@ -36,25 +36,25 @@ func Test_Parser(t *testing.T) {
 func TestParser_SplitAt(t *testing.T) {
 	toks := []Token{
 		{
-			Value: "a",
+			Identifier: "a",
 		},
 		{
-			Value: "b",
+			Identifier: "b",
 		},
 		{
-			Value: "c",
+			Identifier: "c",
 		},
 		{
-			Value: "a",
+			Identifier: "a",
 		},
 		{
-			Value: "e",
+			Identifier: "e",
 		},
 		{
-			Value: ")",
+			Identifier: ")",
 		},
 		{
-			Value: "a",
+			Identifier: "a",
 		},
 	}
 
@@ -70,25 +70,25 @@ func TestParser_SplitAt(t *testing.T) {
 func TestParser_StripOfBrackets(t *testing.T) {
 	toks := []Token{
 		{
-			Value: "(",
+			Identifier: "(",
 		},
 		{
-			Value: "b",
+			Identifier: "b",
 		},
 		{
-			Value: "c",
+			Identifier: "c",
 		},
 		{
-			Value: "a",
+			Identifier: "a",
 		},
 		{
-			Value: "e",
+			Identifier: "e",
 		},
 		{
-			Value: "g",
+			Identifier: "g",
 		},
 		{
-			Value: ")",
+			Identifier: ")",
 		},
 	}
 	fmt.Println(toks)

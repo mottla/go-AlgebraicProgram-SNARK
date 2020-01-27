@@ -3,14 +3,14 @@ package circuitcompiler
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler/fields"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
 	"math/big"
 	"sort"
 	"strings"
 )
 
-var field = fields.NewFq(bn256.Order)
+var field = utils.NewFq(bn256.Order)
 var bigZero = big.NewInt(0)
 var bigOne = big.NewInt(1)
 
@@ -39,7 +39,7 @@ func (f factors) Less(i, j int) bool {
 
 func (f factor) String() string {
 
-	str := f.typ.Value
+	str := f.typ.Identifier
 	if f.invert {
 		str += "^-1"
 	}
@@ -90,7 +90,7 @@ func extractConstant(leftFactors, rightFactors factors) (sig MultiplicationGateS
 
 	res := field.Mul(mulL, mulR)
 
-	return MultiplicationGateSignature{identifier: Token{Value: hash.String()[:16]}, commonExtracted: res}, facL, facR
+	return MultiplicationGateSignature{identifier: Token{Identifier: hash.String()[:16]}, commonExtracted: res}, facL, facR
 }
 
 func factorSignature(rightFactors factors) (gcd *big.Int, extractedRightFactors factors) {
@@ -133,7 +133,7 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 			//this one should only be reached, after a true multiplicationGate had its left and right braches computed. here we
 			//a factor can appear at most in quadratic form. we reduce terms a*a^-1 here.
 			if right.typ.Type&left.typ.Type&IN != 0 {
-				if left.typ.Value == right.typ.Value {
+				if left.typ.Identifier == right.typ.Identifier {
 					if right.invert != left.invert {
 						leftFactors[i] = &factor{typ: Token{Type: NumberToken}, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 						continue
@@ -169,7 +169,7 @@ func addFactor(facLeft, facRight *factor) (couldAdd bool, sum *factor) {
 		}, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
 
 	}
-	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.typ.Value == facRight.typ.Value {
+	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.typ.Identifier == facRight.typ.Identifier {
 		return true, &factor{typ: facRight.typ, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
 
 	}

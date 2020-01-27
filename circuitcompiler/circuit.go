@@ -73,7 +73,7 @@ func newCircuit(name string) *Circuit {
 func (c *Circuit) isArgument(in Token) (isArg bool, arg *Constraint) {
 	if in.Type == IdentToken {
 		for _, v := range c.Inputs {
-			if v.Output.Value == in.Value {
+			if v.Output.Identifier == in.Identifier {
 				return true, v
 			}
 		}
@@ -112,7 +112,7 @@ func (circ *Circuit) _updateRootsMap(constraint *Constraint) {
 
 func (circ *Circuit) semanticCheck_RootMapUpdate(constraint *Constraint) *Constraint {
 
-	if v, ex := circ.constraintMap[constraint.Output.Value]; !ex {
+	if v, ex := circ.constraintMap[constraint.Output.Identifier]; !ex {
 		if v == constraint {
 			return constraint
 		}
@@ -122,7 +122,7 @@ func (circ *Circuit) semanticCheck_RootMapUpdate(constraint *Constraint) *Constr
 	}
 	for i := 0; i < len(constraint.Inputs); i++ {
 		//circ.semanticCheck_RootMapUpdate(constraint.Inputs[i])
-		//if v, ex := circ.constraintMap[constraint.Inputs[i].Output.Value]; ex {
+		//if v, ex := circ.constraintMap[constraint.Inputs[i].Output.Identifier]; ex {
 		//	*constraint.Inputs[i] = *v
 		//	continue
 		//}
@@ -136,46 +136,46 @@ func (circ *Circuit) semanticCheck_RootMapUpdate(constraint *Constraint) *Constr
 	case ELSE:
 		return constraint
 	case VARIABLE_OVERLOAD:
-		if _, ex := circ.constraintMap[constraint.Output.Value]; !ex {
-			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Value))
+		if _, ex := circ.constraintMap[constraint.Output.Identifier]; !ex {
+			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Identifier))
 		}
-		circ.constraintMap[constraint.Output.Value] = constraint
+		circ.constraintMap[constraint.Output.Identifier] = constraint
 		break
 	case FUNCTION_CALL:
-		//constraint.Output.Value = composeNewFunctionName(constraint)
+		//constraint.Output.Identifier = composeNewFunctionName(constraint)
 		break
 	case VARIABLE_DECLARE:
-		if _, ex := circ.constraintMap[constraint.Output.Value]; ex {
-			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Value))
+		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Identifier))
 		}
 		(constraint.Output.Type) = UNASIGNEDVAR
 
-		circ.constraintMap[constraint.Output.Value] = constraint
+		circ.constraintMap[constraint.Output.Identifier] = constraint
 		break
 	case ARRAY_Define:
 
 		for i := 0; i < len(constraint.Inputs); i++ {
-			element := fmt.Sprintf("%s[%v]", constraint.Output.Value, i)
+			element := fmt.Sprintf("%s[%v]", constraint.Output.Identifier, i)
 			circ.constraintMap[element] = constraint.Inputs[i]
 		}
 		return constraint
 	case RETURN:
-		//constraint.Output.Value= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Value))
-		constraint.Output.Value = circ.Name
+		//constraint.Output.Identifier= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Identifier))
+		constraint.Output.Identifier = circ.Name
 
 		break
 	case UNASIGNEDVAR:
 		//TODO break or return
 		break
 	case IdentToken:
-		if v, ex := circ.constraintMap[constraint.Output.Value]; ex {
+		if v, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
 			return v
 			//constraint.Output = v.Output
 			//constraint.Inputs = v.Inputs
 			break
 		}
-		panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Value))
-		//circ.constraintMap[constraint.Output.Value] = constraint
+		panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Identifier))
+		//circ.constraintMap[constraint.Output.Identifier] = constraint
 		break
 	default:
 		panic(fmt.Sprintf("not implemented %v", constraint))
@@ -187,17 +187,17 @@ func (circ *Circuit) semanticCheck_RootMapUpdate(constraint *Constraint) *Constr
 
 func RegisterFunctionFromConstraint(constraint *Constraint) (c *Circuit) {
 
-	name := constraint.Output.Value
+	name := constraint.Output.Identifier
 	c = newCircuit(name)
 
 	duplicateMap := make(map[string]bool)
 	for _, arg := range constraint.Inputs {
 
-		if _, ex := duplicateMap[arg.Output.Value]; ex {
+		if _, ex := duplicateMap[arg.Output.Identifier]; ex {
 			panic("argument must be unique ")
 		}
-		duplicateMap[arg.Output.Value] = true
-		c.constraintMap[arg.Output.Value] = arg
+		duplicateMap[arg.Output.Identifier] = true
+		c.constraintMap[arg.Output.Identifier] = arg
 	}
 	c.Inputs = constraint.Inputs
 	return
@@ -263,7 +263,7 @@ func (p *Program) checkStaticCondition(currentCircuit *Circuit, c *Constraint) (
 	if varEndA || varEndB {
 		panic("no dynamic looping supported")
 	}
-	switch c.Inputs[0].Output.Value {
+	switch c.Inputs[0].Output.Identifier {
 	case "==":
 		if A.Cmp(B) != 0 {
 			return false
@@ -355,22 +355,22 @@ func (p *Program) preCompile(currentCircuit *Circuit, constraintStack []*Constra
 	case IF_ELSE_CHAIN_END:
 		break
 	case FUNCTION_DEFINE:
-		if _, ex := p.functions[currentConstraint.Output.Value]; ex {
-			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Value))
+		if _, ex := p.functions[currentConstraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Identifier))
 		}
 		currentCircuit = RegisterFunctionFromConstraint(currentConstraint)
-		p.functions[currentConstraint.Output.Value] = currentCircuit
+		p.functions[currentConstraint.Output.Identifier] = currentCircuit
 		break
 	case FUNCTION_DEFINE_Internal:
 		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack)
 		if !succ {
 			panic("unexpected, should be detected at parsing")
 		}
-		if _, ex := currentCircuit.functions[currentConstraint.Output.Value]; ex {
-			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Value))
+		if _, ex := currentCircuit.functions[currentConstraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Identifier))
 		}
 		newFunc := RegisterFunctionFromConstraint(currentConstraint)
-		currentCircuit.functions[currentConstraint.Output.Value] = newFunc
+		currentCircuit.functions[currentConstraint.Output.Identifier] = newFunc
 
 		for k, v := range currentCircuit.constraintMap {
 			//we keep the arguments this way
@@ -440,7 +440,7 @@ func (circ *Circuit) currentOutputs() []string {
 
 	renamedInputs := make([]string, len(circ.Inputs))
 	for i, in := range circ.Inputs {
-		renamedInputs[i] = in.Output.Value
+		renamedInputs[i] = in.Output.Identifier
 	}
 
 	return renamedInputs

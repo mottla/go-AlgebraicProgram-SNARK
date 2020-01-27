@@ -1,4 +1,4 @@
-package fields
+package utils
 
 import (
 	"bytes"
@@ -128,12 +128,27 @@ func (fq Fq) Exp(base *big.Int, e *big.Int) *big.Int {
 	rem := fq.Copy(e)
 	exp := base
 
-	for !bytes.Equal(rem.Bytes(), big.NewInt(int64(0)).Bytes()) {
+	for !bytes.Equal(rem.Bytes(), bigZero.Bytes()) {
 		if BigIsOdd(rem) {
 			res = fq.Mul(res, exp)
 		}
 		exp = fq.Square(exp)
-		rem = new(big.Int).Rsh(rem, 1)
+		rem.Rsh(rem, 1)
+	}
+	return res
+}
+
+// Exp performs the exponential over Fq
+func (fq Fq) ExpInt(base *big.Int, e uint) *big.Int {
+	res := fq.One()
+	exp := base
+
+	for e > 0 {
+		if e&1 == 1 {
+			res = fq.Mul(res, exp)
+		}
+		exp = fq.Square(exp)
+		e >>= 1
 	}
 	return res
 }
@@ -167,7 +182,7 @@ func BigIsOdd(n *big.Int) bool {
 func (fq Fq) Rand() (*big.Int, error) {
 
 	// twoexp := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(maxbits)), nil)
-	// max := new(big.Int).Sub(twoexp, big.NewInt(1))
+	// maxInt := new(big.Int).Sub(twoexp, big.NewInt(1))
 
 	maxbits := fq.Q.BitLen()
 	b := make([]byte, (maxbits/8)-1)
