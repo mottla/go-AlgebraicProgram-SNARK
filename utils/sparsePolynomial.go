@@ -6,70 +6,98 @@ import (
 )
 
 // Mul multiplies two polinomials over the Finite Field
-func (fq Fq) MulSparse(a, b SparseArray) SparseArray {
-	r := NewSparseArray()
+func (fq Fq) MulSparse(a, b *AvlTree) *AvlTree {
+	r := NewAvlTree()
 
 	for L := range a.ChannelNodes(true) {
 		for R := range b.ChannelNodes(true) {
-			r.push(L.Key+R.Key, fq.Mul(R.Value, L.Value), fq.Add)
+
+			r.Put(L.Key+R.Key, fq.Mul(R.Value, L.Value), fq.Add)
 		}
 	}
 	return r
 }
 
+// Mul multiplies a sparse polynomail with a scalar over the Finite Field
+func (fq Fq) MulSparseScalar(a *AvlTree, scalar *big.Int) *AvlTree {
+
+	for L := range a.ChannelNodes(true) {
+		a.Put(L.Key, scalar, fq.Mul)
+	}
+	return a
+}
+
+type Entry struct {
+	Key   uint
+	Value *big.Int
+}
+
 // Div divides two polinomials over the Finite Field, returning the result and the remainder
-func (fq Fq) DivideSparse(a, b SparseArray) (result SparseArray, rem SparseArray) {
-	result = NewSparseArray()
-	rem = a
+func (fq Fq) DivideSparse(a, b *AvlTree) (result, rem *AvlTree) {
+	result = NewAvlTree()
+	rem = a.Clone()
 	maxA, maxB := rem.MaxNode(), b.MaxNode()
-	for ; maxA != nil && maxB != nil && maxA.Key >= maxB.Key; maxA = rem.MaxNode() {
-		l := fq.Div(maxA.Value, maxB.Value)
-		pos := maxA.Key - maxB.Key
-		aux := NewSparseArray()
+	for ; maxA != nil && maxB != nil && maxA.Key() >= maxB.Key(); maxA = rem.MaxNode() {
+		l := fq.Div(maxA.Value(), maxB.Value())
+		pos := maxA.Key() - maxB.Key()
+		aux := NewAvlTree()
 		aux.InsertNoOverwriteAllowed(pos, l)
 		result.InsertNoOverwriteAllowed(pos, l)
 		mul := fq.MulSparse(b, aux)
-		rem = fq.SubSparse(rem, mul)
+		rem = fq.SubToSparse(rem, mul)
 	}
 	return result, rem
 }
 
 // Add adds two polinomials over the Finite Field
-func (fq Fq) AddSparse(a, b SparseArray) SparseArray {
-	r := NewSparseArray()
+func (a *AvlTree) Clone() *AvlTree {
+	r := NewAvlTree()
 
 	for v := range a.ChannelNodes(false) {
-		r.push(v.Key, v.Value, fq.Add)
+		r.Insert(v.Key, v.Value)
 	}
-	for v := range b.ChannelNodes(false) {
-		r.push(v.Key, v.Value, fq.Add)
-	}
+
 	return r
 }
 
+func (fq Fq) AddToSparse(a, b *AvlTree) *AvlTree {
+	//r := NewAvlTree()
+
+	//for v := range a.ChannelNodes(false) {
+	//	r.Put(v.Key, v.Value, fq.Add)
+	//}
+	for v := range b.ChannelNodes(false) {
+		a.Put(v.Key, v.Value, fq.Add)
+	}
+	return a
+}
+
 //EvalPoly Evaluates a sparse polynomial
-func (fq Fq) EvalSparsePoly(poly SparseArray, at *big.Int) (result *big.Int) {
+func (fq Fq) EvalSparsePoly(poly *AvlTree, at *big.Int) (result *big.Int) {
 	//get the number of bits of the highest degree
-	nBits := len(fmt.Sprintf("%b", poly.Degree()))
-	if nBits < poly.Count() {
-		fmt.Println("WARN, ur polynomial is not very sparse. a casual array type polynomial becomes more efficient at some point. not necessarily in this case however.")
+	nBits := len(fmt.Sprintf("%b", poly.MaxNode().Key()))
+	if nBits < poly.Size() {
+		//fmt.Println("WARN, ur polynomial is not very sparse. a casual array type polynomial becomes more efficient at some point. not necessarily in this case however.")
 	}
 	if at.Cmp(bigZero) == 0 {
-		if v, b := poly.Exists(0); v {
-			return new(big.Int).Set(b)
+		if v, b := poly.Get(0); b == nil {
+			return new(big.Int).Set(v)
 		}
 		return big.NewInt(0)
 	}
 	//tree that stores intermediate results of exponent ladder. Key is the exponent. value is at^key
-	alredyComputedExponents := NewSparseArray()
+	alredyComputedExponents := NewAvlTree()
 	alredyComputedExponents.InsertNoOverwriteAllowed(1, at)
 	result = new(big.Int).SetInt64(0)
 	for j := range poly.ChannelNodes(true) {
 		rem := j.Key
 		q := uint(0)
 		nextPower := new(big.Int).SetInt64(1)
-		arr := alredyComputedExponents.DecendingNodes()
-		for _, highestAlreadyComputedExponent := range arr {
+		//apply a greedy algorithm to tackle the knapsack problem we face her. we want to create the
+		//next power by reusing already computed powers, starting from the biggest.
+		//example: we want x^15, we have x^8,x^3,x
+		//we get x^15 = (x^8)^1 * (x^3)^2 * (x)^1
+		for _, highestAlreadyComputedExponent := range alredyComputedExponents.DecendingNodes() {
 			q, rem = euclid(rem, highestAlreadyComputedExponent.Key)
 			vv := fq.ExpInt(highestAlreadyComputedExponent.Value, q)
 			alredyComputedExponents.Insert(q*highestAlreadyComputedExponent.Key, vv)
@@ -85,72 +113,67 @@ func (fq Fq) EvalSparsePoly(poly SparseArray, at *big.Int) (result *big.Int) {
 
 //euclid returns q,r s.t. a=bq+r
 func euclid(a, b uint) (q, r uint) {
-	if b == 0 {
-		panic("not allowed")
-	}
-
 	return a / b, a % b
 }
 
 // Sub subtracts two polinomials over the Finite Field
-func (fq Fq) SubSparse(a, b SparseArray) SparseArray {
-	r := NewSparseArray()
-	for v := range a.ChannelNodes(false) {
-		r.push(v.Key, v.Value, fq.Add)
-	}
+func (fq Fq) SubToSparse(a, b *AvlTree) *AvlTree {
+	//r := NewAvlTree()
+	//for v := range a.ChannelNodes(false) {
+	//	r.Put(v.Key, v.Value, fq.Add)
+	//}
 	for v := range b.ChannelNodes(false) {
-		r.push(v.Key, fq.Neg(v.Value), fq.Add)
+		a.Put(v.Key, fq.Neg(v.Value), fq.Add)
 	}
-	return r
+	return a
 }
 
 // LagrangeInterpolation performs the Lagrange Interpolation / Lagrange Polynomials operation
-func (f Fq) InterpolateSparseArray(dataArray SparseArray) (polynom SparseArray) {
+func (f Fq) InterpolateSparseArray(dataArray *AvlTree, till int) (polynom *AvlTree) {
 	// https://en.wikipedia.org/wiki/Lagrange_polynomial
 
-	var base = func(pointPos, totalPoints uint) (r SparseArray) {
-		var iterator = new(big.Int)
+	var base = func(pointPos, totalPoints int) (r *AvlTree) {
+		r = NewAvlTree()
+
 		facBig := big.NewInt(1)
 
-		for i := uint(0); i < pointPos; i++ {
-			iterator.SetInt64(int64(pointPos - i))
-			facBig = f.Mul(facBig, iterator)
+		for i := 0; i < pointPos; i++ {
+			facBig = f.Mul(facBig, big.NewInt(int64(pointPos-i)))
 		}
 		for i := pointPos + 1; i < totalPoints; i++ {
-			iterator.SetInt64(int64(pointPos - i))
-			facBig = f.Mul(facBig, iterator)
+			facBig = f.Mul(facBig, big.NewInt(int64(pointPos-i)))
 		}
 		hf := f.Inverse(facBig)
 		r = NewSparseArrayWith(uint(0), hf)
-		for i := uint(0); i < totalPoints; i++ {
+		for i := 0; i < totalPoints; i++ {
 			if i != pointPos {
 				r = f.MulSparse(r, NewSparseArrayFromArray([]*big.Int{big.NewInt(int64(-i)), big.NewInt(int64(1))}))
 			}
 		}
 		return r
 	}
-
-	maxDegree := dataArray.MaxNode().Key
+	polynom = NewAvlTree()
 	for v := range dataArray.ChannelNodes(true) {
-
-		polynom = f.AddSparse(polynom, f.MulSparse(base(v.Key, maxDegree+1), NewSparseArrayWith(uint(0), v.Value)))
+		prod := f.MulSparseScalar(base(int(v.Key), till), v.Value)
+		polynom = f.AddToSparse(polynom, prod)
 
 	}
 	return polynom
 }
 
 //
-func (f Fq) LinearCombine(polynomials []SparseArray, w []*big.Int) (scaledPolynomials []SparseArray) {
-	scaledPolynomials = make([]SparseArray, len(w))
+func (f Fq) LinearCombine(polynomials []*AvlTree, w []*big.Int) (scaledPolynomials []*AvlTree) {
+	scaledPolynomials = make([]*AvlTree, len(w))
 	for i := 0; i < len(w); i++ {
-		scaledPolynomials[i] = f.MulSparse(NewSparseArrayWith(uint(0), w[i]), polynomials[i])
+		scaledPolynomials[i] = f.MulSparseScalar(polynomials[i], w[i])
 
 	}
 	return
 }
-func (f Fq) AddPolynomials(polynomials []SparseArray) (sumPoly SparseArray) {
+func (f Fq) AddPolynomials(polynomials []*AvlTree) (sumPoly *AvlTree) {
+	sumPoly = NewAvlTree()
 	for i := 0; i < len(polynomials); i++ {
-		sumPoly = f.AddSparse(sumPoly, polynomials[i])
+		sumPoly = f.AddToSparse(sumPoly, polynomials[i])
 	}
 	return
 }

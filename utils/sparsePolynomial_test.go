@@ -16,7 +16,7 @@ func TestEval(t *testing.T) {
 	f := NewFq(bn256.Order)
 	at, _ := f.Rand()
 	//at := big.NewInt(0)
-	order := 1000000
+	order := 150000
 	//1 is 100% of the coefficients are 0
 	sparsityPercent := 0.9
 	a := ArrayOfBigZeros(order)
@@ -27,10 +27,12 @@ func TestEval(t *testing.T) {
 
 	before := time.Now()
 
-	sparseA := NewSparseArray()
+	sparseA := NewAvlTree()
 
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	for _, v := range rand.Perm(len(a)) {
+		//fmt.Println(v,a[v])
+		sparseA.Insert(uint(v), a[v])
+		//fmt.Println(sparseA.String())
 	}
 
 	before = time.Now()
@@ -46,6 +48,15 @@ func TestEval(t *testing.T) {
 		t.Error(fmt.Sprintf("classic poly %v and sparse poly %v evaluation differ. At leas one of both must be wrong", sparseAt.String(), classic.String()))
 	}
 
+	for i := 0; i < 10; i++ {
+		at, _ = f.Rand()
+		sparseAt = f.EvalSparsePoly(sparseA, at)
+		classic = f.EvalPoly(a, at)
+		if sparseAt.Cmp(classic) != 0 {
+			t.Error(fmt.Sprintf("classic poly %v and sparse poly %v evaluation differ. At leas one of both must be wrong", sparseAt.String(), classic.String()))
+		}
+
+	}
 }
 
 func TestMultiply(t *testing.T) {
@@ -54,15 +65,17 @@ func TestMultiply(t *testing.T) {
 	f := NewFq(bn256.Order)
 	at, _ := f.Rand()
 
-	order := 1000
+	order := 3000
 	//1 is 100% of the coefficients are 0
 	sparsityPercent := 0.1
 	a := ArrayOfBigZeros(order)
 	b := ArrayOfBigZeros(order)
 	for i := 0; i < order; i += 1 + rand.Intn(int(float64(order)*sparsityPercent)) {
 		a[i], _ = f.Rand()
+		//a[i]=big.NewInt(int64(1))
 	}
 	for i := 0; i < order; i += 1 + rand.Intn(int(float64(order)*sparsityPercent)) {
+		//b[i]=big.NewInt(int64(1))
 		b[i], _ = f.Rand()
 	}
 	// new Polynomial Field
@@ -71,14 +84,14 @@ func TestMultiply(t *testing.T) {
 	before := time.Now()
 	c := pf.Mul(a, b)
 	fmt.Println("multiply with horner took", time.Since(before))
+	sparseA := NewAvlTree()
+	sparseB := NewAvlTree()
 
-	sparseA := NewSparseArray()
-	sparseB := NewSparseArray()
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	for _, v := range rand.Perm(len(a)) {
+		sparseA.Insert(uint(v), a[v])
 	}
-	for k, v := range b {
-		sparseB.Insert(uint(k), v)
+	for _, v := range rand.Perm(len(b)) {
+		sparseB.Insert(uint(v), b[v])
 	}
 	before = time.Now()
 	sparseC := f.MulSparse(sparseA, sparseB)
@@ -104,7 +117,7 @@ func TestAdd(t *testing.T) {
 	f := NewFq(bn256.Order)
 	at, _ := f.Rand()
 
-	order := 10000
+	order := 100000
 	//1 is 100% of the coefficients are 0
 	sparsityPercent := 0.1
 	a := ArrayOfBigZeros(order)
@@ -122,17 +135,22 @@ func TestAdd(t *testing.T) {
 	c := pf.Add(a, b)
 	fmt.Println("add classic took", time.Since(before))
 
-	sparseA := NewSparseArray()
-	sparseB := NewSparseArray()
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	sparseA := NewAvlTree()
+	sparseB := NewAvlTree()
+
+	for _, v := range rand.Perm(len(a)) {
+		sparseA.Insert(uint(v), a[v])
+		//sparseA.Insert(uint(v), big.NewInt(int64(v)))
 	}
-	for k, v := range b {
-		sparseB.Insert(uint(k), v)
+
+	for _, v := range rand.Perm(len(b)) {
+		sparseB.Insert(uint(v), b[v])
+		//sparseB.Insert(uint(v), big.NewInt(int64(v)))
 	}
 	before = time.Now()
-	sparseC := f.AddSparse(sparseA, sparseB)
+	sparseC := f.AddToSparse(sparseA, sparseB)
 	fmt.Println("add sparse took", time.Since(before))
+
 	before = time.Now()
 	sparseAt := f.EvalSparsePoly(sparseC, at)
 	fmt.Println("evaluate sparse took", time.Since(before))
@@ -172,16 +190,17 @@ func TestSub(t *testing.T) {
 	c := pf.Sub(a, b)
 	fmt.Println("sub classic took", time.Since(before))
 
-	sparseA := NewSparseArray()
-	sparseB := NewSparseArray()
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	sparseA := NewAvlTree()
+	sparseB := NewAvlTree()
+	for _, v := range rand.Perm(len(a)) {
+		sparseA.Insert(uint(v), a[v])
 	}
-	for k, v := range b {
-		sparseB.Insert(uint(k), v)
+
+	for _, v := range rand.Perm(len(b)) {
+		sparseB.Insert(uint(v), b[v])
 	}
 	before = time.Now()
-	sparseC := f.SubSparse(sparseA, sparseB)
+	sparseC := f.SubToSparse(sparseA, sparseB)
 	fmt.Println("sub sparse took", time.Since(before))
 	before = time.Now()
 	sparseAt := f.EvalSparsePoly(sparseC, at)
@@ -221,24 +240,25 @@ func TestSub2(t *testing.T) {
 	//b[0]=big.NewInt(0)
 	//b[1]=big.NewInt(1)
 	before := time.Now()
-	sparseA := NewSparseArray()
-	sparseB := NewSparseArray()
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	sparseA := NewAvlTree()
+	sparseB := NewAvlTree()
+	for _, v := range rand.Perm(len(a)) {
+		sparseA.Insert(uint(v), a[v])
 	}
-	for k, v := range b {
-		sparseB.Insert(uint(k), v)
+
+	for _, v := range rand.Perm(len(b)) {
+		sparseB.Insert(uint(v), b[v])
 	}
 
 	before = time.Now()
-	cDivSparse := f.SubSparse(sparseA, sparseB)
+	classic2 := f.EvalSparsePoly(sparseA, at)
+	cDivSparse := f.SubToSparse(sparseA, sparseB)
 	fmt.Println("sub sparse took", time.Since(before))
 
 	//sparseA - sparseB= cDivSparse
-	cd := f.AddSparse(cDivSparse, sparseB)
+	cd := f.AddToSparse(cDivSparse, sparseB)
 
 	classic1 := f.EvalSparsePoly(cd, at)
-	classic2 := f.EvalSparsePoly(sparseA, at)
 
 	//fmt.Println(f.EvalSparsePoly(sparseC,b16).String())
 	if classic1.Cmp(classic2) != 0 {
@@ -266,24 +286,23 @@ func TestDivide2(t *testing.T) {
 		//b[i]=big.NewInt(int64(i))
 	}
 	before := time.Now()
-	sparseA := NewSparseArray()
-	sparseB := NewSparseArray()
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	sparseA := NewAvlTree()
+	sparseB := NewAvlTree()
+	for _, v := range rand.Perm(len(a)) {
+		sparseA.Insert(uint(v), a[v])
 	}
-	for k, v := range b {
-		sparseB.Insert(uint(k), v)
+
+	for _, v := range rand.Perm(len(b)) {
+		sparseB.Insert(uint(v), b[v])
 	}
 
 	before = time.Now()
 	cDivSparse, rem2 := f.DivideSparse(sparseA, sparseB)
-	fmt.Println("c:" + cDivSparse.String())
-	fmt.Println("rem" + rem2.String())
 	fmt.Println("sparse division took", time.Since(before))
 
 	//sparseA=CdivSparece*sparseB +rem2
 	mul := f.MulSparse(cDivSparse, sparseB)
-	cd := f.AddSparse(mul, rem2)
+	cd := f.AddToSparse(mul, rem2)
 
 	classic1 := f.EvalSparsePoly(cd, at)
 	classic2 := f.EvalSparsePoly(sparseA, at)
@@ -315,13 +334,14 @@ func TestDivide(t *testing.T) {
 	}
 
 	before := time.Now()
-	sparseA := NewSparseArray()
-	sparseB := NewSparseArray()
-	for k, v := range a {
-		sparseA.Insert(uint(k), v)
+	sparseA := NewAvlTree()
+	sparseB := NewAvlTree()
+	for _, v := range rand.Perm(len(a)) {
+		sparseA.Insert(uint(v), a[v])
 	}
-	for k, v := range b {
-		sparseB.Insert(uint(k), v)
+
+	for _, v := range rand.Perm(len(b)) {
+		sparseB.Insert(uint(v), b[v])
 	}
 
 	before = time.Now()
@@ -329,7 +349,7 @@ func TestDivide(t *testing.T) {
 	fmt.Println("sparse division took", time.Since(before))
 
 	//sparseA:sparseB=CdivSparece +rem2
-	cd := f.AddSparse(f.MulSparse(cDivSparse, sparseB), rem2)
+	cd := f.AddToSparse(f.MulSparse(cDivSparse, sparseB), rem2)
 	classic1 := f.EvalSparsePoly(cd, at)
 	classic2 := f.EvalSparsePoly(sparseA, at)
 
@@ -342,37 +362,37 @@ func TestDivide(t *testing.T) {
 
 func TestSparseLagrangeInterpolation(t *testing.T) {
 	// new Finite Field
-	var Npoints = int64(100)
-	r := new(big.Int).Set(bn256.P)
-	f := NewFq(r)
+	var Npoints = 250
+	sparsityPercent := 0.8
+	f := NewFq(bn256.Order)
 	// new Polynomial Field
-	pf := NewPolynomialFieldPrecomputedLagriangian(f, int(Npoints))
+	pf := NewPolynomialFieldPrecomputedLagriangian(f, Npoints)
 
 	var err error
 
 	Xpoints := make([]*big.Int, Npoints)
-	for i := int64(0); i < Npoints; i++ {
-		Xpoints[i] = new(big.Int).SetInt64(i)
+	for i := 0; i < Npoints; i++ {
+		Xpoints[i] = new(big.Int).SetInt64(int64(i))
 	}
 
-	Ypoints := make([]*big.Int, Npoints)
+	Ypoints := ArrayOfBigZeros(Npoints)
 
-	for i := int64(0); i < Npoints; i++ {
+	for i := 0; i < Npoints; i += 1 + rand.Intn(1+int(float64(Npoints)*sparsityPercent)) {
 		Ypoints[i], err = f.Rand()
 		assert.Nil(t, err)
 	}
-	Ypoints[3] = new(big.Int).SetInt64(int64(0))
+
 	sparse := NewSparseArrayFromArray(Ypoints)
-	sparse = pf.F.InterpolateSparseArray(sparse)
+	sparse = f.InterpolateSparseArray(sparse, Npoints)
 	alpha := pf.LagrangeInterpolation(Ypoints)
-	for i := int64(0); i < Npoints; i++ {
+	for i := Npoints - 1; i >= 0; i-- {
 		if f.EvalPoly(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
 			t.Error("fail")
 		}
-		if f.EvalSparsePoly(sparse, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
-			t.Error(fmt.Sprintf("fail sparse %v", i))
-		} else {
-			fmt.Printf("sicces at %v \n", i)
+		val := f.EvalSparsePoly(sparse, Xpoints[i])
+		//fmt.Println(sparse)
+		if val.Cmp(Ypoints[i]) != 0 {
+			t.Error(fmt.Sprintf("fail sparse %v. Got %v", i, val.String()))
 		}
 
 	}

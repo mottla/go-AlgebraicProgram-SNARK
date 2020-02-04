@@ -183,7 +183,7 @@ func (fq Fq) Rand() (*big.Int, error) {
 
 	// twoexp := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(maxbits)), nil)
 	// maxInt := new(big.Int).Sub(twoexp, big.NewInt(1))
-
+	//rand
 	maxbits := fq.Q.BitLen()
 	b := make([]byte, (maxbits/8)-1)
 	// b := make([]byte, 3)

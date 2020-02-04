@@ -21,10 +21,17 @@ type ER1CS struct {
 type ER1CSSparse struct {
 	f        utils.Fields
 	indexMap map[string]int
-	L        []utils.SparseArray
-	R        []utils.SparseArray
-	E        []utils.SparseArray
-	O        []utils.SparseArray
+	L        []*utils.AvlTree
+	R        []*utils.AvlTree
+	E        []*utils.AvlTree
+	O        []*utils.AvlTree
+}
+type ER1CSsPARSETransposed struct {
+	indexMap map[string]int
+	L        []*utils.AvlTree
+	R        []*utils.AvlTree
+	E        []*utils.AvlTree
+	O        []*utils.AvlTree
 }
 type ER1CSTransposed struct {
 	indexMap map[string]int
