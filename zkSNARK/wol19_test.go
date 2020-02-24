@@ -79,6 +79,8 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 		fmt.Println("\n generating ER1CS")
 		r1cs := program.GatesToR1CS(gates)
+		r1csSparse := program.GatesToSparseR1CS(gates)
+		//transposedR1csSparse := r1csSparse.TransposeSparse()
 		trasposedR1Cs := r1cs.Transpose()
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
@@ -97,16 +99,26 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		for _, io := range test.io {
 			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.inputs)
 			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
+
 			assert.NoError(t, err)
+			wsparse, werr := circuitcompiler.CalculateSparseWitness(r1csSparse, inputs)
+			assert.NoError(t, werr)
+
 			fmt.Println("input")
 			fmt.Println(inputs)
 			fmt.Println("witness")
 			fmt.Println(w)
+			fmt.Println(wsparse)
 			//assert.Equal(t, io.result, w[len(w)-1])
-
+			// CombineSparsePolynomials(program.Fields, w, transposedR1csSparse)
 			mf, px := CombinePolynomials2(program.Fields, w, trasposedR1Cs)
-			_, px2 := CombinePolynomials(program.Fields, w, l, r, e, o)
+			//mf3,px3 := CombinePolynomials3(program.Fields,w,trasposedR1Cs)
+			//mSparse,pSparse := CombineSparsePolynomials(program.Fields,wSparse,r1csSparse)
+			mf2, px2 := CombinePolynomials(program.Fields, w, l, r, e, o)
 			assert.Equal(t, px, px2)
+			assert.Equal(t, mf2, mf)
+			//assert.Equal(t, px, px3)
+			//assert.Equal(t, mf2, mf3)
 			var bigZero = big.NewInt(int64(0))
 
 			//Test if P(x) is indeed 0 at each gate index

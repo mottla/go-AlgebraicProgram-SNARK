@@ -160,6 +160,20 @@ func (f Fq) InterpolateSparseArray(dataArray *AvlTree, till int) (polynom *AvlTr
 	}
 	return polynom
 }
+func (f Fq) SparseScalarProduct(a *AvlTree, b []*big.Int) (res *big.Int) {
+	res = big.NewInt(0)
+	for v := range a.ChannelNodes(true) {
+		res = res.Add(res, f.Mul(v.Value, b[v.Key]))
+	}
+	return
+}
+
+func (f Fq) Combine(a *AvlTree, w []*big.Int) (scaledPolynomial *AvlTree) {
+	for v := range a.ChannelNodes(true) {
+		a.Put(v.Key, w[v.Key], f.Mul)
+	}
+	return a
+}
 
 //
 func (f Fq) LinearCombine(polynomials []*AvlTree, w []*big.Int) (scaledPolynomials []*AvlTree) {
@@ -176,4 +190,21 @@ func (f Fq) AddPolynomials(polynomials []*AvlTree) (sumPoly *AvlTree) {
 		sumPoly = f.AddToSparse(sumPoly, polynomials[i])
 	}
 	return
+}
+
+func TransposeSparse(matrix []*AvlTree) (tra []*AvlTree, max int) {
+	r := []*AvlTree{}
+
+	for y, s := range matrix {
+		if k := int(s.MaxPower()); k > max {
+			max = k
+		}
+		for val := range s.ChannelNodes(true) {
+			for int(val.Key)+1 > len(r) {
+				r = append(r, NewAvlTree())
+			}
+			r[int(val.Key)].InsertNoOverwriteAllowed(uint(y), val.Value)
+		}
+	}
+	return r, max
 }

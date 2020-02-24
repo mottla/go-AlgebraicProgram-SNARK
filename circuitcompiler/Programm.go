@@ -133,136 +133,6 @@ func (p *Program) rereferenceFunctionInputs(currentCircuit *Circuit, functionNam
 	return nil, nil
 }
 
-//func (p *Program) rebalanceAVL(currentCircuit *Circuit, currentConstraint *Constraint) (weight int) {
-//
-//	if len(currentConstraint.Inputs) == 0 {
-//		return 1
-//	}
-//
-//	if currentConstraint.Output.Type == FUNCTION_CALL {
-//		switch currentConstraint.Output.Identifier {
-//		case "scalarBaseMultiply":
-//
-//			return 1
-//		case "equal":
-//			return 1
-//		default:
-//			oldInputss, nextCircuit := p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Identifier, currentConstraint.Inputs)
-//
-//			for i := 0; i < nextCircuit.rootConstraints.len()-1; i++ {
-//				p.rebalanceAVL(nextCircuit, nextCircuit.rootConstraints.data[i])
-//			}
-//
-//			v := p.rebalanceAVL(nextCircuit, nextCircuit.rootConstraints.data[nextCircuit.rootConstraints.len()-1])
-//			p.rereferenceFunctionInputs(currentCircuit, currentConstraint.Output.Identifier, oldInputss)
-//			return v
-//		}
-//
-//	}
-//	if currentConstraint.Output.Type == ARRAY_CALL {
-//
-//		indexFactors, variable := p.compile(currentCircuit, currentConstraint.Inputs[0], &[]*Gate{})
-//		if variable {
-//			panic("cannot access array dynamically in an arithmetic circuit currently")
-//		}
-//
-//		elementName := fmt.Sprintf("%s[%v]", currentConstraint.Output.Identifier, indexFactors[0].multiplicative.String())
-//		if con, ex := currentCircuit.constraintMap[elementName]; ex {
-//			return p.rebalanceAVL(currentCircuit, con)
-//		}
-//		panic(fmt.Sprintf("entry %v not found", elementName))
-//	}
-//
-//	if len(currentConstraint.Inputs) == 1 {
-//		switch currentConstraint.Output.Type {
-//		case VARIABLE_DECLARE:
-//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
-//		case RETURN:
-//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
-//		case UNASIGNEDVAR:
-//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
-//		case IdentToken:
-//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
-//		case VARIABLE_OVERLOAD:
-//			return p.rebalanceAVL(currentCircuit, currentConstraint.Inputs[0])
-//		default:
-//			panic(currentConstraint.String())
-//		}
-//	}
-//
-//	if len(currentConstraint.Inputs) == 3 {
-//
-//		left := currentConstraint.Inputs[1]
-//		right := currentConstraint.Inputs[2]
-//		operation := currentConstraint.Inputs[0].Output
-//
-//		switch operation.Type {
-//		case BinaryComperatorToken:
-//			break
-//		case BitOperatorToken:
-//			break
-//		case BooleanOperatorToken:
-//			break
-//		case ArithmeticOperatorToken:
-//			switch operation.Identifier {
-//			case "*":
-//				variableAtLeftEnd = p.rebalanceAVL(currentCircuit, left)
-//				 variableAtRightEnd = p.rebalanceAVL(currentCircuit, right)
-//				break
-//			case "+":
-//				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
-//				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
-//				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
-//			case "/":
-//				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
-//				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
-//				rightFactors = invertFactors(rightFactors)
-//				break
-//			case "-":
-//				leftFactors, variableAtLeftEnd = p.compile(currentCircuit, left, orderedmGates)
-//				rightFactors, variableAtRightEnd = p.compile(currentCircuit, right, orderedmGates)
-//				rightFactors = negateFactors(rightFactors)
-//				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
-//			}
-//			break
-//		case AssignmentOperatorToken:
-//			break
-//		default:
-//			panic("unsupported operation")
-//		}
-//
-//		if !(variableAtLeftEnd && variableAtRightEnd) {
-//			return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd
-//		}
-//		sig, newLef, newRigh := extractConstant(leftFactors, rightFactors)
-//		if out, ex := p.computedFactors[sig.identifier]; ex {
-//			return factors{{typ: out.identifier, multiplicative: sig.commonExtracted}}, true
-//		}
-//		//currentConstraint.Output.Identifier += "@"
-//		//currentConstraint.Output.Identifier += sig.identifier.Identifier
-//		nTok := Token{
-//			Type: currentConstraint.Output.Type,
-//			//Identifier: currentConstraint.Output.Identifier + "@" + sig.identifier.Identifier,
-//			Identifier: sig.identifier.Identifier,
-//		}
-//		rootGate := &Gate{
-//			gateType: multiplicationGate,
-//			index:    len(*orderedmGates),
-//			value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: sig.commonExtracted},
-//			leftIns:  newLef,
-//			rightIns: newRigh,
-//			output:   big.NewInt(int64(1)),
-//		}
-//
-//		p.computedFactors[sig.identifier] = MultiplicationGateSignature{identifier: nTok, commonExtracted: sig.commonExtracted}
-//		*orderedmGates = append(*orderedmGates, rootGate)
-//
-//		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true
-//	}
-//
-//	panic(currentConstraint)
-//}
-
 //recursively walks through the parse tree to create a list of all
 //multiplication gates needed for the QAP construction
 //Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so
@@ -395,7 +265,7 @@ func (p *Program) compile(currentCircuit *Circuit, currentConstraint *Constraint
 	if currentConstraint.Output.Type == ARRAY_CALL {
 
 		if len(currentConstraint.Inputs) != 1 {
-			panic("scalarBaseMultiply argument missmatch")
+			panic("accessing array index failed")
 		}
 		indexFactors, variable := p.compile(currentCircuit, currentConstraint.Inputs[0], orderedmGates)
 		if variable {
@@ -626,6 +496,143 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS *ER1CS) {
 	bConstraint := utils.ArrayOfBigZeros(size)
 	eConstraint := utils.ArrayOfBigZeros(size)
 	cConstraint := utils.ArrayOfBigZeros(size)
+
+	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
+	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
+	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
+	insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
+
+	r1CS.L = append(r1CS.L, aConstraint)
+	r1CS.R = append(r1CS.R, bConstraint)
+	r1CS.E = append(r1CS.E, eConstraint)
+	r1CS.O = append(r1CS.O, cConstraint)
+
+	return
+}
+
+// GenerateR1CS generates the ER1CS polynomials from the Circuit
+func (p *Program) GatesToSparseR1CS(mGates []*Gate) (r1CS *ER1CSSparse) {
+	// from flat code to ER1CS
+	r1CS = &ER1CSSparse{
+		F: p.Fields,
+	}
+	neutralElement := "1"
+
+	//offset := len(p.GlobalInputs) + 2
+	//  one + in1 +in2+... + gate1 + gate2 .. + randIn + randOut
+	//size := offset + len(mGates)
+	indexMap := make(map[string]int)
+	r1CS.indexMap = indexMap
+	indexMap[neutralElement] = len(indexMap)
+	for _, v := range p.GlobalInputs {
+		indexMap[v.Identifier] = len(indexMap)
+	}
+
+	for _, v := range mGates {
+		if v.gateType == equalityGate {
+			//size = size - 1
+			continue
+		}
+		if _, ex := indexMap[v.value.identifier.Identifier]; !ex {
+			indexMap[v.value.identifier.Identifier] = len(indexMap)
+		} else {
+			panic(fmt.Sprintf("rewriting %v ", v.value))
+		}
+	}
+	indexMap[randInput] = len(indexMap)
+	indexMap[randOutput] = len(indexMap)
+
+	insertValue := func(val *factor, arr *utils.AvlTree) {
+		if val.typ.Type != NumberToken {
+			if _, ex := indexMap[val.typ.Identifier]; !ex {
+				panic(fmt.Sprintf("%v index not found!!!", val))
+			}
+		}
+		value := val.multiplicative
+		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
+		arr.Insert(uint(indexMap[val.typ.Identifier]), value)
+	}
+
+	for _, g := range mGates {
+
+		switch g.gateType {
+		case multiplicationGate:
+			aConstraint := utils.NewAvlTree()
+			bConstraint := utils.NewAvlTree()
+			eConstraint := utils.NewAvlTree()
+			cConstraint := utils.NewAvlTree()
+
+			for _, val := range g.leftIns {
+				insertValue(val, aConstraint)
+			}
+
+			for _, val := range g.rightIns {
+				insertValue(val, bConstraint)
+			}
+			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), g.output)
+
+			//cConstraint[indexMap[g.value.identifier]] = big.NewInt(int64(1))
+
+			if g.rightIns[0].invert {
+				tmp := aConstraint
+				aConstraint = cConstraint
+				cConstraint = tmp
+			}
+			r1CS.L = append(r1CS.L, aConstraint)
+			r1CS.R = append(r1CS.R, bConstraint)
+			r1CS.E = append(r1CS.E, eConstraint)
+			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		case scalarBaseMultiplyGate:
+			aConstraint := utils.NewAvlTree()
+			bConstraint := utils.NewAvlTree()
+			eConstraint := utils.NewAvlTree()
+			cConstraint := utils.NewAvlTree()
+
+			for _, val := range g.expoIns {
+				insertValue(val, eConstraint)
+			}
+
+			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), big.NewInt(int64(1)))
+
+			r1CS.L = append(r1CS.L, aConstraint)
+			r1CS.R = append(r1CS.R, bConstraint)
+			r1CS.E = append(r1CS.E, eConstraint)
+			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		case equalityGate:
+			aConstraint := utils.NewAvlTree()
+			bConstraint := utils.NewAvlTree()
+			eConstraint := utils.NewAvlTree()
+			cConstraint := utils.NewAvlTree()
+
+			for _, val := range g.leftIns {
+				insertValue(val, aConstraint)
+			}
+
+			for _, val := range g.rightIns {
+				insertValue(val, cConstraint)
+			}
+
+			bConstraint.Insert(uint(0), big.NewInt(int64(1)))
+
+			r1CS.L = append(r1CS.L, aConstraint)
+			r1CS.R = append(r1CS.R, bConstraint)
+			r1CS.E = append(r1CS.E, eConstraint)
+			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		default:
+			panic("no supported gate type")
+
+		}
+
+	}
+
+	//randomizer gate
+	aConstraint := utils.NewAvlTree()
+	bConstraint := utils.NewAvlTree()
+	eConstraint := utils.NewAvlTree()
+	cConstraint := utils.NewAvlTree()
 
 	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
 	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)

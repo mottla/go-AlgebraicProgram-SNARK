@@ -32,13 +32,17 @@ var correctnessTest = []TraceCorrectnessTest{
 		}},
 
 		code: `
-	func main(x){
-		var c = x*x
-		return x*x
+	func main(x){dfs
+		var c[] = {x, 2*x}
+		return mul(c[0],c[1])
+	}
+
+	func mul(a,b){
+		return a*b
 	}
 `,
 	}, {
-		skipp: false,
+		skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(42))},
 		}},
@@ -51,7 +55,7 @@ var correctnessTest = []TraceCorrectnessTest{
 }
 `,
 	},
-	{skipp: false,
+	{skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2)), big.NewInt(328329)},
 		}},
@@ -88,7 +92,7 @@ var correctnessTest = []TraceCorrectnessTest{
 	}
 	
 `,
-	}, {skipp: false,
+	}, {skipp: true,
 		io: []InOut{{
 			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			result: big.NewInt(int64(2160900)),
@@ -205,6 +209,7 @@ func TestCorrectness(t *testing.T) {
 
 		fmt.Println("\n generating ER1CS")
 		r1cs := program.GatesToR1CS(gates)
+		r1csSparse := program.GatesToSparseR1CS(gates)
 		fmt.Println(r1cs.L)
 		fmt.Println(r1cs.R)
 		fmt.Println(r1cs.E)
@@ -212,9 +217,13 @@ func TestCorrectness(t *testing.T) {
 
 		for _, io := range test.io {
 			fmt.Println("input")
-			fmt.Println(io.inputs)
 			inputs := CombineInputs(program.GlobalInputs, io.inputs)
+			fmt.Println(inputs)
 			w, err := CalculateWitness(r1cs, inputs)
+			assert.NoError(t, err)
+			fmt.Println("witness")
+			fmt.Println(w)
+			w, err = CalculateSparseWitness(r1csSparse, inputs)
 			assert.NoError(t, err)
 			fmt.Println("witness")
 			fmt.Println(w)

@@ -6,7 +6,6 @@ import (
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
-
 	"math/big"
 )
 
@@ -84,7 +83,12 @@ func CombinePolynomials2(fields utils.Fields, witness []*big.Int, TransposedR1cs
 		}
 		return ax
 	}
-
+	//note thate we could first multiply, add and sub with the datapoints and then interpolate.
+	//however after the multiplication, the degree is higher. interpolation time is
+	//quadratic to the degree. Therefor its more efficient to interpolate and then operate.
+	//however.. the datapoints are sparse. if i interpolate them. they wont be sparse any longer
+	//multiplication takes full square time.
+	//most efficient is therfor precomputing lagrange bases, interpolate and then perform the operations.
 	LVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.L))
 	RVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.R))
 	EVec := scalarProduct(TransposedR1cs.E)
@@ -101,6 +105,36 @@ func CombinePolynomials2(fields utils.Fields, witness []*big.Int, TransposedR1cs
 	c := pf.Sub(b, OVec)
 	return Gx, c
 }
+
+//func CombinePolynomials3(fields utils.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
+//
+//	pf := fields.PolynomialField
+//
+//	scalarProduct := func(vec [][]*big.Int) (poly []*big.Int) {
+//		var ax []*big.Int
+//		for i := 0; i < len(witness); i++ {
+//			m := pf.Mul([]*big.Int{witness[i]}, vec[i])
+//			ax = pf.Add(ax, m)
+//		}
+//		return ax
+//	}
+//
+//	LVec := (scalarProduct(TransposedR1cs.L))
+//	RVec := (scalarProduct(TransposedR1cs.R))
+//	EVec := scalarProduct(TransposedR1cs.E)
+//	OVec := (scalarProduct(TransposedR1cs.O))
+//
+//	var mG_pointsVec []*big.Int
+//	for i := 0; i < len(EVec); i++ {
+//		p := g1ScalarBaseMultiply(EVec[i])
+//		mG_pointsVec = append(mG_pointsVec, p.X())
+//	}
+//	Gx = pf.LagrangeInterpolation(mG_pointsVec)
+//	a := pf.Mul(LVec, RVec)
+//	b := pf.Add(a, Gx)
+//	c := pf.Sub(b, OVec)
+//	return Gx, pf.LagrangeInterpolation(c)
+//}
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
 func CombinePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
@@ -125,27 +159,33 @@ func CombinePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi 
 	return Gx, c
 }
 
-// CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-//func CombineSparsePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi []utils.SparseArray) (Gx, Px utils.SparseArray) {
-//
-//	fq := fields.PolynomialField.F
-//	LVec := fq.AddPolynomials(fq.LinearCombine(Li, witness))
-//	RVec := pf.AddPolynomials(pf.LinearCombine(Ri, witness))
-//	EVec := pf.AddPolynomials(pf.LinearCombine(Ei, witness))
-//	OVec := pf.AddPolynomials(pf.LinearCombine(Oi, witness))
-//
-//	var mG_pointsVec []*big.Int
-//	for i := 0; i < len(EVec); i++ {
-//		val := fields.ArithmeticField.EvalPoly(EVec, new(big.Int).SetInt64(int64(i)))
-//		p := g1ScalarBaseMultiply(val)
-//		mG_pointsVec = append(mG_pointsVec, p.X())
-//	}
-//	Gx = pf.LagrangeInterpolation(mG_pointsVec)
-//	a := pf.Mul(LVec, RVec)
-//	b := pf.Add(a, Gx)
-//	c := pf.Sub(b, OVec)
-//	return Gx, c
-//}
+//CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
+func CombineSparsePolynomials(f utils.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSsPARSETransposed) (Gx, Px *utils.AvlTree) {
+
+	pf := f.ArithmeticField
+
+	scalarProduct := func(vec []*utils.AvlTree) (poly *utils.AvlTree) {
+		poly = pf.AddPolynomials(pf.LinearCombine(vec, witness))
+		return
+	}
+
+	LVec := scalarProduct(TransposedR1cs.L)
+	RVec := scalarProduct(TransposedR1cs.R)
+	EVec := scalarProduct(TransposedR1cs.E)
+	OVec := scalarProduct(TransposedR1cs.O)
+
+	var mG_pointsVec = utils.NewAvlTree()
+	for v := range EVec.ChannelNodes(true) {
+		p := g1ScalarBaseMultiply(v.Value)
+		mG_pointsVec.InsertNoOverwriteAllowed(v.Key, p.X())
+	}
+	Gx = pf.InterpolateSparseArray(mG_pointsVec, TransposedR1cs.MaxKey)
+	a := pf.MulSparse(LVec, RVec)
+	pf.AddToSparse(a, mG_pointsVec)
+	pf.SubToSparse(a, OVec)
+
+	return Gx, pf.InterpolateSparseArray(a, TransposedR1cs.MaxKey)
+}
 
 func g1ScalarBaseMultiply(in *big.Int) *bn256.G1 {
 	return new(bn256.G1).ScalarBaseMult(in)

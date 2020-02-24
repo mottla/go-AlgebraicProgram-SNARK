@@ -104,6 +104,15 @@ var setInsertNoOvreride = func(old, new *big.Int) *big.Int {
 }
 
 // MaxNode returns the node with the maximal Key in the tree
+func (t *AvlTree) MaxPower() uint {
+	if k := t.root.maxNode(); k == nil {
+		return 0
+	} else {
+		return k.key
+	}
+}
+
+// MaxNode returns the node with the maximal Key in the tree
 func (t *AvlTree) MaxNode() *AvlNode {
 	return t.root.maxNode()
 }
