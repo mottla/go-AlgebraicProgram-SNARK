@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"crypto/rand"
+	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"math/big"
 )
 
@@ -11,6 +12,8 @@ type Fields struct {
 	PolynomialField PolynomialField
 	CurveOrderField Fq
 }
+
+var Field = PrepareFields(bn256.Order, bn256.Order)
 
 func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
 	// new Finite Field

@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"hash"
 )
 
@@ -117,7 +116,8 @@ func Parse(code string, checkSemantics bool) (p *Program) {
 	parser := newParser(code, false)
 
 	var constraintStack []*Constraint
-	go parser.libraryMode()
+	toks := parser.stackAllTokens()
+	go parser.statementMode(toks)
 	//go parser.statementMode(parser.stackAllTokens())
 out:
 	for {
@@ -127,7 +127,6 @@ out:
 			//fmt.Println(constraint)
 			if checkSemantics {
 				constraintStack = append(constraintStack, constraint)
-
 			}
 			//constraint.PrintReverseConstaintTree(0)
 			//fmt.Println("#############")
@@ -135,73 +134,21 @@ out:
 			break out
 		}
 	}
-	p = newProgram(bn256.Order, bn256.Order)
+	p = newProgram()
 	//p = newProgram(big.NewInt(1993), big.NewInt(1993))
-	p.preCompile(nil, constraintStack)
+	p.globalFunction.preCompile(constraintStack)
 	return p
-}
-
-func (p *Parser) libraryMode() {
-	tok := p.nextNonBreakToken()
-
-	if tok.Type == FUNCTION_DEFINE {
-		p.functionMode()
-		p.libraryMode()
-		return
-	}
-	for tok.Identifier != "" {
-		tok = p.nextToken()
-	}
-	close(p.done)
-}
-
-func (p *Parser) functionMode() {
-	tok := p.nextToken()
-	if tok.Type != FUNCTION_CALL {
-		p.error("Function Identifier expected, got %v : %v", tok.Identifier, tok.Type)
-	}
-
-	FuncConstraint := &Constraint{
-		Output: Token{Type: FUNCTION_DEFINE, Identifier: tok.Identifier},
-	}
-
-	tok = p.nextToken()
-
-	if tok.Identifier != "(" {
-		p.error("Function expected, got %v ", tok)
-	}
-
-	for {
-		tok = p.nextToken()
-		if tok.Type == IdentToken {
-			FuncConstraint.Inputs = append(FuncConstraint.Inputs, &Constraint{Output: Token{Type: ARGUMENT, Identifier: tok.Identifier}})
-
-			continue
-		}
-		if tok.Identifier == "," {
-			continue
-		}
-		if tok.Identifier == ")" {
-			break
-		}
-		p.error("Invalid function header, got %v : %v", tok.Identifier, tok.Type)
-
-	}
-	tok = p.nextToken()
-	if tok.Identifier != "{" {
-		p.error("invalid function declaration, got %v : %v", tok.Identifier, tok.Type)
-	}
-	p.constraintChan <- FuncConstraint
-	toks := p.stackTillSwingBracketsClose() //we collect everything inside the function body
-	p.statementMode(toks)
-	return
-
 }
 
 func (p *Parser) statementMode(tokens []Token) {
 
 	tokens = removeLeadingAndTrailingBreaks(tokens)
+
 	if len(tokens) == 0 {
+		return
+	}
+	if tokens[0].Type == EOF {
+		close(p.done)
 		return
 	}
 
@@ -209,7 +156,7 @@ func (p *Parser) statementMode(tokens []Token) {
 	case FUNCTION_DEFINE:
 		toks := Tokens{toks: tokens}
 		var tok = toks.next() //func
-		tok = toks.next()
+		tok = toks.next()     //function name
 
 		FuncConstraint := &Constraint{
 			Output: Token{Type: FUNCTION_DEFINE, Identifier: tok.Identifier},
@@ -225,6 +172,7 @@ func (p *Parser) statementMode(tokens []Token) {
 			if v.Output.Type != IdentToken {
 				p.error("Invalid function header, got %v : %v", v.Output.Identifier, v.Output.Type)
 			}
+			v.Output.Type = ARGUMENT
 		}
 		toks.toks = rest
 		tok = toks.next()
@@ -242,14 +190,8 @@ func (p *Parser) statementMode(tokens []Token) {
 				Type: NESTED_STATEMENT_END,
 			},
 		}
-		//got a function definition plus its call
-		//var a = func(){}()
-		if r[0].Identifier == "(" {
-			panic("instantly calling function not supported yet")
-		}
 		p.statementMode(r)
 		return
-
 	case IF: //if a<b { }   if (a<b) {
 
 		var condition []Token
@@ -388,47 +330,13 @@ func (p *Parser) statementMode(tokens []Token) {
 
 			//var a = func(){}
 			if rem[0].Type == FUNCTION_DEFINE {
+				p.statementMode(append([]Token{rem[0], tokens[1]}, rem[1:]...))
 
-				toks := Tokens{toks: rem}
-				var tok = toks.next() //func
-
-				FuncConstraint := &Constraint{
-					Output: Token{Type: FUNCTION_DEFINE_Internal, Identifier: tokens[1].Identifier},
-				}
-
-				tok = toks.next()
-				if tok.Identifier != "(" {
-					p.error("Function expected, got %v ", tok)
-				}
-
-				rest := p.argumentParse(toks.toks, splitAtClosingBrackets, FuncConstraint)
-				for _, v := range FuncConstraint.Inputs {
-					if v.Output.Type != IdentToken {
-						p.error("Invalid function header, got %v : %v", v.Output.Identifier, v.Output.Type)
-					}
-				}
-				toks.toks = rest
-				tok = toks.next()
-				if tok.Identifier != "{" {
-					p.error("invalid function declaration, got %v : %v", tok.Identifier, tok.Type)
-				}
-				p.constraintChan <- FuncConstraint
-				l, r, b := splitAtClosingSwingBrackets(toks.toks)
-				if !b {
-					panic("closing brackets missing")
-				}
-				p.statementMode(l)
-				p.constraintChan <- &Constraint{
-					Output: Token{
-						Type: NESTED_STATEMENT_END,
-					},
-				}
 				//got a function definition plus its call
 				//var a = func(){}()
-				if r[0].Identifier == "(" {
-					panic("instantly calling function not supported yet")
-				}
-				p.statementMode(r)
+				//if r[0].Identifier == "(" {
+				//	panic("instantly calling function not supported yet")
+				//}
 				return
 			}
 
@@ -463,7 +371,6 @@ func (p *Parser) statementMode(tokens []Token) {
 			return
 		}
 		//var a = func(){}
-
 	case RETURN:
 		//return (1+a)
 		l, r := splitTokensAtFirstString(tokens, "\n")
@@ -521,11 +428,11 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 		p.error("Variable or number expected, got %v ", stack[0])
 	}
 
-	l, binOperation, r := splitAtFirstHighestTokenType(stack, binOp)
+	l, binOperation, r := splitAtFirstHighestTokenType(stack, Operator)
 	l, r = stripOfBrackets(l), stripOfBrackets(r)
 
 	// exp Operator exp
-	if binOperation.Type&binOp != 0 {
+	if binOperation.Type&Operator != 0 {
 		newTok := Token{
 			Type:       UNASIGNEDVAR,
 			Identifier: combineString(stack),
@@ -613,16 +520,16 @@ func (p *Parser) argumentParse(stack []Token, bracketSplitFunction func(in []Tok
 		p.error("closing brackets missing")
 	}
 
-	arguments := splitAt(functionInput, ",")
-
 	//arguments can be expressions, so we need to parse them
-	for _, v := range arguments {
+	for arguments, remm := splitAtFirstHighestStringType(functionInput, ","); ; arguments, remm = splitAtFirstHighestStringType(remm, ",") {
 		//TODO check soon
-		if len(v) == 0 {
+		if len(arguments) == 0 {
 			p.error("argument missing at function %v", constraint.Output)
 		}
-		p.parseExpression(v, constraint)
-
+		p.parseExpression(arguments, constraint)
+		if remm == nil {
+			break
+		}
 	}
 
 	//handle what comes after the function
@@ -697,38 +604,14 @@ func isVariableAssignment(stx []Token) (yn bool, rem []Token, err string) {
 	return true, stx[2:], ""
 }
 
-func (p *Parser) stackTillBracketsClose() (tokens []Token) {
-	return p.stackTillBrackets("(", ")")
-}
-
-func (p *Parser) stackTillSwingBracketsClose() (tokens []Token) {
-	return p.stackTillBrackets("{", "}")
-}
-
-//the closing } is not in the returned tokens array
-func (p *Parser) stackTillBrackets(open, close string) (tokens []Token) {
-	var stack []Token
-	ctr := 1
-	for tok := p.nextToken(); tok.Type != EOF; tok = p.nextToken() {
-		if tok.Identifier == open {
-			ctr++
-		}
-		if tok.Identifier == close {
-			ctr--
-			if ctr == 0 {
-				return stack
-			}
-		}
-		stack = append(stack, *tok)
-	}
-	p.error("closing %v missing", close)
-	return
-}
 func (p *Parser) stackAllTokens() []Token {
 	var stack []Token
-	for tok := p.nextToken(); tok.Type == EOF; tok = p.nextToken() {
+	for tok := p.nextToken(); tok.Type != EOF; tok = p.nextToken() {
 		stack = append(stack, *tok)
 	}
+	stack = append(stack, Token{
+		Type: EOF,
+	})
 	return stack
 }
 
@@ -777,6 +660,29 @@ func splitTokensAtFirstString(in []Token, splitAt string) (cutLeft, cutRight []T
 		}
 	}
 	return in, cutRight
+}
+
+//splitAtFirstHighestTokenType takes takes a string S and a token array and splits st:
+func splitAtFirstHighestStringType(in []Token, splitAt string) (cutLeft []Token, cutRight []Token) {
+	depth := 0
+
+	for i := 0; i < len(in); i++ {
+		if in[i].Identifier == "(" || in[i].Identifier == "[" {
+			depth++
+		}
+
+		if in[i].Identifier == ")" || in[i].Identifier == "]" {
+			depth--
+		}
+
+		if in[i].Identifier == splitAt && depth == 0 {
+			if i == len(in)-1 {
+				return in[:i], cutRight
+			}
+			return in[:i], in[i+1:]
+		}
+	}
+	return in, nil
 }
 
 //splitAtFirstHighestTokenType takes takes a string S and a token array and splits st:

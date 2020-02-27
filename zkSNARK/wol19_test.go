@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/testPrograms"
+	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -61,18 +63,18 @@ var correctnessEAPTests = []TraceCorrectnessTest{
 
 func TestGenerateAndVerifyProof(t *testing.T) {
 
-	for _, test := range correctnessEAPTests {
-		if test.skipp {
+	for _, test := range testPrograms.TestPrograms {
+		if test.Skip {
 			continue
 		}
 
-		program := circuitcompiler.Parse(test.code, true)
+		program := circuitcompiler.Parse(test.Code, true)
 
 		fmt.Println("\n unreduced")
-		fmt.Println(test.code)
+		fmt.Println(test.Code)
 
 		gates := program.ReduceCombinedTree()
-		program.Fields.PolynomialField.InitBases(len(gates) + 1)
+		utils.Field.PolynomialField.InitBases(len(gates) + 1)
 		for _, g := range gates {
 			fmt.Printf("\n %v", g)
 		}
@@ -87,17 +89,17 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		fmt.Println(r1cs.E)
 		fmt.Println(r1cs.O)
 		// ER1CS to QAP
-		l, r, e, o := trasposedR1Cs.ER1CSToEAP(program.Fields)
+		l, r, e, o := trasposedR1Cs.ER1CSToEAP()
 		//fmt.Println(l)
 		//fmt.Println(r)
 		//fmt.Println(e)
 		//fmt.Println(o)
 
-		setup, err := GenerateTrustedSetup(program.Fields, len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
+		setup, err := GenerateTrustedSetup(utils.Field, len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
 		assert.NoError(t, err)
 
-		for _, io := range test.io {
-			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.inputs)
+		for _, io := range test.IO {
+			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.Inputs)
 			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
 
 			assert.NoError(t, err)
@@ -111,10 +113,10 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			fmt.Println(wsparse)
 			//assert.Equal(t, io.result, w[len(w)-1])
 			// CombineSparsePolynomials(program.Fields, w, transposedR1csSparse)
-			mf, px := CombinePolynomials2(program.Fields, w, trasposedR1Cs)
+			mf, px := CombinePolynomials2(w, trasposedR1Cs)
 			//mf3,px3 := CombinePolynomials3(program.Fields,w,trasposedR1Cs)
 			//mSparse,pSparse := CombineSparsePolynomials(program.Fields,wSparse,r1csSparse)
-			mf2, px2 := CombinePolynomials(program.Fields, w, l, r, e, o)
+			mf2, px2 := CombinePolynomials(w, l, r, e, o)
 			assert.Equal(t, px, px2)
 			assert.Equal(t, mf2, mf)
 			//assert.Equal(t, px, px3)
@@ -123,13 +125,13 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 			//Test if P(x) is indeed 0 at each gate index
 			for i := 0; i < len(gates); i++ {
-				if bigZero.Cmp(program.Fields.ArithmeticField.EvalPoly(px, new(big.Int).SetInt64(int64(i)))) != 0 {
+				if bigZero.Cmp(utils.Field.ArithmeticField.EvalPoly(px, new(big.Int).SetInt64(int64(i)))) != 0 {
 					t.Error("Px must be zero ate each gate")
 				}
 			}
 			//assert.Equal(t, Utils.PolynomialField.Mul(l,r)
-			Qx, _ := program.Fields.PolynomialField.Div(px, setup.Pk.Domain)
-			pf := program.Fields.PolynomialField
+			Qx, _ := utils.Field.PolynomialField.Div(px, setup.Pk.Domain)
+			pf := utils.Field.PolynomialField
 			LVec := pf.AddPolynomials(pf.LinearCombine(l, w))
 			RVec := pf.AddPolynomials(pf.LinearCombine(r, w))
 			//EVec := pf.AddPolynomials(pf.LinearCombine(Ei, witness))
@@ -138,9 +140,9 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			assert.Equal(t, pf.Add(pf.Mul(LVec, RVec), mf), pf.Add(OVec, pf.Mul(Qx, setup.Pk.Domain)))
 
 			before := time.Now()
-			proof, err := GenerateProofs(program.Fields, len(r1cs.L[0]), 2, &setup.Pk, w, px)
+			proof, err := GenerateProofs(utils.Field, len(r1cs.L[0]), 2, &setup.Pk, w, px)
 			{
-				x, _ := program.Fields.CurveOrderField.Rand()
+				x, _ := utils.Field.CurveOrderField.Rand()
 
 				assert.Equal(t, g1ScalarBaseMultiply(x), new(bn256.G1).Add(g1ScalarBaseMultiply(x), g1ScalarBaseMultiply(big.NewInt(0))))
 				assert.Equal(t, g1ScalarBaseMultiply(x), new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(big.NewInt(1)), x))
@@ -150,10 +152,10 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 				for i := 1; i < len(px); i++ {
 					icPubl.Add(icPubl, new(bn256.G1).ScalarMult(g1ScalarBaseMultiply(ter), px[i]))
-					ter = program.Fields.CurveOrderField.Mul(ter, x)
+					ter = utils.Field.CurveOrderField.Mul(ter, x)
 				}
 
-				assert.Equal(t, icPubl.String(), g1ScalarBaseMultiply(program.Fields.CurveOrderField.EvalPoly(px, x)).String())
+				assert.Equal(t, icPubl.String(), g1ScalarBaseMultiply(utils.Field.CurveOrderField.EvalPoly(px, x)).String())
 
 			}
 			fmt.Println("proof generation time elapsed:", time.Since(before))
@@ -161,6 +163,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			before = time.Now()
 			assert.True(t, VerifyProof(&setup.Pk, proof, w[:3], true))
 			fmt.Println("verify proof time elapsed:", time.Since(before))
+			fmt.Println(proof)
 		}
 
 	}

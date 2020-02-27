@@ -1,6 +1,6 @@
 package circuitcompiler
 
-// This package provides a Lexer that functions similarly to Rob Pike's discussion
+// This package provides a Lexer that globalFunction similarly to Rob Pike's discussion
 // about lexer design in this [talk](https://www.youtube.com/watch?v=HxaD_trXwRE).
 
 import (
@@ -87,7 +87,7 @@ func init() {
 
 }
 
-var binOp = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
+var Operator = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
 var IN = IdentToken | ARGUMENT | VARIABLE_DECLARE | UNASIGNEDVAR
 
 const (
@@ -104,7 +104,6 @@ const (
 	IdentToken
 
 	FUNCTION_DEFINE
-	FUNCTION_DEFINE_Internal
 	FUNCTION_CALL
 	VARIABLE_DECLARE
 	VARIABLE_OVERLOAD
@@ -149,8 +148,6 @@ func (ch TokenType) String() string {
 		return "numberToken"
 	case FUNCTION_DEFINE:
 		return "def"
-	case FUNCTION_DEFINE_Internal:
-		return "func"
 	case FUNCTION_CALL:
 		return "call"
 	case VARIABLE_DECLARE:

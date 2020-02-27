@@ -12,7 +12,6 @@ import (
 var randInput, randOutput = "1@randomIn", "1@randomOut"
 
 type ER1CS struct {
-	F        utils.Fields
 	indexMap map[string]int
 	L        [][]*big.Int
 	R        [][]*big.Int
@@ -20,7 +19,6 @@ type ER1CS struct {
 	O        [][]*big.Int
 }
 type ER1CSSparse struct {
-	F        utils.Fields
 	indexMap map[string]int
 	L        []*utils.AvlTree
 	R        []*utils.AvlTree
@@ -84,20 +82,20 @@ func (er1cs *ER1CS) Transpose() (transposed ER1CSTransposed) {
 //within this process, the polynomial is evaluated at position 0
 //so an alpha/beta/gamma value is the polynomial evaluated at 0
 // the domain polynomial therefor is (-1+x)(-2+x)...(-n+x)
-func (er1cs *ER1CSTransposed) ER1CSToEAP(pf utils.Fields) (lPoly, rPoly, ePoly, oPoly [][]*big.Int) {
+func (er1cs *ER1CSTransposed) ER1CSToEAP() (lPoly, rPoly, ePoly, oPoly [][]*big.Int) {
 
 	lT := er1cs.L
 	rT := er1cs.R
 	eT := er1cs.E
 	oT := er1cs.O
 	for i := 0; i < len(lT); i++ {
-		lPoly = append(lPoly, pf.PolynomialField.LagrangeInterpolation(lT[i]))
+		lPoly = append(lPoly, utils.Field.PolynomialField.LagrangeInterpolation(lT[i]))
 
-		rPoly = append(rPoly, pf.PolynomialField.LagrangeInterpolation(rT[i]))
+		rPoly = append(rPoly, utils.Field.PolynomialField.LagrangeInterpolation(rT[i]))
 
-		ePoly = append(ePoly, pf.PolynomialField.LagrangeInterpolation(eT[i]))
+		ePoly = append(ePoly, utils.Field.PolynomialField.LagrangeInterpolation(eT[i]))
 
-		oPoly = append(oPoly, pf.PolynomialField.LagrangeInterpolation(oT[i]))
+		oPoly = append(oPoly, utils.Field.PolynomialField.LagrangeInterpolation(oT[i]))
 	}
 
 	return
@@ -110,7 +108,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
 	witness[0] = big.NewInt(int64(1))
-	rnd, rnderr := r1cs.F.CurveOrderField.Rand()
+	rnd, rnderr := utils.Field.CurveOrderField.Rand()
 	if rnderr != nil {
 		panic(rnderr)
 	}
@@ -139,7 +137,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 	}
 
 	sum := func(array []*big.Int) *big.Int {
-		return r1cs.F.ArithmeticField.ScalarProduct(array, witness)
+		return utils.Field.ArithmeticField.ScalarProduct(array, witness)
 	}
 
 	for i := 0; i < len(r1cs.L); i++ {
@@ -158,7 +156,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 
 		//equality gate
 		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) == 0 {
-			result := r1cs.F.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+			result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
 			if result.Cmp(sum(outKnowns)) != 0 {
 				return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
 			}
@@ -180,10 +178,10 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 
 				return nil, errors.New(fmt.Sprintf("at gate %v:the summation of R inputs cannot be 0 if the unknown is in Lexer", i))
 			}
-			result := r1cs.F.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
-			result = r1cs.F.ArithmeticField.Div(result, sumright)
-			result = r1cs.F.ArithmeticField.Sub(result, sum(leftKnowns))
-			result = r1cs.F.ArithmeticField.Div(result, gatesLeftInputs[leftUnknowns[0]]) //divide by a
+			result := utils.Field.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = utils.Field.ArithmeticField.Div(result, sumright)
+			result = utils.Field.ArithmeticField.Sub(result, sum(leftKnowns))
+			result = utils.Field.ArithmeticField.Div(result, gatesLeftInputs[leftUnknowns[0]]) //divide by a
 			set[leftUnknowns[0]] = true
 			witness[leftUnknowns[0]] = result
 			continue
@@ -194,10 +192,10 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 			if sumleft.Cmp(zero) == 0 {
 				return nil, errors.New(fmt.Sprintf("at gate %v:the summation of Lexer inputs cannot be 0 if the unknown is in R", i))
 			}
-			result := r1cs.F.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
-			result = r1cs.F.ArithmeticField.Div(result, sumleft)
-			result = r1cs.F.ArithmeticField.Sub(result, sum(rightKnowns))
-			result = r1cs.F.ArithmeticField.Div(result, gatesRightInputs[rightUnknowns[0]]) //divide by a
+			result := utils.Field.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = utils.Field.ArithmeticField.Div(result, sumleft)
+			result = utils.Field.ArithmeticField.Sub(result, sum(rightKnowns))
+			result = utils.Field.ArithmeticField.Div(result, gatesRightInputs[rightUnknowns[0]]) //divide by a
 			set[rightUnknowns[0]] = true
 			witness[rightUnknowns[0]] = result
 			continue
@@ -206,10 +204,10 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 		// (a + b + c..) (d+e+..) + (G^(k+v..)) = (F+x*g+..)   we solve for x
 		if len(outUnknowns) == 1 {
 
-			result := r1cs.F.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
-			result = r1cs.F.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
-			result = r1cs.F.ArithmeticField.Sub(result, sum(outKnowns))
-			result = r1cs.F.ArithmeticField.Div(result, gatesOutputs[outUnknowns[0]]) //divide by a
+			result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+			result = utils.Field.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = utils.Field.ArithmeticField.Sub(result, sum(outKnowns))
+			result = utils.Field.ArithmeticField.Div(result, gatesOutputs[outUnknowns[0]]) //divide by a
 			set[outUnknowns[0]] = true
 			witness[outUnknowns[0]] = result
 			continue
@@ -227,7 +225,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
 	witness[0] = big.NewInt(int64(1))
-	rnd, rnderr := r1cs.F.CurveOrderField.Rand()
+	rnd, rnderr := utils.Field.CurveOrderField.Rand()
 	if rnderr != nil {
 		panic(rnderr)
 	}
@@ -254,7 +252,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 	}
 
 	sum := func(array *utils.AvlTree) *big.Int {
-		return r1cs.F.ArithmeticField.SparseScalarProduct(array, witness)
+		return utils.Field.ArithmeticField.SparseScalarProduct(array, witness)
 	}
 
 	for i := 0; i < len(r1cs.L); i++ {
@@ -273,7 +271,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 
 		//equality gate
 		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) == 0 {
-			result := r1cs.F.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+			result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
 			if result.Cmp(sum(outKnowns)) != 0 {
 				return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
 			}
@@ -295,14 +293,14 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 
 				return nil, errors.New(fmt.Sprintf("at gate %v:the summation of R inputs cannot be 0 if the unknown is in Lexer", i))
 			}
-			result := r1cs.F.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
-			result = r1cs.F.ArithmeticField.Div(result, sumright)
-			result = r1cs.F.ArithmeticField.Sub(result, sum(leftKnowns))
+			result := utils.Field.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = utils.Field.ArithmeticField.Div(result, sumright)
+			result = utils.Field.ArithmeticField.Sub(result, sum(leftKnowns))
 			v, e := gatesLeftInputs.Get(leftUnknowns[0])
 			if e != nil {
 				return nil, e
 			}
-			result = r1cs.F.ArithmeticField.Div(result, v) //divide by a
+			result = utils.Field.ArithmeticField.Div(result, v) //divide by a
 			set[leftUnknowns[0]] = true
 			witness[leftUnknowns[0]] = result
 			continue
@@ -313,14 +311,14 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 			if sumleft.Cmp(zero) == 0 {
 				return nil, errors.New(fmt.Sprintf("at gate %v:the summation of Lexer inputs cannot be 0 if the unknown is in R", i))
 			}
-			result := r1cs.F.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
-			result = r1cs.F.ArithmeticField.Div(result, sumleft)
-			result = r1cs.F.ArithmeticField.Sub(result, sum(rightKnowns))
+			result := utils.Field.ArithmeticField.Sub(sum(outKnowns), new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = utils.Field.ArithmeticField.Div(result, sumleft)
+			result = utils.Field.ArithmeticField.Sub(result, sum(rightKnowns))
 			v, e := gatesRightInputs.Get(rightUnknowns[0])
 			if e != nil {
 				return nil, e
 			}
-			result = r1cs.F.ArithmeticField.Div(result, v) //divide by a
+			result = utils.Field.ArithmeticField.Div(result, v) //divide by a
 			set[rightUnknowns[0]] = true
 			witness[rightUnknowns[0]] = result
 			continue
@@ -329,14 +327,14 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 		// (a + b + c..) (d+e+..) + (G^(k+v..)) = (F+x*g+..)   we solve for x
 		if len(outUnknowns) == 1 {
 
-			result := r1cs.F.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
-			result = r1cs.F.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
-			result = r1cs.F.ArithmeticField.Sub(result, sum(outKnowns))
+			result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+			result = utils.Field.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+			result = utils.Field.ArithmeticField.Sub(result, sum(outKnowns))
 			v, e := gatesOutputs.Get(outUnknowns[0])
 			if e != nil {
 				return nil, e
 			}
-			result = r1cs.F.ArithmeticField.Div(result, v) //divide by a
+			result = utils.Field.ArithmeticField.Div(result, v) //divide by a
 			set[outUnknowns[0]] = true
 			witness[outUnknowns[0]] = result
 			continue

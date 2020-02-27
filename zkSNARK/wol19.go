@@ -71,9 +71,9 @@ type Proof struct {
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials2(fields utils.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
+func CombinePolynomials2(witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
 
-	pf := fields.PolynomialField
+	pf := utils.Field.PolynomialField
 
 	scalarProduct := func(vec [][]*big.Int) (poly []*big.Int) {
 		var ax []*big.Int
@@ -137,9 +137,9 @@ func CombinePolynomials2(fields utils.Fields, witness []*big.Int, TransposedR1cs
 //}
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
+func CombinePolynomials(witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
 
-	pf := fields.PolynomialField
+	pf := utils.Field.PolynomialField
 
 	LVec := pf.AddPolynomials(pf.LinearCombine(Li, witness))
 	RVec := pf.AddPolynomials(pf.LinearCombine(Ri, witness))
@@ -148,7 +148,7 @@ func CombinePolynomials(fields utils.Fields, witness []*big.Int, Li, Ri, Ei, Oi 
 
 	var mG_pointsVec []*big.Int
 	for i := 0; i < len(EVec); i++ {
-		val := fields.ArithmeticField.EvalPoly(EVec, new(big.Int).SetInt64(int64(i)))
+		val := utils.Field.ArithmeticField.EvalPoly(EVec, new(big.Int).SetInt64(int64(i)))
 		p := g1ScalarBaseMultiply(val)
 		mG_pointsVec = append(mG_pointsVec, p.X())
 	}
