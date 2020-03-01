@@ -88,7 +88,7 @@ func init() {
 }
 
 var Operator = BinaryComperatorToken | ArithmeticOperatorToken | BooleanOperatorToken | BitOperatorToken | AssignmentOperatorToken
-var IN = IdentToken | ARGUMENT | VARIABLE_DECLARE | UNASIGNEDVAR
+var IN = IDENTIFIER_VARIABLE | ARGUMENT | VARIABLE_DECLARE | UNASIGNEDVAR
 
 const (
 	NumberToken TokenType = 1 << iota
@@ -101,13 +101,13 @@ const (
 	BinaryComperatorToken
 	//UnaryOperatorToken
 	EOF
-	IdentToken
-
+	IDENTIFIER_VARIABLE
+	IDENTIFIER_FUNCTION
 	FUNCTION_DEFINE
 	FUNCTION_CALL
 	VARIABLE_DECLARE
 	VARIABLE_OVERLOAD
-	ARRAY_Define
+	ARRAY_DECLARE
 	ARRAY_CALL
 	UNASIGNEDVAR
 	ARGUMENT
@@ -124,7 +124,7 @@ func (ch TokenType) String() string {
 
 	case UNASIGNEDVAR:
 		return "UNASIGNEDVAR"
-	case IdentToken:
+	case IDENTIFIER_VARIABLE:
 		return "identifier"
 	case CommentToken:
 		return "commentToken"
@@ -166,7 +166,7 @@ func (ch TokenType) String() string {
 		return "RETURN"
 	case ARRAY_CALL:
 		return "arrayAccess"
-	case ARRAY_Define:
+	case ARRAY_DECLARE:
 		return "arrayDefine"
 
 	default:
@@ -432,7 +432,7 @@ func IdentState(l *Lexer) StateFunc {
 
 	//it wasnt a keyword, so we assume its an identifier
 	//identifiers do not require a whitespace (like func foo(), has '(' after identifier 'foo')
-	l.Emit(IdentToken)
+	l.Emit(IDENTIFIER_VARIABLE)
 	return ProbablyWhitespaceState
 }
 

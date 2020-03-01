@@ -125,7 +125,8 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 			}
 
 			if right.typ.Type&left.typ.Type == NumberToken {
-				leftFactors[i] = &factor{typ: left.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
+				res := field.Mul(right.multiplicative, left.multiplicative)
+				leftFactors[i] = &factor{typ: Token{Type: NumberToken, Identifier: res.String()}, multiplicative: res}
 				continue
 
 			}
@@ -164,11 +165,14 @@ func abs(n int) (val int, positive bool) {
 //adds two factors to one iff they are both are constants or of the same variable
 func addFactor(facLeft, facRight *factor) (couldAdd bool, sum *factor) {
 	if facLeft.typ.Type&facRight.typ.Type == NumberToken {
+		res := field.Add(facLeft.multiplicative, facRight.multiplicative)
 		return true, &factor{typ: Token{
-			Type: NumberToken,
-		}, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
+			Type:       NumberToken,
+			Identifier: res.String(),
+		}, multiplicative: res}
 
 	}
+
 	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.typ.Identifier == facRight.typ.Identifier {
 		return true, &factor{typ: facRight.typ, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
 
@@ -209,6 +213,16 @@ func addFactors(leftFactors, rightFactors factors) factors {
 		}
 	}
 
+	if len(res) == 0 {
+		res = []*factor{&factor{
+			typ: Token{
+				Type:       NumberToken,
+				Identifier: "0",
+			},
+			invert:         false,
+			multiplicative: bigZero,
+		}}
+	}
 	return res
 }
 func negateFactors(leftFactors factors) factors {

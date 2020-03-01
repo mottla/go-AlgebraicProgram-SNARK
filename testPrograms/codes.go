@@ -25,18 +25,25 @@ var TestPrograms = []TraceCorrectnessTest{
 		}},
 
 		Code: `
-	var xx = 234515
-	
-	func main(x){
-		var a = func(c,b){
-			return (c*c)*b*xx
-		}		
-		return mul(x,a)
+func main(x){
+	var a = func(i){
+		if i == 0 {
+			return
+		}
+		i = i-1
+		return x*a(i)			
 	}
+	var b = 7
+	var c = 123 * b    
+	 return mul(1/c,a(array[3]*2))
+}
 
-	func mul(a,b){
-		return b(a,a)*b(xx,a)
-	}
+var xx = 4
+var array[] = {1,4,7,xx}
+
+func mul(a,b){
+    return a*b
+}
 `},
 	{
 		Skip: true,
@@ -49,15 +56,15 @@ var TestPrograms = []TraceCorrectnessTest{
 			return (c*c)*b
 		}
 		var c[] = {x, 2*x,a }
-		return a(mul(c[0],c[2]),x)
+		return a(applyFunction(c[0],a),x)
 	}
 
-	func mul(a,b){
-		return b(a,a)
+	func applyFunction(a,fkt){
+		return fkt(a,a)
 	}
 `,
 	}, {
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(42))},
 		}},
@@ -70,7 +77,7 @@ var TestPrograms = []TraceCorrectnessTest{
 }
 `,
 	},
-	{Skip: false,
+	{Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2)), big.NewInt(328329)},
 		}},
@@ -86,7 +93,7 @@ var TestPrograms = []TraceCorrectnessTest{
 		var mul = func(a,b){
 			return x*b*7
 		}
-			var a =1
+		var a =1
 		var c = w
 		
 		for( a<3;a=a+1){

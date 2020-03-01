@@ -26,6 +26,18 @@ func (c Constraint) MD5Signature() string {
 	return string(md5.Sum(nil))
 }
 
+//clone returns a deep copy of c
+func (c *Constraint) clone() *Constraint {
+	in := make([]*Constraint, len(c.Inputs))
+	for i, cc := range c.Inputs {
+		in[i] = cc.clone()
+	}
+	return &Constraint{
+		Output: c.Output,
+		Inputs: in,
+	}
+}
+
 func (c Constraint) idd(h hash.Hash) {
 	h.Write([]byte(c.Output.String()))
 	for _, v := range c.Inputs {
@@ -169,7 +181,7 @@ func (p *Parser) statementMode(tokens []Token) {
 
 		rest := p.argumentParse(toks.toks, splitAtClosingBrackets, FuncConstraint)
 		for _, v := range FuncConstraint.Inputs {
-			if v.Output.Type != IdentToken {
+			if v.Output.Type != IDENTIFIER_VARIABLE {
 				p.error("Invalid function header, got %v : %v", v.Output.Identifier, v.Output.Type)
 			}
 			v.Output.Type = ARGUMENT
@@ -300,7 +312,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 		p.statementMode(r)
 		break
-	case IdentToken: //variable overloading -> a = a * 4
+	case IDENTIFIER_VARIABLE: //variable overloading -> a = a * 4
 		l, r := splitTokensAtFirstString(tokens, "\n")
 		if r != nil && r[0].Identifier != "\n" {
 			p.error("linebreak expected, got %v", r[0])
@@ -357,7 +369,7 @@ func (p *Parser) statementMode(tokens []Token) {
 		if b, _ := isArrayAssignment(l[1:]); b {
 			arrayConst := &Constraint{
 				Output: Token{
-					Type:       ARRAY_Define,
+					Type:       ARRAY_DECLARE,
 					Identifier: l[1].Identifier,
 				},
 			}
@@ -421,7 +433,7 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 
 	//can only be IN | Number
 	if len(stack) == 1 {
-		if stack[0].Type&(NumberToken|IdentToken) != 0 {
+		if stack[0].Type&(NumberToken|IDENTIFIER_VARIABLE) != 0 {
 			constraint.Inputs = append(constraint.Inputs, &Constraint{Output: stack[0]})
 			return
 		}
@@ -519,13 +531,11 @@ func (p *Parser) argumentParse(stack []Token, bracketSplitFunction func(in []Tok
 	if !success {
 		p.error("closing brackets missing")
 	}
-
+	if len(functionInput) == 0 {
+		return rem
+	}
 	//arguments can be expressions, so we need to parse them
 	for arguments, remm := splitAtFirstHighestStringType(functionInput, ","); ; arguments, remm = splitAtFirstHighestStringType(remm, ",") {
-		//TODO check soon
-		if len(arguments) == 0 {
-			p.error("argument missing at function %v", constraint.Output)
-		}
 		p.parseExpression(arguments, constraint)
 		if remm == nil {
 			break
@@ -574,7 +584,7 @@ func isArrayAssignment(stx []Token) (yn bool, err string) {
 	if len(stx) < 5 {
 		return false, "array assignment needs min 3 tokens: a = b"
 	}
-	if stx[0].Type != IdentToken {
+	if stx[0].Type != IDENTIFIER_VARIABLE {
 		return false, "identifier expected"
 	}
 
@@ -595,7 +605,7 @@ func isVariableAssignment(stx []Token) (yn bool, rem []Token, err string) {
 	if len(stx) < 3 {
 		return false, nil, "assignment needs min 3 tokens: a = b"
 	}
-	if stx[0].Type != IdentToken {
+	if stx[0].Type != IDENTIFIER_VARIABLE {
 		return false, nil, "identifier expected"
 	}
 	if stx[1].Type != AssignmentOperatorToken {

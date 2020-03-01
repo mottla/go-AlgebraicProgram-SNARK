@@ -7,190 +7,36 @@ import (
 
 var variableIndicationSign = "@"
 
-// Circuit is the data structure of the compiled circuit
-type Circuit struct {
-	Name      string
-	Inputs    []string //the inputs of a circuit are circuits. Tis way we can pass functions as arguments
-	Context   *Circuit //parent circuit. this circuit inherits all functions wich are accessible from his anchestors. Recent overload Late
-	functions map[string]*Circuit
+// function is the data structure of the compiled circuit
+type function struct {
+	Name string
 
-	rootConstraints *watchstack
-	constraintMap   map[string]*Constraint
-}
+	Inputs []string //the inputs of a circuit are circuits. Tis way we can pass functions as arguments
 
-func newWatchstack() *watchstack {
+	Outputs []string
 
-	return &watchstack{
-		data:     []*Constraint{},
-		watchmap: make(map[string]bool),
-	}
+	//parent function. this function inherits all functions wich are accessible from his anchestors. Recent overload Late
+	Context *function
 
+	//this are the functions, that are defined within this function
+	functions map[string]*function
+
+	//this will stay. the concept of a taskstack is relevant
+	taskStack *watchstack
+	//lets turn this into something we only need for the semantic check
+	constraintMap map[string]*Constraint
 }
 
 type watchstack struct {
-	data     []*Constraint
-	watchmap map[string]bool
+	data []*Constraint
 }
 
-func (w *watchstack) clone() (clone *watchstack) {
-	clone = newWatchstack()
-	for _, v := range w.data {
-		clone.data = append(clone.data, v.clone())
-	}
-	for k, v := range w.watchmap {
-		clone.watchmap[k] = v
-	}
-	return
-}
-
-func (w *watchstack) len() int {
-	return len(w.data)
-}
-
-func (w *watchstack) remove(c *Constraint) {
-	if ex := w.watchmap[c.MD5Signature()]; ex {
-		delete(w.watchmap, c.MD5Signature())
-		for index, k := range w.data {
-			if k.MD5Signature() == c.MD5Signature() {
-				if index == len(w.data)-1 {
-					w.data = w.data[:index]
-					return
-				}
-				w.data = append(w.data[:index], w.data[index+1:]...)
-			}
-		}
-
-	}
-}
-
-func (w *watchstack) add(c *Constraint) {
-	if _, ex := w.watchmap[c.MD5Signature()]; !ex {
-		w.watchmap[c.MD5Signature()] = true
-		w.data = append(w.data, c)
-	}
-
-}
-
-func newCircuit(name string, context *Circuit) *Circuit {
-	c := &Circuit{Context: context, Name: name, constraintMap: make(map[string]*Constraint), rootConstraints: newWatchstack(), functions: make(map[string]*Circuit)}
+func newCircuit(name string, context *function) *function {
+	c := &function{Context: context, Name: name, constraintMap: make(map[string]*Constraint), taskStack: newWatchstack(), functions: make(map[string]*function)}
 	return c
 }
 
-func (circ *Circuit) clone() (clone *Circuit) {
-	clone = newCircuit(circ.Name, circ.Context)
-	clone.Inputs = circ.Inputs
-	fkts := make(map[string]*Circuit)
-	constr := make(map[string]*Constraint)
-	for k, v := range circ.functions {
-		fkts[k] = v.clone()
-	}
-	for k, v := range circ.constraintMap {
-		constr[k] = v.clone()
-	}
-	clone.rootConstraints = circ.rootConstraints.clone()
-	return
-}
-
-func (circ *Circuit) snapshot() (keys []string) {
-	for k, _ := range circ.constraintMap {
-		keys = append(keys, k)
-	}
-	return keys
-}
-func (circ *Circuit) restore(keys []string) {
-	tmp := make(map[string]*Constraint)
-	for _, k := range keys {
-		tmp[k] = circ.constraintMap[k]
-	}
-	circ.constraintMap = tmp
-}
-
-func (circ *Circuit) updateRootsMap(constraint *Constraint) {
-
-	circ._updateRootsMap(constraint)
-	circ.rootConstraints.add(constraint)
-}
-
-func (circ *Circuit) _updateRootsMap(constraint *Constraint) {
-
-	for _, v := range constraint.Inputs {
-		circ._updateRootsMap(v)
-		circ.rootConstraints.remove(v)
-	}
-
-}
-
-func (circ *Circuit) semanticCheck_RootMapUpdate(constraint *Constraint) *Constraint {
-
-	if v, ex := circ.constraintMap[constraint.Output.Identifier]; !ex {
-		if v == constraint {
-			return constraint
-		}
-	}
-	if constraint.Output.Type&(ARRAY_CALL|ARGUMENT|NumberToken|Operator) != 0 {
-		return constraint
-	}
-	for i := 0; i < len(constraint.Inputs); i++ {
-		constraint.Inputs[i] = circ.semanticCheck_RootMapUpdate(constraint.Inputs[i])
-	}
-
-	switch constraint.Output.Type {
-	case IF:
-		return constraint
-	case ELSE:
-		return constraint
-	case VARIABLE_OVERLOAD:
-		//TODO should we allow overload from a ancstor variable
-		if _, ex := circ.constraintMap[constraint.Output.Identifier]; !ex {
-			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Identifier))
-		}
-		circ.constraintMap[constraint.Output.Identifier] = constraint
-		break
-	case FUNCTION_CALL:
-		//if _, ex := circ.findFunctionInBloodline(constraint.Output.Identifier); !ex {
-		//	panic(fmt.Sprintf("function %s not declared", constraint.Output.Identifier))
-		//}
-		break
-	case VARIABLE_DECLARE:
-		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
-			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Identifier))
-		}
-		(constraint.Output.Type) = UNASIGNEDVAR
-
-		circ.constraintMap[constraint.Output.Identifier] = constraint
-		break
-
-	case ARRAY_Define:
-
-		for i := 0; i < len(constraint.Inputs); i++ {
-			element := fmt.Sprintf("%s[%v]", constraint.Output.Identifier, i)
-			circ.constraintMap[element] = constraint.Inputs[i]
-		}
-		return constraint
-	case RETURN:
-		//constraint.Output.Identifier= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Identifier))
-		constraint.Output.Identifier = circ.Name
-
-		break
-	case UNASIGNEDVAR:
-		//TODO break or return
-		break
-	case IdentToken:
-		if v, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); ex {
-			return v
-		}
-		panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Identifier))
-		//circ.constraintMap[constraint.Output.Identifier] = constraint
-		break
-	default:
-		panic(fmt.Sprintf("not implemented %v", constraint))
-
-	}
-	circ.updateRootsMap(constraint)
-	return constraint
-}
-
-func RegisterFunctionFromConstraint(constraint *Constraint, context *Circuit) (c *Circuit) {
+func RegisterFunctionFromConstraint(constraint *Constraint, context *function) (c *function) {
 
 	name := constraint.Output.Identifier
 	c = newCircuit(name, context)
@@ -200,72 +46,341 @@ func RegisterFunctionFromConstraint(constraint *Constraint, context *Circuit) (c
 		if _, ex := c.functions[arg.Output.Identifier]; ex {
 			panic("argument must be unique ")
 		}
+
 		cl := arg.clone()
 		cl.Output.Type = FUNCTION_CALL
-		//we say its a function call, but we dont say how many arguments this function takes.
 		c.constraintMap[arg.Output.Identifier] = cl
-		//TODO
+		//if i add them as functions, then they later can be replaced by functions.
 		rmp := newCircuit(arg.Output.Identifier, nil)
-		rmp.updateRootsMap(arg)
+		rmp.taskStack.add(&Constraint{
+			Output: Token{
+				Type:       RETURN,
+				Identifier: "",
+			},
+			Inputs: []*Constraint{arg},
+		})
+
 		c.functions[arg.Output.Identifier] = rmp
 	}
 
 	return
 }
 
-func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint, success bool) {
-
-	ctr := 0
-
-	for i, c := range cs {
-		if c.Output.Type == IF {
-			ctr++
-		}
-		if c.Output.Type == IF_ELSE_CHAIN_END {
-			ctr--
-		}
-		if ctr == 0 {
-			if i == len(cs)-1 {
-				return cs[:i], outside, true
-			}
-			return cs[:i], cs[i+1:], true
-		}
+//unpack loops, decide static if conditions
+//lets get dynamic bitch
+func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
+	if len(constraintStack) == 0 {
+		return
 	}
+	currentConstraint := constraintStack[0]
+	switch currentConstraint.Output.Type {
+	case IF:
+		entireIfElse, outsideIfElse := splitAtIfEnd(constraintStack)
+
+		identifier := fmt.Sprintf("%vif", currentCircuit.taskStack.len())
+
+		newFunc := newCircuit(identifier, currentCircuit)
+
+		currentCircuit.functions[identifier] = newFunc
+		currentCircuit.taskStack.add(&Constraint{
+			Output: Token{
+				Type:       FUNCTION_CALL,
+				Identifier: identifier,
+			},
+		})
+
+		firstIf, elseAndRest, succ2 := splitAtNestedEnd(entireIfElse)
+		if !succ2 {
+			panic("unexpected, should be detected at parsing")
+		}
+
+		identifier2 := fmt.Sprintf("%vif", newFunc.taskStack.len())
+		ifcircuit := newCircuit("if", currentCircuit)
+
+		newFunc.functions[identifier2] = ifcircuit
+
+		newFunc.taskStack.add(&Constraint{
+			Output: Token{
+				Type:       IF,
+				Identifier: identifier2,
+			},
+			Inputs: []*Constraint{firstIf[0]},
+		})
+		currentCircuit.preCompile(outsideIfElse)
+		ifcircuit.preCompile(firstIf[1:])
+		newFunc.preCompile(elseAndRest)
+
+		return
+	case ELSE:
+
+		firstIf, elseAndRest, succ2 := splitAtNestedEnd(constraintStack)
+		if !succ2 {
+			panic("unexpected, should be detected at parsing")
+		}
+
+		identifier2 := fmt.Sprintf("%vif", currentCircuit.taskStack.len())
+
+		ifcircuit := newCircuit("else", currentCircuit)
+
+		currentCircuit.functions[identifier2] = ifcircuit
+
+		currentCircuit.taskStack.add(&Constraint{
+			Output: Token{
+				Type:       IF,
+				Identifier: identifier2,
+			},
+			Inputs: []*Constraint{firstIf[0]},
+		})
+		currentCircuit.preCompile(elseAndRest)
+		ifcircuit.preCompile(firstIf[1:])
+
+		return
+	case IF_ELSE_CHAIN_END:
+		break
+	case FUNCTION_DEFINE:
+		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack)
+		if !succ {
+			panic("unexpected, should be detected at parsing")
+		}
+		if _, ex := currentCircuit.functions[currentConstraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Identifier))
+		}
+		if _, ex := currentCircuit.constraintMap[currentConstraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("function %s overloads variable with same name", currentConstraint.Output.Identifier))
+		}
+		newFunc := RegisterFunctionFromConstraint(currentConstraint, currentCircuit)
+		currentCircuit.functions[currentConstraint.Output.Identifier] = newFunc
+		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = &Constraint{
+			Output: Token{
+				Type:       FUNCTION_CALL, //if someone accesses the function, he does not necessarily want to call it
+				Identifier: currentConstraint.Output.Identifier,
+			},
+			//Inputs: currentConstraint.Inputs,
+		}
+		currentCircuit.preCompile(outsideFunc)
+		newFunc.preCompile(insideFunc[1:])
+		return
+	case FOR:
+		//gather stuff, then evaluate
+		insideFor, outsideFor, succ := splitAtNestedEnd(constraintStack)
+		if !succ {
+			panic("unexpected, should be detected at parsing")
+		}
+		if len(insideFor) == 0 {
+			currentCircuit.preCompile(outsideFor)
+			return
+		}
+		for {
+			if !currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
+				break
+			}
+			snap2 := currentCircuit.snapshot()
+			currentCircuit.preCompile(insideFor[1:])
+			//allow overwriting of variables declared within the loop body
+			currentCircuit.restore(snap2)
+			//call the increment condition
+			currentCircuit.contextCheck(currentConstraint.Inputs[1].clone())
+			currentCircuit.taskUpdate(currentConstraint.Inputs[1].clone())
+		}
+		//cut of the part within the for loop
+		currentCircuit.preCompile(outsideFor)
+		return
+	case NESTED_STATEMENT_END:
+		//skippp over
+		break
+	default:
+		currentCircuit.contextCheck(constraintStack[0].clone())
+		currentCircuit.taskUpdate(constraintStack[0].clone())
+
+	}
+	currentCircuit.preCompile(constraintStack[1:])
+}
+
+func (circ *function) contextCheck(constraint *Constraint) {
+
+	if constraint.Output.Type&(NumberToken|Operator) != 0 {
+		return
+	}
+	for i := 0; i < len(constraint.Inputs); i++ {
+		circ.contextCheck(constraint.Inputs[i])
+	}
+
+	switch constraint.Output.Type {
+	case ARGUMENT:
+		if _, ex := circ.constraintMap[constraint.Output.Identifier]; !ex {
+			panic(fmt.Sprintf("variable %s not found", constraint.Output.Identifier))
+		}
+	case VARIABLE_OVERLOAD:
+		if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
+			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Identifier))
+		}
+
+	case FUNCTION_CALL:
+		if _, ex := circ.findFunctionInBloodline(constraint.Output.Identifier); !ex {
+			panic(fmt.Sprintf("function %s used but not declared", constraint.Output.Identifier))
+		}
+	case VARIABLE_DECLARE:
+		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Identifier))
+		}
+	case ARRAY_DECLARE:
+		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("array %s already declared", constraint.Output.Identifier))
+		}
+	case IDENTIFIER_VARIABLE:
+		if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
+			panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Identifier))
+		}
+	case ARRAY_CALL:
+		if c, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex || c.Output.Type != ARRAY_DECLARE {
+			panic(fmt.Sprintf("array %s not declared", constraint.Output.Identifier))
+		}
+	default:
+
+	}
+
 	return
 }
 
-func splitAtNestedEnd(cs []*Constraint) (insideNested, outsideNested []*Constraint, success bool) {
+func (circ *function) taskUpdate(constraint *Constraint) {
 
-	ctr := 0
+	switch constraint.Output.Type {
+	case VARIABLE_OVERLOAD:
+		//TODO Is overloading a task?
+		circ.taskStack.add(constraint)
 
-	for i, c := range cs {
-		if c.Output.Type == ELSE || c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE || c.Output.Type == IF {
-			ctr++
-		}
-		if c.Output.Type == NESTED_STATEMENT_END {
-			ctr--
-		}
-		if ctr == 0 {
-			if i == len(cs)-1 {
-				return cs[0:i], outsideNested, true
+	case FUNCTION_CALL:
+		//since function does not need to be defined, we do nothing
+		circ.taskStack.add(constraint)
+
+	case VARIABLE_DECLARE:
+		//TODO not sure
+		(constraint.Output.Type) = UNASIGNEDVAR
+
+		circ.constraintMap[constraint.Output.Identifier] = constraint
+
+	case ARRAY_DECLARE:
+
+		circ.constraintMap[constraint.Output.Identifier] = constraint
+
+		for i := 0; i < len(constraint.Inputs); i++ {
+			element := fmt.Sprintf("%s[%v]", constraint.Output.Identifier, i)
+			constr := &Constraint{
+				Output: Token{
+					Type:       VARIABLE_DECLARE,
+					Identifier: element,
+				},
+				Inputs: []*Constraint{constraint.Inputs[i]},
 			}
-			return cs[0:i], cs[i+1:], true
+			circ.taskUpdate(constr)
 		}
+
+	case RETURN:
+		//Is this sound? what if multiple returns exist
+		//constraint.Output.Identifier= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Identifier))
+		//constraint.Output.Identifier = circ.Name
+		circ.taskStack.add(constraint)
+	default:
+
 	}
+
 	return
 }
 
-func (currentCircuit *Circuit) checkStaticCondition(c *Constraint) (isSatisfied bool) {
+func (currentCircuit *function) findFunctionInBloodline(identifier string) (*function, bool) {
+	if currentCircuit == nil {
+		return nil, false
+	}
+	if con, ex := currentCircuit.functions[identifier]; ex {
+		return con, true
+	}
+	return currentCircuit.Context.findFunctionInBloodline(identifier)
+
+}
+
+//TODO maybe I add context to every constraint as its done with the functions. in the ende everything is a function anyways
+func (currentCircuit *function) findConstraintInBloodline(identifier string) (*Constraint, bool) {
+	if currentCircuit == nil {
+		return nil, false
+	}
+	if con, ex := currentCircuit.constraintMap[identifier]; ex {
+		return con, true
+	}
+	return currentCircuit.Context.findConstraintInBloodline(identifier)
+
+}
+
+func (currentCircuit *function) getCircuitContainingConstraintInBloodline(identifier string) (*function, bool) {
+	if currentCircuit == nil {
+		return nil, false
+	}
+	if _, ex := currentCircuit.constraintMap[identifier]; ex {
+		return currentCircuit, true
+	}
+	return currentCircuit.Context.getCircuitContainingConstraintInBloodline(identifier)
+
+}
+
+func (circ *function) clone() (clone *function) {
+	if circ == nil {
+		return nil
+	}
+	clone = newCircuit(circ.Name, circ.Context.clone())
+	clone.Inputs = circ.Inputs
+	fkts := make(map[string]*function)
+	constr := make(map[string]*Constraint)
+	for k, v := range circ.functions {
+		fkts[k] = v.clone()
+	}
+	for k, v := range circ.constraintMap {
+		constr[k] = v.clone()
+	}
+	clone.taskStack = circ.taskStack.clone()
+	return
+}
+
+func (circ *function) snapshot() (keys []string) {
+	for k, _ := range circ.constraintMap {
+		keys = append(keys, k)
+	}
+	return keys
+}
+func (circ *function) restore(keys []string) {
+	tmp := make(map[string]*Constraint)
+	for _, k := range keys {
+		tmp[k] = circ.constraintMap[k]
+	}
+	circ.constraintMap = tmp
+}
+
+//func (circ *function) updateRootsMap(constraint *Constraint) {
+//
+//	circ._updateRootsMap(constraint)
+//	circ.taskStack.add(constraint)
+//}
+//
+//func (circ *function) _updateRootsMap(constraint *Constraint) {
+//
+//	for _, v := range constraint.Inputs {
+//		circ._updateRootsMap(v)
+//		circ.taskStack.remove(v)
+//	}
+//
+//}
+
+func (currentCircuit *function) checkStaticCondition(c *Constraint) (isSatisfied bool) {
 	//unelegant...
-	if len(c.Inputs) != 3 {
-		panic("not a condition")
+
+	if c.Inputs == nil || len(c.Inputs) == 0 {
+		return true
 	}
+	c = c.Inputs[0]
 	var factorsA, factorsB factors
 	var varEndA, varEndB bool
 	var A, B *big.Int
 
-	factorsA, varEndA = currentCircuit.compile(c.Inputs[1], newGateContainer())
-	factorsB, varEndB = currentCircuit.compile(c.Inputs[2], newGateContainer())
+	factorsA, varEndA, _ = currentCircuit.compile(c.Inputs[1], newGateContainer())
+	factorsB, varEndB, _ = currentCircuit.compile(c.Inputs[2], newGateContainer())
 
 	A = factorsA[0].multiplicative
 	B = factorsB[0].multiplicative
@@ -311,133 +426,134 @@ func (currentCircuit *Circuit) checkStaticCondition(c *Constraint) (isSatisfied 
 	return true
 }
 
-//unpack loops, decide static if conditions
-func (currentCircuit *Circuit) preCompile(constraintStack []*Constraint) {
-	if len(constraintStack) == 0 {
-		return
+func newWatchstack() *watchstack {
+
+	return &watchstack{
+		data: []*Constraint{},
 	}
-	currentConstraint := constraintStack[0]
-	switch currentConstraint.Output.Type {
-	case IF:
-		insideIf, outsideIf, succ := splitAtIfEnd(constraintStack)
-		constraintStack = outsideIf
 
-		if !succ {
-			panic("unexpected, should be detected at parsing")
-		}
-
-		condition, rest, succ2 := splitAtNestedEnd(insideIf)
-		if !succ2 {
-			panic("unexpected, should be detected at parsing")
-		}
-		//if and else if
-		if currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
-			snap2 := currentCircuit.snapshot()
-			currentCircuit.preCompile(condition[1:])
-			currentCircuit.restore(snap2)
-			currentCircuit.preCompile(constraintStack)
-			return
-		}
-		currentCircuit.preCompile(rest)
-		currentCircuit.preCompile(constraintStack)
-		return
-	case ELSE:
-		//else only
-		if len(currentConstraint.Inputs) == 0 {
-			snap2 := currentCircuit.snapshot()
-			currentCircuit.preCompile(constraintStack[1:])
-			currentCircuit.restore(snap2)
-			return
-		}
-
-		condition, rest, succ2 := splitAtNestedEnd(constraintStack)
-		if !succ2 {
-			panic("unexpected, should be detected at parsing")
-		}
-		//if and else if
-		if currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
-			snap2 := currentCircuit.snapshot()
-			currentCircuit.preCompile(condition[1:])
-			currentCircuit.restore(snap2)
-			return
-		}
-		currentCircuit.preCompile(rest)
-		return
-	case IF_ELSE_CHAIN_END:
-		break
-	case FUNCTION_DEFINE:
-		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack)
-		if !succ {
-			panic("unexpected, should be detected at parsing")
-		}
-		if _, ex := currentCircuit.functions[currentConstraint.Output.Identifier]; ex {
-			panic(fmt.Sprintf("function %s already declared", currentConstraint.Output.Identifier))
-		}
-		if _, ex := currentCircuit.constraintMap[currentConstraint.Output.Identifier]; ex {
-			panic(fmt.Sprintf("function %s overloads variable with same name", currentConstraint.Output.Identifier))
-		}
-		newFunc := RegisterFunctionFromConstraint(currentConstraint, currentCircuit)
-		currentCircuit.functions[currentConstraint.Output.Identifier] = newFunc
-		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = &Constraint{
-			Output: Token{
-				Type:       FUNCTION_CALL,
-				Identifier: currentConstraint.Output.Identifier,
-			},
-			Inputs: currentConstraint.Inputs,
-		}
-
-		//NOTE this happens now during compilation
-		//for k, v := range currentCircuit.constraintMap {
-		//	//we keep the arguments this way
-		//	if _, ex := newFunc.constraintMap[k]; !ex {
-		//		newFunc.constraintMap[k] = v
-		//	}
-		//}
-		newFunc.preCompile(insideFunc[1:])
-		currentCircuit.preCompile(outsideFunc)
-		return
-	case FOR:
-		//gather stuff, then evaluate
-		insideFor, outsideFor, succ := splitAtNestedEnd(constraintStack)
-		if !succ {
-			panic("unexpected, should be detected at parsing")
-		}
-		if len(insideFor) == 0 {
-			currentCircuit.preCompile(outsideFor)
-			return
-		}
-		for {
-			if !currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
-				break
-			}
-			snap2 := currentCircuit.snapshot()
-			currentCircuit.preCompile(insideFor[1:])
-			//allow overwriting of variables declared within the loop body
-			currentCircuit.restore(snap2)
-			//call the increment condition
-			currentCircuit.semanticCheck_RootMapUpdate(currentConstraint.Inputs[1].clone())
-		}
-		//cut of the part within the for loop
-		currentCircuit.preCompile(outsideFor)
-		return
-	case NESTED_STATEMENT_END:
-		//skippp over
-		break
-	default:
-		currentCircuit.semanticCheck_RootMapUpdate(constraintStack[0].clone())
-
-	}
-	currentCircuit.preCompile(constraintStack[1:])
 }
 
-//clone returns a deep copy of c
-func (c *Constraint) clone() *Constraint {
-	in := make([]*Constraint, len(c.Inputs))
-	for i, cc := range c.Inputs {
-		in[i] = cc.clone()
+//func (w *watchstack) iterate() (iterator chan *Constraint){
+//	iterator = make(chan *Constraint)
+//	go func() {
+//		for _,v:= range w.data{
+//			iterator <-v
+//		}
+//		close(iterator)
+//	}()
+//	return
+//}
+
+func (w *watchstack) clone() (clone *watchstack) {
+	clone = newWatchstack()
+	for _, v := range w.data {
+		clone.data = append(clone.data, v.clone())
 	}
-	return &Constraint{
-		Output: c.Output,
-		Inputs: in,
+	return
+}
+
+func (w *watchstack) len() int {
+	return len(w.data)
+}
+
+func (w *watchstack) add(c *Constraint) {
+	w.data = append(w.data, c)
+
+}
+
+//func (w *watchstack) remove(c *Constraint) {
+//	if ex := w.watchmap[c.MD5Signature()]; ex {
+//		delete(w.watchmap, c.MD5Signature())
+//		for index, k := range w.data {
+//			if k.MD5Signature() == c.MD5Signature() {
+//				if index == len(w.data)-1 {
+//					w.data = w.data[:index]
+//					return
+//				}
+//				w.data = append(w.data[:index], w.data[index+1:]...)
+//			}
+//		}
+//
+//	}
+//}
+//
+//func (w *watchstack) add(c *Constraint) {
+//	if _, ex := w.watchmap[c.MD5Signature()]; !ex {
+//		w.watchmap[c.MD5Signature()] = true
+//		w.data = append(w.data, c)
+//	}
+//
+//}
+func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint) {
+
+	for i, v := range cs {
+		if v.Output.Type == IF_ELSE_CHAIN_END {
+			return cs[:i], cs[i:]
+		}
 	}
+	panic("unexpected reach")
+	return inside, outside
+}
+
+//func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint) {
+//
+//	closeConstraint := &Constraint{
+//		Output: Token{
+//			Type: NESTED_STATEMENT_END,
+//		},
+//	}
+//	var firstIf []*Constraint
+//	firstIf, outside, _ = splitAtNestedEnd(cs)
+//	inside = append(inside, firstIf...)
+//
+//	firstIf, outside, _ = splitAtNestedEnd(outside)
+//	for ; len(firstIf) > 0 && firstIf[0].Output.Type == ELSE;  firstIf, outside, _ = splitAtNestedEnd(outside) {
+//		inside = append(inside, closeConstraint)
+//		inside = append(inside, firstIf...)
+//	}
+//	inside = append(inside, closeConstraint)
+//	return inside, outside
+//}
+
+func splitAtIfElseEnd(cs []*Constraint) (insideIf, outsideNested []*Constraint, success bool) {
+
+	ctr := 0
+
+	for i, c := range cs {
+		if c.Output.Type == ELSE || c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE || c.Output.Type == IF {
+			ctr++
+		}
+		if c.Output.Type == NESTED_STATEMENT_END {
+			ctr--
+		}
+		if ctr == 0 {
+			if i == len(cs)-1 {
+				return cs[0:i], outsideNested, true
+			}
+			return cs[0:i], cs[i+1:], true
+		}
+	}
+	return
+}
+
+func splitAtNestedEnd(cs []*Constraint) (insideNested, outsideNested []*Constraint, success bool) {
+
+	ctr := 0
+
+	for i, c := range cs {
+		if c.Output.Type == ELSE || c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE || c.Output.Type == IF {
+			ctr++
+		}
+		if c.Output.Type == NESTED_STATEMENT_END {
+			ctr--
+		}
+		if ctr == 0 {
+			if i == len(cs)-1 {
+				return cs[0:i], outsideNested, true
+			}
+			return cs[0:i], cs[i+1:], true
+		}
+	}
+	return
 }

@@ -194,7 +194,7 @@ func g2ScalarBaseMultiply(in *big.Int) *bn256.G2 {
 	return new(bn256.G2).ScalarBaseMult(in)
 }
 
-// GenerateTrustedSetup generates the Trusted Setup from a compiled Circuit. The Setup.Toxic sub data structure must be destroyed
+// GenerateTrustedSetup generates the Trusted Setup from a compiled function. The Setup.Toxic sub data structure must be destroyed
 func GenerateTrustedSetup(fields utils.Fields, witnessLength, gates, publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
 	var setup = new(Setup)
 	var err error
@@ -312,7 +312,7 @@ func GenerateTrustedSetup(fields utils.Fields, witnessLength, gates, publicinput
 	return setup, nil
 }
 
-// GenerateProofs generates all the parameters to proof the zkSNARK from the Circuit, Setup and the Witness
+// GenerateProofs generates all the parameters to proof the zkSNARK from the function, Setup and the Witness
 func GenerateProofs(f utils.Fields, witnessLength, publicInputs int, pk *Pk, w []*big.Int, Px []*big.Int) (*Proof, error) {
 	var proof = new(Proof)
 	proof.PiA = new(bn256.G1).ScalarMult(pk.G1.Lx_plus_Ex[0], w[0])

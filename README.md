@@ -14,21 +14,62 @@ It would be nice, since a shielded transaction (Zcash) would take milliseconds i
 
 **Circuit Language**
 This toolchain comes along with a compiler fully written in go.
-Currently supported:
-- if-else support for static expressions
-- static for loops
-- declare function inside functions via: var foo = func(..){..}; call with: foo(args...)
-- declare multiple functions via:
- func identifier (arguments...){...}
-- declare variable: var x = expression
-- variable overloading: x = expression
-- array declaration: var k[]={expression,expression,..}
+My goal was, to create a compiler for a language that is as close to golang as possible.
+The language is fully functional. Functions and field elements are the only first class citizen e.g.
+functions can be passed as arguments (see example).
+Due to the nature of zkSNARKs some things such as dynamic looping, parallelism, dynamic array access cannot be supported.
+
+Additionaly we support some supported some arithmetic circuit specific functions:
 - equality check. call equal(a,b), to ensure that a is equal to b at a given point of code execution.
  use this to verify signatures etc.
  - scalarBaseMultiply(x): to perform a point multiplication on the source group with just one gate. If its never called we have a normal zkSNARK toolchain.
 
 This language then gets compiled into a R1CS form, with focus on gate reduction.
 We reuse gates whenever possible, exploit commutative properties of the gates, extract constant factors as long as possible etc.
+
+**Example of classic SNARK** (without the extension explained in the ![PDF](algebraicProgramSNARK.pdf))
+
+```
+#comment
+#every programm need a main with arbitrarily many field elements as arguments
+func main(x){
+   
+    #functions can be declared within functions
+    var a = func(i){
+        if i == 0 {
+            return
+        }
+        i = i-1
+        return x*a(i)			
+    }
+    
+    var b = 7
+    var c = 123 * b    
+    return mul(1/c,a(array[3]*2))
+}
+
+var xx = 4
+var array[] = {1,4,7,xx}
+
+func mul(a,b){
+    return a*b
+}
+```
+R1SC form of the code above (last constraint and last two witnesses are due to randomization. Not needed if Jenns Groths scheme is applied):
+
+```
+[[0 1 0 0 0 0 0 0 0 0 0] [0 0 1 0 0 0 0 0 0 0 0] [0 0 0 1 0 0 0 0 0 0 0] [0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0] [0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0] [0 0 0 0 0 0 0 0 0 1 0]]
+[[0 1 0 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 1 0]]
+[[0 0 1 0 0 0 0 0 0 0 0] [0 0 0 1 0 0 0 0 0 0 0] [0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0] [0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0] [0 0 0 0 0 0 0 0 861 0 0] [0 0 0 0 0 0 0 0 0 0 1]]
+```
+Calculate the witness given the R1CS 
+input
+
+input
+[(x,3)]
+witness
+[1 3 9 27 81 243 729 2187 762656546057117603562592534677953835837922104544112694902376452493930609611 812283518468366721095433750743019157728318690555355044294444169641986292 15488755034149214877756480202726987801042521325895567363610570018460600916982]
+
 
 **Example of extended algebraic program SNARK**
 
@@ -57,60 +98,3 @@ when we pick the input s.t. publicKey = X(g^42) we get
 [publicKey=4312786488925573964619847916436127219510912864504589785209181363209026354996 privateKey=42]
 and the witness trace
 [1 4312786488925573964619847916436127219510912864504589785209181363209026354996 42 4312786488925573964619847916436127219510912864504589785209181363209026354996]
-
-**Example of classic SNARK** (without the extention explained in the ![PDF](algebraicProgramSNARK.pdf))
-
-```
-func main(x,z,w) {
-    #this is a comment
-    if ( (4*7) == 28){
-        x=x*x
-    }else{
-        x=z*z
-    }
-
-    var arra[]={x,1,2,3}
-
-    #functions can be declared within functions. therby we overload outside scope
-    var mul = func(a,b){
-        return x*b*7
-    }
-    var a =1
-    var c = w
-    
-    for( a<3;a=a+1){
-        var b = 3
-        for( b<4;b=b+2){
-            c = mul(c,c)
-        }				
-    }
-
-    #arra[2]=3
-    var k = mul(z,z)
-    var l = k*k
-    return l*(k*arra[2])*x*x
-}
-
-func mul(a,b){
-    return a*b
-}
-```
-R1SC form of the code above. 
-Note that the big number at the end is because we do arithmetic on a finite field and we extract factors as long as possible to reduce gates.
-so inverses and negative numbers are likely huge.
-The R1CS of the code above:
-```
-[[0 0 0 1 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 1 0 0 0 0 0 0 0] [0 0 1 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 0 0 1 0 0]]
-[[0 0 0 1 0 0 0 0 0 0 0 0] [0 1 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 1 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 1 0]]
-[[0 0 0 0 1 0 0 0 0 0 0 0] [0 0 0 0 0 1 0 0 0 0 0 0] [0 0 0 0 0 0 3126891838834182174606629392179610726935480628630862049099743455225115499374 0 0 0 0 0] [0 0 0 0 0 0 0 1 0 0 0 0] [0 0 0 0 0 0 0 0 1 0 0 0] [0 0 0 0 0 0 0 0 0 1 0 0] [0 0 0 0 0 0 0 0 0 0 1 0] [0 0 0 0 0 0 0 0 0 0 0 10752679078439993804514633726168661377318948692332658270883811677661876768255]]
-
-```
-Calculate the witness given the R1CS 
-input
-
-[x=3 z=2 w=328329]
-
-gives witness witness
-
-[1 x=3 z=2 w=328329 107799932241 9 6791395731183 18 81 1458 324 324060912]
-
