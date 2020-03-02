@@ -154,6 +154,8 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		// an identifier is always a lone indentifier. If such one is reached. we are at a leaf and either can resolve him as argument or declared function/variable
 		if con, ex := currentCircuit.findConstraintInBloodline(currentConstraint.Output.Identifier); ex {
 			return currentCircuit.compile(con, gateCollector)
+		} else if _, ex := currentCircuit.findFunctionInBloodline(currentConstraint.Output.Identifier); ex {
+			return nil, false, false
 		} else {
 			panic(fmt.Sprintf("variable %s not declared", currentConstraint.Output.Identifier))
 		}
@@ -215,31 +217,15 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			Identifier: currentConstraint.Output.Identifier,
 		}, multiplicative: big.NewInt(1)}
 		return factors{fac}, true, false
+	case VARIABLE_DECLARE:
+
 	case VARIABLE_OVERLOAD:
 
 		if len(currentConstraint.Inputs) != 2 {
 			panic("unexpected reach")
 		}
 
-		f2, _, _ := currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
-
-		if f2.Len() != 1 {
-			panic("later dude")
-		}
-		rmp := newCircuit(currentConstraint.Output.Identifier, nil)
-		rmp.taskStack.add(&Constraint{
-			Output: Token{
-				Type:       RETURN,
-				Identifier: "",
-			},
-			Inputs: []*Constraint{&Constraint{
-				Output: f2[0].typ,
-			}},
-		})
-
-		var context *function
-		var ex bool
-
+		var toOverloadIdentifier = currentConstraint.Inputs[0].Output.Identifier
 		if currentConstraint.Inputs[0].Output.Type == ARRAY_CALL {
 			array := currentConstraint.Inputs[0]
 			if len(array.Inputs) != 1 {
@@ -253,21 +239,26 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			if len(facs) > 1 {
 				panic("unexpected")
 			}
-
-			elementName := fmt.Sprintf("%s[%v]", array.Output.Identifier, indexFactors[0].multiplicative.String())
-			//we now have "elementName = ar[x]"
-			context, ex = currentCircuit.getCircuitContainingConstraintInBloodline(elementName)
-			if ex {
-				context.functions[elementName] = rmp
-				return nil, false, false
-			} else {
-				panic(fmt.Sprintf("array %s not declared", currentConstraint.Output.Identifier))
-			}
-
+			toOverloadIdentifier = fmt.Sprintf("%s[%v]", array.Output.Identifier, indexFactors[0].multiplicative.String())
+		}
+		context, ex := currentCircuit.getCircuitContainingConstraintInBloodline(toOverloadIdentifier)
+		if !ex {
+			panic("unexpected reach")
 		}
 
-		if context, ex = currentCircuit.getCircuitContainingConstraintInBloodline(currentConstraint.Inputs[0].Output.Identifier); ex {
-			context.functions[currentConstraint.Inputs[0].Output.Identifier] = rmp
+		if cn, ex := currentCircuit.findFunctionInBloodline(currentConstraint.Inputs[1].Output.Identifier); ex && currentConstraint.Inputs[1].Output.Type != FUNCTION_CALL {
+			context.functions[toOverloadIdentifier] = cn
+			return nil, false, false
+		}
+
+		f2, _, _ := currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
+
+		if f2.Len() != 1 {
+			panic("later dude")
+		}
+
+		if ex {
+			context.functions[toOverloadIdentifier] = primitiveReturnfunction(f2[0].typ)
 		} else {
 			panic("unexpected reach")
 		}
@@ -306,7 +297,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			sig := hashToBig(secretFactors).String()[:16]
 
 			nTok := Token{
-				Type:       FUNCTION_CALL,
+				Type:       ARGUMENT,
 				Identifier: sig,
 			}
 
@@ -338,7 +329,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			sig := new(big.Int).Add(hl, hr).String()[:16]
 
 			nTok := Token{
-				Type:       FUNCTION_CALL,
+				Type:       ARGUMENT,
 				Identifier: sig,
 			}
 
@@ -350,12 +341,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				output:   bigOne,
 			}
 			gateCollector.Add(rootGate)
-
-			return factors{&factor{
-				typ:            nTok,
-				multiplicative: bigOne,
-			}}, true, false
-			return
+			return nil, false, false
 		default:
 			var nextCircuit *function
 			var ex bool
@@ -377,17 +363,8 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				if f.Len() != 1 {
 					panic("later dude")
 				}
-				rmp := newCircuit("asdf", nil)
-				rmp.taskStack.add(&Constraint{
-					Output: Token{
-						Type:       RETURN,
-						Identifier: "",
-					},
-					Inputs: []*Constraint{&Constraint{
-						Output: f[0].typ,
-					}},
-				})
-				inputs[i] = rmp
+
+				inputs[i] = primitiveReturnfunction(f[0].typ)
 			}
 			//nextCircuit = nextCircuit.clone()
 			old := nextCircuit.rereferenceFunctionInputs(inputs)

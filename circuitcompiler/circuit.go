@@ -73,6 +73,7 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		return
 	}
 	currentConstraint := constraintStack[0]
+
 	switch currentConstraint.Output.Type {
 	case IF:
 		entireIfElse, outsideIfElse := splitAtIfEnd(constraintStack)
@@ -141,6 +142,7 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		if _, ex := currentCircuit.constraintMap[currentConstraint.Output.Identifier]; ex {
 			panic(fmt.Sprintf("array %s already declared", currentConstraint.Output.Identifier))
 		}
+
 		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = currentConstraint
 
 		for i := 0; i < len(currentConstraint.Inputs); i++ {
@@ -153,6 +155,8 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 				Inputs: []*Constraint{currentConstraint.Inputs[i]},
 			}
 			currentCircuit.preCompile([]*Constraint{constr})
+
+			//circ.taskUpdate(constr)
 		}
 	case VARIABLE_DECLARE:
 		if _, ex := currentCircuit.functions[currentConstraint.Output.Identifier]; ex {
@@ -174,6 +178,16 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 				Identifier: currentConstraint.Output.Identifier,
 			},
 		}
+		currentCircuit.taskStack.add(&Constraint{
+			Output: Token{
+				Type: VARIABLE_OVERLOAD,
+			},
+			Inputs: []*Constraint{{
+				Output: currentConstraint.Output,
+			},
+				currentConstraint.Inputs[0],
+			},
+		})
 	case FUNCTION_DEFINE:
 		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack)
 		if !succ {
@@ -187,13 +201,13 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		}
 		newFunc := RegisterFunctionFromConstraint(currentConstraint, currentCircuit)
 		currentCircuit.functions[currentConstraint.Output.Identifier] = newFunc
-		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = &Constraint{
-			Output: Token{
-				Type:       FUNCTION_CALL, //if someone accesses the function, he does not necessarily want to call it
-				Identifier: currentConstraint.Output.Identifier,
-			},
-			//Inputs: currentConstraint.Inputs,
-		}
+		//currentCircuit.constraintMap[currentConstraint.Output.Identifier] = &Constraint{
+		//	Output: Token{
+		//		Type:       FUNCTION_CALL, //if someone accesses the function, he does not necessarily want to call it
+		//		Identifier: currentConstraint.Output.Identifier,
+		//	},
+		//	//Inputs: currentConstraint.Inputs,
+		//}
 		currentCircuit.preCompile(outsideFunc)
 		newFunc.preCompile(insideFunc[1:])
 		return
@@ -223,21 +237,34 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 	case NESTED_STATEMENT_END:
 		//skippp over
 		break
+	case VARIABLE_OVERLOAD:
+		//TODO Is overloading a task?
+		currentCircuit.taskStack.add(currentConstraint)
+
+	case FUNCTION_CALL:
+		//since function does not need to be defined, we do nothing
+		currentCircuit.taskStack.add(currentConstraint)
+	case RETURN:
+		currentCircuit.taskStack.add(currentConstraint)
 	default:
-		currentCircuit.contextCheck(constraintStack[0].clone())
-		currentCircuit.taskUpdate(constraintStack[0].clone())
 
 	}
+	currentCircuit.contextCheckInputs(currentConstraint)
 	currentCircuit.preCompile(constraintStack[1:])
 }
-
+func (circ *function) contextCheckInputs(constraint *Constraint) {
+	for i := 0; i < len(constraint.Inputs); i++ {
+		circ.contextCheck(constraint.Inputs[i])
+	}
+}
 func (circ *function) contextCheck(constraint *Constraint) {
+
+	for i := 0; i < len(constraint.Inputs); i++ {
+		circ.contextCheck(constraint.Inputs[i])
+	}
 
 	if constraint.Output.Type&(NumberToken|Operator) != 0 {
 		return
-	}
-	for i := 0; i < len(constraint.Inputs); i++ {
-		circ.contextCheck(constraint.Inputs[i])
 	}
 
 	switch constraint.Output.Type {
@@ -246,62 +273,25 @@ func (circ *function) contextCheck(constraint *Constraint) {
 			panic(fmt.Sprintf("variable %s not found", constraint.Output.Identifier))
 		}
 	case VARIABLE_OVERLOAD:
-
+		panic("unexpected reach")
 	case FUNCTION_CALL:
 		//if _, ex := circ.findFunctionInBloodline(constraint.Output.Identifier); !ex {
 		//	panic(fmt.Sprintf("function %s used but not declared", constraint.Output.Identifier))
 		//}
 	case VARIABLE_DECLARE:
-		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
-			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Identifier))
-		}
+		panic("unexpected reach")
 	case ARRAY_DECLARE:
-		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
-			panic(fmt.Sprintf("array %s already declared", constraint.Output.Identifier))
-		}
+		panic("unexpected reach")
 	case IDENTIFIER_VARIABLE:
 		if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
-			panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Identifier))
+			if _, ex := circ.findFunctionInBloodline(constraint.Output.Identifier); !ex {
+				panic(fmt.Sprintf("variable %s used but not declared", constraint.Output.Identifier))
+			}
 		}
 	case ARRAY_CALL:
-		if c, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex || c.Output.Type != ARRAY_DECLARE {
+		if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
 			panic(fmt.Sprintf("array %s not declared", constraint.Output.Identifier))
 		}
-	default:
-
-	}
-
-	return
-}
-
-func (circ *function) taskUpdate(constraint *Constraint) {
-
-	switch constraint.Output.Type {
-	case VARIABLE_OVERLOAD:
-		//TODO Is overloading a task?
-		circ.taskStack.add(constraint)
-
-	case FUNCTION_CALL:
-		//since function does not need to be defined, we do nothing
-		circ.taskStack.add(constraint)
-	case ARRAY_DECLARE:
-
-		circ.constraintMap[constraint.Output.Identifier] = constraint
-
-		for i := 0; i < len(constraint.Inputs); i++ {
-			element := fmt.Sprintf("%s[%v]", constraint.Output.Identifier, i)
-			constr := &Constraint{
-				Output: Token{
-					Type:       VARIABLE_DECLARE,
-					Identifier: element,
-				},
-				Inputs: []*Constraint{constraint.Inputs[i]},
-			}
-			circ.taskUpdate(constr)
-		}
-
-	case RETURN:
-		circ.taskStack.add(constraint)
 	default:
 
 	}
@@ -372,21 +362,6 @@ func (circ *function) restore(keys []string) {
 	}
 	circ.constraintMap = tmp
 }
-
-//func (circ *function) updateRootsMap(constraint *Constraint) {
-//
-//	circ._updateRootsMap(constraint)
-//	circ.taskStack.add(constraint)
-//}
-//
-//func (circ *function) _updateRootsMap(constraint *Constraint) {
-//
-//	for _, v := range constraint.Inputs {
-//		circ._updateRootsMap(v)
-//		circ.taskStack.remove(v)
-//	}
-//
-//}
 
 func (currentCircuit *function) checkStaticCondition(c *Constraint) (isSatisfied bool) {
 	//unelegant...
@@ -476,6 +451,24 @@ func (w *watchstack) len() int {
 func (w *watchstack) add(c *Constraint) {
 	w.data = append(w.data, c)
 
+}
+func (w *watchstack) addPrimitiveReturn(tok Token) {
+	w.add(&Constraint{
+		Output: Token{
+			Type:       RETURN,
+			Identifier: "",
+		},
+		Inputs: []*Constraint{
+			{
+				Output: tok,
+			}},
+	})
+}
+
+func primitiveReturnfunction(from Token) (gives *function) {
+	rmp := newCircuit(from.Identifier, nil)
+	rmp.taskStack.addPrimitiveReturn(from)
+	return rmp
 }
 
 //func (w *watchstack) remove(c *Constraint) {

@@ -26,6 +26,27 @@ var TestPrograms = []TraceCorrectnessTest{
 
 		Code: `
 func main(x){
+	return (1/fubunaci(8))*(x*x)
+}
+var dyn[] = {1,1}
+func fubunaci(a){
+	var i = 2
+	for (i<a;i=i+1){
+		var n = dyn[0]+dyn[1]
+		dyn[0] = dyn[1]
+		dyn[1] = n
+	}
+    return dyn[1]
+}
+`},
+	{
+		Skip: false,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(3))},
+		}},
+
+		Code: `
+func main(x){
 	return (1/fubunaci(7))*(x*x)
 }
 func fubunaci(a){
@@ -112,6 +133,7 @@ func mul(a,b){
 	func main(publicKey, privateKey){
 		var pub = scalarBaseMultiply(privateKey)
 		equal(pub,publicKey)
+		equal(publicKey,pub)
 	return
 }
 `,
