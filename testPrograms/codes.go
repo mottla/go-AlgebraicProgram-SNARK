@@ -26,6 +26,45 @@ var TestPrograms = []TraceCorrectnessTest{
 
 		Code: `
 func main(x){
+	return (1/fubunaci(7))*(x*x)
+}
+func fubunaci(a){
+	if a==0{
+		return 1
+	}
+	if a==1{
+		return 1
+	}
+	return fubunaci(a-1)+fubunaci(a-2)
+}
+`},
+	{
+		Skip: false,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(3))},
+		}},
+
+		Code: `
+func main(x){
+	return (1/fubunaci(8))*(x*x)
+}
+var dyn[] = {1,1,0,0,0,0,0,0,0}
+func fubunaci(a){
+	var i = 2
+	for (i<a;i=i+1){
+		dyn[i] = dyn[i-1]+dyn[i-2]
+	}
+    return dyn[a-1]
+}
+`},
+	{
+		Skip: false,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(3))},
+		}},
+
+		Code: `
+func main(x){
 	var a = func(i){
 		if i == 0 {
 			return
@@ -46,7 +85,7 @@ func mul(a,b){
 }
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
@@ -64,7 +103,7 @@ func mul(a,b){
 	}
 `,
 	}, {
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(42))},
 		}},
@@ -77,7 +116,7 @@ func mul(a,b){
 }
 `,
 	},
-	{Skip: true,
+	{Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(2)), big.NewInt(328329)},
 		}},
@@ -114,7 +153,7 @@ func mul(a,b){
 	}
 	
 `,
-	}, {Skip: true,
+	}, {Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			Result: big.NewInt(int64(2160900)),
@@ -143,7 +182,7 @@ func mul(a,b){
 `,
 	},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			Result: big.NewInt(int64(2160900)),
@@ -157,11 +196,11 @@ func mul(a,b){
 		var c = 45345146
 		for( a<3;a=a+1){
 			var b = 3
-			#c = foo(x,c)*x
+			c = foo(x,c)*x
 			for( b<4;b=b+2){
 				c = foo(x,c)*x
 			}	
-			
+			x = x*x+1
 		}
 		return
 	}	
@@ -175,7 +214,7 @@ func mul(a,b){
 	}`,
 	},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
 			Result: big.NewInt(int64(1729500084900343)),

@@ -108,9 +108,9 @@ func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
 	container := newGateContainer()
 	mainCircuit := p.getMainCircuit()
 
-	for _, v := range mainCircuit.Inputs {
-		mainCircuit.constraintMap[v].Output.Type = ARGUMENT
-	}
+	//for _, v := range mainCircuit.Inputs {
+	//	mainCircuit.constraintMap[v].Output.Type = ARGUMENT
+	//}
 
 	p.GlobalInputs = mainCircuit.Inputs
 	p.computedFactors = make(map[Token]MultiplicationGateSignature)
@@ -126,11 +126,12 @@ func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
 	return container.orderedmGates
 }
 
-func (currentCircuit *function) rereferenceFunctionInputs(newInputs []*function) {
+func (currentCircuit *function) rereferenceFunctionInputs(newInputs []*function) (oldInputs []*function) {
 	if len(currentCircuit.Inputs) != len(newInputs) {
 		panic("argument size missmatch")
 	}
 	for i, name := range currentCircuit.Inputs {
+		oldInputs = append(oldInputs, currentCircuit.functions[name])
 		currentCircuit.functions[name] = newInputs[i]
 	}
 	return
@@ -156,20 +157,8 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		} else {
 			panic(fmt.Sprintf("variable %s not declared", currentConstraint.Output.Identifier))
 		}
-
-	case IDENTIFIER_FUNCTION:
-		//if con, ex := currentCircuit.findFunctionInBloodline(currentConstraint.Output.Identifier); ex {
-		//
-		//	return con.compile(con.taskStack.data[0], gateCollector)
-		//}
-		fac := &factor{typ: Token{
-			Type:       FUNCTION_CALL,
-			Identifier: currentConstraint.Output.Identifier, //+string(hashTraceBuildup),
-		}, multiplicative: big.NewInt(1)}
-		return factors{fac}, true, false
-		panic("sdaf")
 	case IF:
-		if currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
+		if len(currentConstraint.Inputs) == 0 || currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
 			return currentCircuit.compile(&Constraint{
 				Output: Token{
 					Type:       FUNCTION_CALL,
@@ -179,7 +168,21 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		} else {
 			return nil, false, false
 		}
-		//currentCircuit[currentConstraint.]
+	case FOR:
+		for currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
+			content := &Constraint{
+				Output: Token{
+					Type:       FUNCTION_CALL,
+					Identifier: currentConstraint.Output.Identifier,
+				},
+			}
+			f, v, retu := currentCircuit.compile(content, gateCollector)
+			if retu {
+				return f, v, true
+			}
+			currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
+		}
+		return nil, false, false
 	case UNASIGNEDVAR:
 		switch len(currentConstraint.Inputs) {
 		case 0:
@@ -202,41 +205,69 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		case 1:
 			f, v, _ := currentCircuit.compile(currentConstraint.Inputs[0], gateCollector)
 			return f, v, true
-		case 3:
 		default:
 			panic(currentConstraint)
 		}
+
 	case ARGUMENT:
 		fac := &factor{typ: Token{
 			Type:       ARGUMENT,
-			Identifier: currentConstraint.Output.Identifier, //+string(hashTraceBuildup),
+			Identifier: currentConstraint.Output.Identifier,
 		}, multiplicative: big.NewInt(1)}
 		return factors{fac}, true, false
-	case VARIABLE_DECLARE:
-		panic("unexpected reach")
 	case VARIABLE_OVERLOAD:
 
-		if len(currentConstraint.Inputs) != 1 {
+		if len(currentConstraint.Inputs) != 2 {
 			panic("unexpected reach")
 		}
-		f, _, _ := currentCircuit.compile(currentConstraint.Inputs[0], gateCollector)
 
-		if f.Len() != 1 {
+		f2, _, _ := currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
+
+		if f2.Len() != 1 {
 			panic("later dude")
 		}
-		rmp := newCircuit("asdf", nil)
+		rmp := newCircuit(currentConstraint.Output.Identifier, nil)
 		rmp.taskStack.add(&Constraint{
 			Output: Token{
 				Type:       RETURN,
 				Identifier: "",
 			},
 			Inputs: []*Constraint{&Constraint{
-				Output: f[0].typ,
+				Output: f2[0].typ,
 			}},
 		})
 
-		if context, ex := currentCircuit.getCircuitContainingConstraintInBloodline(currentConstraint.Output.Identifier); ex {
-			context.functions[currentConstraint.Output.Identifier] = rmp
+		var context *function
+		var ex bool
+
+		if currentConstraint.Inputs[0].Output.Type == ARRAY_CALL {
+			array := currentConstraint.Inputs[0]
+			if len(array.Inputs) != 1 {
+				panic("accessing array index failed")
+			}
+			//ar[?]
+			indexFactors, variable, _ := currentCircuit.compile(array.Inputs[0], gateCollector)
+			if variable {
+				panic("cannot access array dynamically in an arithmetic circuit currently")
+			}
+			if len(facs) > 1 {
+				panic("unexpected")
+			}
+
+			elementName := fmt.Sprintf("%s[%v]", array.Output.Identifier, indexFactors[0].multiplicative.String())
+			//we now have "elementName = ar[x]"
+			context, ex = currentCircuit.getCircuitContainingConstraintInBloodline(elementName)
+			if ex {
+				context.functions[elementName] = rmp
+				return nil, false, false
+			} else {
+				panic(fmt.Sprintf("array %s not declared", currentConstraint.Output.Identifier))
+			}
+
+		}
+
+		if context, ex = currentCircuit.getCircuitContainingConstraintInBloodline(currentConstraint.Inputs[0].Output.Identifier); ex {
+			context.functions[currentConstraint.Inputs[0].Output.Identifier] = rmp
 		} else {
 			panic("unexpected reach")
 		}
@@ -358,17 +389,19 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				})
 				inputs[i] = rmp
 			}
-
-			nextCircuit.rereferenceFunctionInputs(inputs)
+			//nextCircuit = nextCircuit.clone()
+			old := nextCircuit.rereferenceFunctionInputs(inputs)
 
 			for i := 0; i < nextCircuit.taskStack.len(); i++ {
 				f, varend, returns := nextCircuit.compile(nextCircuit.taskStack.data[i], gateCollector)
 				if returns {
 					//gateCollector.appendFactors(f)
+					nextCircuit.rereferenceFunctionInputs(old)
 					return f, varend, true
 				}
 				gateCollector.appendFactors(f)
 			}
+			nextCircuit.rereferenceFunctionInputs(old)
 			return nil, false, false
 			//panic("every function must return somewhere")
 		}
@@ -400,17 +433,17 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			case "+":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
-				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
+				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, false
 			case "/":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
-				rightFactors = invertFactors(rightFactors)
+				leftFactors = invertFactors(leftFactors)
 				break
 			case "-":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
 				rightFactors = negateFactors(rightFactors)
-				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
+				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, false
 			}
 			break
 		case AssignmentOperatorToken:
@@ -420,19 +453,17 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		}
 
 		if !(variableAtLeftEnd && variableAtRightEnd) {
-			return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
+			return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, false
 		}
+
 		sig, newLef, newRigh := extractConstant(leftFactors, rightFactors)
 
 		if out, ex := gateCollector.contains(sig.identifier); ex {
-			return factors{{typ: out.identifier, multiplicative: sig.commonExtracted}}, true, currentConstraint.Output.Type == RETURN
+			return factors{{typ: out.identifier, multiplicative: sig.commonExtracted}}, true, false
 		}
-		//currentConstraint.Output.Identifier += "@"
-		//currentConstraint.Output.Identifier += sig.identifier.Identifier
+
 		nTok := Token{
-			//Type: currentConstraint.Output.Type,
-			Type: ARGUMENT,
-			//Identifier: currentConstraint.Output.Identifier + "@" + sig.identifier.Identifier,
+			Type:       ARGUMENT,
 			Identifier: sig.identifier.Identifier,
 		}
 		rootGate := &Gate{
@@ -445,14 +476,14 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 
 		gateCollector.Add(rootGate)
 
-		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true, currentConstraint.Output.Type == RETURN
+		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true, false
 	}
 
 	panic(currentConstraint)
 }
 
 // GenerateR1CS generates the ER1CS polynomials from the function
-func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS *ER1CS) {
+func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 	// from flat code to ER1CS
 	r1CS = &ER1CS{}
 	neutralElement := "1"
@@ -478,8 +509,10 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS *ER1CS) {
 			panic(fmt.Sprintf("rewriting %v ", v.value))
 		}
 	}
-	indexMap[randInput] = len(indexMap)
-	indexMap[randOutput] = len(indexMap)
+	if randomize {
+		indexMap[randInput] = len(indexMap)
+		indexMap[randOutput] = len(indexMap)
+	}
 
 	insertValue := func(val *factor, arr []*big.Int) {
 		if val.typ.Type != NumberToken {
@@ -567,27 +600,30 @@ func (p *Program) GatesToR1CS(mGates []*Gate) (r1CS *ER1CS) {
 
 	}
 
-	//randomizer gate
-	aConstraint := utils.ArrayOfBigZeros(size)
-	bConstraint := utils.ArrayOfBigZeros(size)
-	eConstraint := utils.ArrayOfBigZeros(size)
-	cConstraint := utils.ArrayOfBigZeros(size)
+	if randomize {
+		//randomizer gate
+		aConstraint := utils.ArrayOfBigZeros(size)
+		bConstraint := utils.ArrayOfBigZeros(size)
+		eConstraint := utils.ArrayOfBigZeros(size)
+		cConstraint := utils.ArrayOfBigZeros(size)
 
-	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
-	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
-	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
-	insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
+		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
+		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
+		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
+		insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
 
-	r1CS.L = append(r1CS.L, aConstraint)
-	r1CS.R = append(r1CS.R, bConstraint)
-	r1CS.E = append(r1CS.E, eConstraint)
-	r1CS.O = append(r1CS.O, cConstraint)
+		r1CS.L = append(r1CS.L, aConstraint)
+		r1CS.R = append(r1CS.R, bConstraint)
+		r1CS.E = append(r1CS.E, eConstraint)
+		r1CS.O = append(r1CS.O, cConstraint)
+
+	}
 
 	return
 }
 
 // GenerateR1CS generates the ER1CS polynomials from the function
-func (p *Program) GatesToSparseR1CS(mGates []*Gate) (r1CS *ER1CSSparse) {
+func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CSSparse) {
 	// from flat code to ER1CS
 	r1CS = &ER1CSSparse{}
 	neutralElement := "1"
@@ -613,8 +649,10 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate) (r1CS *ER1CSSparse) {
 			panic(fmt.Sprintf("rewriting %v ", v.value))
 		}
 	}
-	indexMap[randInput] = len(indexMap)
-	indexMap[randOutput] = len(indexMap)
+	if randomize {
+		indexMap[randInput] = len(indexMap)
+		indexMap[randOutput] = len(indexMap)
+	}
 
 	insertValue := func(val *factor, arr *utils.AvlTree) {
 		if val.typ.Type != NumberToken {
@@ -702,21 +740,22 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate) (r1CS *ER1CSSparse) {
 
 	}
 
-	//randomizer gate
-	aConstraint := utils.NewAvlTree()
-	bConstraint := utils.NewAvlTree()
-	eConstraint := utils.NewAvlTree()
-	cConstraint := utils.NewAvlTree()
+	if randomize {
+		//randomizer gate
+		aConstraint := utils.NewAvlTree()
+		bConstraint := utils.NewAvlTree()
+		eConstraint := utils.NewAvlTree()
+		cConstraint := utils.NewAvlTree()
 
-	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
-	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
-	insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
-	insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
+		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
+		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
+		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
+		insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
 
-	r1CS.L = append(r1CS.L, aConstraint)
-	r1CS.R = append(r1CS.R, bConstraint)
-	r1CS.E = append(r1CS.E, eConstraint)
-	r1CS.O = append(r1CS.O, cConstraint)
-
+		r1CS.L = append(r1CS.L, aConstraint)
+		r1CS.R = append(r1CS.R, bConstraint)
+		r1CS.E = append(r1CS.E, eConstraint)
+		r1CS.O = append(r1CS.O, cConstraint)
+	}
 	return
 }

@@ -104,7 +104,7 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 				Type:       IF,
 				Identifier: identifier2,
 			},
-			Inputs: []*Constraint{firstIf[0]},
+			Inputs: firstIf[0].Inputs,
 		})
 		currentCircuit.preCompile(outsideIfElse)
 		ifcircuit.preCompile(firstIf[1:])
@@ -129,7 +129,7 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 				Type:       IF,
 				Identifier: identifier2,
 			},
-			Inputs: []*Constraint{firstIf[0]},
+			Inputs: firstIf[0].Inputs,
 		})
 		currentCircuit.preCompile(elseAndRest)
 		ifcircuit.preCompile(firstIf[1:])
@@ -137,6 +137,43 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		return
 	case IF_ELSE_CHAIN_END:
 		break
+	case ARRAY_DECLARE:
+		if _, ex := currentCircuit.constraintMap[currentConstraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("array %s already declared", currentConstraint.Output.Identifier))
+		}
+		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = currentConstraint
+
+		for i := 0; i < len(currentConstraint.Inputs); i++ {
+			element := fmt.Sprintf("%s[%v]", currentConstraint.Output.Identifier, i)
+			constr := &Constraint{
+				Output: Token{
+					Type:       VARIABLE_DECLARE,
+					Identifier: element,
+				},
+				Inputs: []*Constraint{currentConstraint.Inputs[i]},
+			}
+			currentCircuit.preCompile([]*Constraint{constr})
+		}
+	case VARIABLE_DECLARE:
+		if _, ex := currentCircuit.functions[currentConstraint.Output.Identifier]; ex {
+			panic(fmt.Sprintf("variable %s already declared", currentConstraint.Output.Identifier))
+		}
+		rmp := newCircuit(currentConstraint.Output.Identifier, currentCircuit)
+		rmp.taskStack.add(&Constraint{
+			Output: Token{
+				Type:       RETURN,
+				Identifier: "",
+			},
+			Inputs: currentConstraint.Inputs,
+		},
+		)
+		currentCircuit.functions[currentConstraint.Output.Identifier] = rmp
+		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = &Constraint{
+			Output: Token{
+				Type:       FUNCTION_CALL,
+				Identifier: currentConstraint.Output.Identifier,
+			},
+		}
 	case FUNCTION_DEFINE:
 		insideFunc, outsideFunc, succ := splitAtNestedEnd(constraintStack)
 		if !succ {
@@ -166,24 +203,22 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		if !succ {
 			panic("unexpected, should be detected at parsing")
 		}
-		if len(insideFor) == 0 {
-			currentCircuit.preCompile(outsideFor)
-			return
-		}
-		for {
-			if !currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
-				break
-			}
-			snap2 := currentCircuit.snapshot()
-			currentCircuit.preCompile(insideFor[1:])
-			//allow overwriting of variables declared within the loop body
-			currentCircuit.restore(snap2)
-			//call the increment condition
-			currentCircuit.contextCheck(currentConstraint.Inputs[1].clone())
-			currentCircuit.taskUpdate(currentConstraint.Inputs[1].clone())
-		}
-		//cut of the part within the for loop
+
+		identifier2 := fmt.Sprintf("%vfor", currentCircuit.taskStack.len())
+
+		forCircuit := newCircuit("for", currentCircuit)
+
+		currentCircuit.functions[identifier2] = forCircuit
+
+		currentCircuit.taskStack.add(&Constraint{
+			Output: Token{
+				Type:       FOR,
+				Identifier: identifier2,
+			},
+			Inputs: currentConstraint.Inputs,
+		})
 		currentCircuit.preCompile(outsideFor)
+		forCircuit.preCompile(insideFor[1:])
 		return
 	case NESTED_STATEMENT_END:
 		//skippp over
@@ -211,14 +246,11 @@ func (circ *function) contextCheck(constraint *Constraint) {
 			panic(fmt.Sprintf("variable %s not found", constraint.Output.Identifier))
 		}
 	case VARIABLE_OVERLOAD:
-		if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
-			panic(fmt.Sprintf("variable %s not declared", constraint.Output.Identifier))
-		}
 
 	case FUNCTION_CALL:
-		if _, ex := circ.findFunctionInBloodline(constraint.Output.Identifier); !ex {
-			panic(fmt.Sprintf("function %s used but not declared", constraint.Output.Identifier))
-		}
+		//if _, ex := circ.findFunctionInBloodline(constraint.Output.Identifier); !ex {
+		//	panic(fmt.Sprintf("function %s used but not declared", constraint.Output.Identifier))
+		//}
 	case VARIABLE_DECLARE:
 		if _, ex := circ.constraintMap[constraint.Output.Identifier]; ex {
 			panic(fmt.Sprintf("variable %s already declared", constraint.Output.Identifier))
@@ -252,13 +284,6 @@ func (circ *function) taskUpdate(constraint *Constraint) {
 	case FUNCTION_CALL:
 		//since function does not need to be defined, we do nothing
 		circ.taskStack.add(constraint)
-
-	case VARIABLE_DECLARE:
-		//TODO not sure
-		(constraint.Output.Type) = UNASIGNEDVAR
-
-		circ.constraintMap[constraint.Output.Identifier] = constraint
-
 	case ARRAY_DECLARE:
 
 		circ.constraintMap[constraint.Output.Identifier] = constraint
@@ -276,9 +301,6 @@ func (circ *function) taskUpdate(constraint *Constraint) {
 		}
 
 	case RETURN:
-		//Is this sound? what if multiple returns exist
-		//constraint.Output.Identifier= fmt.Sprintf("%s%v",circ.Name,len(constraint.Output.Identifier))
-		//constraint.Output.Identifier = circ.Name
 		circ.taskStack.add(constraint)
 	default:
 
@@ -322,18 +344,16 @@ func (currentCircuit *function) getCircuitContainingConstraintInBloodline(identi
 }
 
 func (circ *function) clone() (clone *function) {
-	if circ == nil {
+	if circ == nil || circ.Context == nil {
 		return nil
 	}
 	clone = newCircuit(circ.Name, circ.Context.clone())
 	clone.Inputs = circ.Inputs
-	fkts := make(map[string]*function)
-	constr := make(map[string]*Constraint)
 	for k, v := range circ.functions {
-		fkts[k] = v.clone()
+		clone.functions[k] = v.clone()
 	}
 	for k, v := range circ.constraintMap {
-		constr[k] = v.clone()
+		clone.constraintMap[k] = v.clone()
 	}
 	clone.taskStack = circ.taskStack.clone()
 	return
@@ -371,10 +391,6 @@ func (circ *function) restore(keys []string) {
 func (currentCircuit *function) checkStaticCondition(c *Constraint) (isSatisfied bool) {
 	//unelegant...
 
-	if c.Inputs == nil || len(c.Inputs) == 0 {
-		return true
-	}
-	c = c.Inputs[0]
 	var factorsA, factorsB factors
 	var varEndA, varEndB bool
 	var A, B *big.Int

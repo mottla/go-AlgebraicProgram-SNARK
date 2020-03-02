@@ -140,8 +140,6 @@ out:
 			if checkSemantics {
 				constraintStack = append(constraintStack, constraint)
 			}
-			//constraint.PrintReverseConstaintTree(0)
-			//fmt.Println("#############")
 		case <-parser.done:
 			break out
 		}
@@ -281,17 +279,22 @@ func (p *Parser) statementMode(tokens []Token) {
 		if !success {
 			p.error("closing brackets missing")
 		}
-
 		if b, _, err := isVariableAssignment(l); !b {
 			p.error(err)
 		}
+
+		overload, expr := splitTokensAtFirstString(l, "=")
+
+		////hannes = 42
+		//if b, rem, _ := isVariableAssignment(l); b {
 		varConst := &Constraint{
 			Output: Token{
-				Type:       VARIABLE_OVERLOAD,
-				Identifier: l[0].Identifier,
+				Type: VARIABLE_OVERLOAD,
 			},
 		}
-		p.parseExpression(l[2:], varConst)
+		p.parseExpression(overload, varConst)
+		p.parseExpression(expr[1:], varConst)
+
 		ForConst.Inputs = append(ForConst.Inputs, varConst)
 
 		p.constraintChan <- ForConst
@@ -317,19 +320,22 @@ func (p *Parser) statementMode(tokens []Token) {
 		if r != nil && r[0].Identifier != "\n" {
 			p.error("linebreak expected, got %v", r[0])
 		}
-		//hannes = 42
-		if b, rem, _ := isVariableAssignment(l); b {
-			varConst := &Constraint{
-				Output: Token{
-					Type:       VARIABLE_OVERLOAD,
-					Identifier: l[0].Identifier,
-				},
-			}
-			p.parseExpression(rem, varConst)
-			p.constraintChan <- varConst
-			p.statementMode(r)
-			return
+
+		overload, expr := splitTokensAtFirstString(l, "=")
+
+		////hannes = 42
+		//if b, rem, _ := isVariableAssignment(l); b {
+		varConst := &Constraint{
+			Output: Token{
+				Type: VARIABLE_OVERLOAD,
+			},
 		}
+		p.parseExpression(overload, varConst)
+		p.parseExpression(expr[1:], varConst)
+		p.constraintChan <- varConst
+		p.statementMode(r)
+		return
+		//}
 		p.error("missing assignment")
 	case VARIABLE_DECLARE:
 		l, r := splitTokensAtFirstString(tokens, "\n")
@@ -343,12 +349,6 @@ func (p *Parser) statementMode(tokens []Token) {
 			//var a = func(){}
 			if rem[0].Type == FUNCTION_DEFINE {
 				p.statementMode(append([]Token{rem[0], tokens[1]}, rem[1:]...))
-
-				//got a function definition plus its call
-				//var a = func(){}()
-				//if r[0].Identifier == "(" {
-				//	panic("instantly calling function not supported yet")
-				//}
 				return
 			}
 

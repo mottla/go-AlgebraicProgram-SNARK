@@ -23,5 +23,5 @@ type Gate struct {
 }
 
 func (g Gate) String() string {
-	return fmt.Sprintf("Gate: %v  with left %v right %v", g.value, g.leftIns, g.rightIns)
+	return fmt.Sprintf("Gate: %v  with left %v right %v", g.value.commonExtracted, g.leftIns, g.rightIns)
 }
