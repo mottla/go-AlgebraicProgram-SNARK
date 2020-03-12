@@ -32,7 +32,7 @@ type watchstack struct {
 }
 
 func newCircuit(name string, context *function) *function {
-	c := &function{Context: context, Name: name, constraintMap: make(map[string]*Constraint), taskStack: newWatchstack(), functions: make(map[string]*function)}
+	c := &function{Context: context, Name: name, Inputs: []string{}, constraintMap: make(map[string]*Constraint), taskStack: newWatchstack(), functions: make(map[string]*function)}
 	return c
 }
 
@@ -66,8 +66,6 @@ func RegisterFunctionFromConstraint(constraint *Constraint, context *function) (
 	return
 }
 
-//unpack loops, decide static if conditions
-//lets get dynamic bitch
 func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 	if len(constraintStack) == 0 {
 		return
@@ -178,6 +176,7 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 				Identifier: currentConstraint.Output.Identifier,
 			},
 		}
+		//we consider a variable declaration equal to a function declaration. hence a declaration add no task
 		currentCircuit.taskStack.add(&Constraint{
 			Output: Token{
 				Type: VARIABLE_OVERLOAD,
@@ -252,6 +251,7 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 	currentCircuit.contextCheckInputs(currentConstraint)
 	currentCircuit.preCompile(constraintStack[1:])
 }
+
 func (circ *function) contextCheckInputs(constraint *Constraint) {
 	for i := 0; i < len(constraint.Inputs); i++ {
 		circ.contextCheck(constraint.Inputs[i])
@@ -334,10 +334,7 @@ func (currentCircuit *function) getCircuitContainingConstraintInBloodline(identi
 }
 
 func (circ *function) clone() (clone *function) {
-	if circ == nil || circ.Context == nil {
-		return nil
-	}
-	clone = newCircuit(circ.Name, circ.Context.clone())
+	clone = newCircuit(circ.Name, circ.Context)
 	clone.Inputs = circ.Inputs
 	for k, v := range circ.functions {
 		clone.functions[k] = v.clone()
@@ -425,17 +422,6 @@ func newWatchstack() *watchstack {
 
 }
 
-//func (w *watchstack) iterate() (iterator chan *Constraint){
-//	iterator = make(chan *Constraint)
-//	go func() {
-//		for _,v:= range w.data{
-//			iterator <-v
-//		}
-//		close(iterator)
-//	}()
-//	return
-//}
-
 func (w *watchstack) clone() (clone *watchstack) {
 	clone = newWatchstack()
 	for _, v := range w.data {
@@ -471,29 +457,6 @@ func primitiveReturnfunction(from Token) (gives *function) {
 	return rmp
 }
 
-//func (w *watchstack) remove(c *Constraint) {
-//	if ex := w.watchmap[c.MD5Signature()]; ex {
-//		delete(w.watchmap, c.MD5Signature())
-//		for index, k := range w.data {
-//			if k.MD5Signature() == c.MD5Signature() {
-//				if index == len(w.data)-1 {
-//					w.data = w.data[:index]
-//					return
-//				}
-//				w.data = append(w.data[:index], w.data[index+1:]...)
-//			}
-//		}
-//
-//	}
-//}
-//
-//func (w *watchstack) add(c *Constraint) {
-//	if _, ex := w.watchmap[c.MD5Signature()]; !ex {
-//		w.watchmap[c.MD5Signature()] = true
-//		w.data = append(w.data, c)
-//	}
-//
-//}
 func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint) {
 
 	for i, v := range cs {
@@ -503,47 +466,6 @@ func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint) {
 	}
 	panic("unexpected reach")
 	return inside, outside
-}
-
-//func splitAtIfEnd(cs []*Constraint) (inside, outside []*Constraint) {
-//
-//	closeConstraint := &Constraint{
-//		Output: Token{
-//			Type: NESTED_STATEMENT_END,
-//		},
-//	}
-//	var firstIf []*Constraint
-//	firstIf, outside, _ = splitAtNestedEnd(cs)
-//	inside = append(inside, firstIf...)
-//
-//	firstIf, outside, _ = splitAtNestedEnd(outside)
-//	for ; len(firstIf) > 0 && firstIf[0].Output.Type == ELSE;  firstIf, outside, _ = splitAtNestedEnd(outside) {
-//		inside = append(inside, closeConstraint)
-//		inside = append(inside, firstIf...)
-//	}
-//	inside = append(inside, closeConstraint)
-//	return inside, outside
-//}
-
-func splitAtIfElseEnd(cs []*Constraint) (insideIf, outsideNested []*Constraint, success bool) {
-
-	ctr := 0
-
-	for i, c := range cs {
-		if c.Output.Type == ELSE || c.Output.Type == FOR || c.Output.Type == FUNCTION_DEFINE || c.Output.Type == IF {
-			ctr++
-		}
-		if c.Output.Type == NESTED_STATEMENT_END {
-			ctr--
-		}
-		if ctr == 0 {
-			if i == len(cs)-1 {
-				return cs[0:i], outsideNested, true
-			}
-			return cs[0:i], cs[i+1:], true
-		}
-	}
-	return
 }
 
 func splitAtNestedEnd(cs []*Constraint) (insideNested, outsideNested []*Constraint, success bool) {

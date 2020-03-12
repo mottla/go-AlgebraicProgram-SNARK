@@ -21,6 +21,25 @@ var TestPrograms = []TraceCorrectnessTest{
 	{
 		Skip: false,
 		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(5)), big.NewInt(int64(7))},
+		}},
+
+		Code: `
+func main(x,y,z){
+	return mul(add(mul(x,y),z)-132,z)
+}
+
+func mul(a,b){
+    return a*b
+}
+func add(a,b){
+	return a+b
+	}
+
+`},
+	{
+		Skip: false,
+		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
 

@@ -228,6 +228,9 @@ func addFactors(leftFactors, rightFactors factors) factors {
 func negateFactors(leftFactors factors) factors {
 	for i := range leftFactors {
 		leftFactors[i].multiplicative = field.Neg(leftFactors[i].multiplicative)
+		if leftFactors[i].typ.Type == NumberToken {
+			leftFactors[i].typ.Identifier = leftFactors[i].multiplicative.String()
+		}
 	}
 	return leftFactors
 }
@@ -235,6 +238,9 @@ func invertFactors(leftFactors factors) factors {
 	for i := range leftFactors {
 		leftFactors[i].multiplicative = field.Inverse(leftFactors[i].multiplicative)
 		leftFactors[i].invert = !leftFactors[i].invert
+		if leftFactors[i].typ.Type == NumberToken {
+			leftFactors[i].typ.Identifier = leftFactors[i].multiplicative.String()
+		}
 	}
 	return leftFactors
 }

@@ -56,10 +56,6 @@ func (m MultiplicationGateSignature) String() string {
 type Program struct {
 	globalFunction *function
 	GlobalInputs   []string
-	//to reduce the number of multiplication gates, we store each factor signature, and the variable name,
-	//so each time a variable is computed, that happens to have the very same factors, we reuse the former
-	//it boost setup and proof time
-	computedFactors map[Token]MultiplicationGateSignature
 }
 
 func newProgram() (program *Program) {
@@ -108,12 +104,7 @@ func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
 	container := newGateContainer()
 	mainCircuit := p.getMainCircuit()
 
-	//for _, v := range mainCircuit.Inputs {
-	//	mainCircuit.constraintMap[v].Output.Type = ARGUMENT
-	//}
-
 	p.GlobalInputs = mainCircuit.Inputs
-	p.computedFactors = make(map[Token]MultiplicationGateSignature)
 
 	for i := 0; i < mainCircuit.taskStack.len(); i++ {
 		f, _, returns := mainCircuit.compile(mainCircuit.taskStack.data[i], container)
@@ -348,7 +339,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			if nextCircuit, ex = currentCircuit.findFunctionInBloodline(currentConstraint.Output.Identifier); !ex {
 				panic(fmt.Sprintf("function %s not declared", currentConstraint.Output.Identifier))
 			}
-
+			//nextCircuit = nextCircuit.clone()
 			inputs := make([]*function, len(currentConstraint.Inputs))
 			//if the argument is a function call, we need to call it and give the result as argument i thinl
 			//if the argument is a function, but not a call, we pass it on
@@ -358,13 +349,25 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 					inputs[i] = cn
 					continue
 				}
-				f, _, _ := currentCircuit.compile(v, gateCollector)
 
-				if f.Len() != 1 {
-					panic("later dude")
+				f, varEnd, _ := currentCircuit.compile(v, gateCollector)
+
+				if !varEnd {
+					inputs[i] = primitiveReturnfunction(f[0].typ)
+					continue
 				}
 
-				inputs[i] = primitiveReturnfunction(f[0].typ)
+				//if i add them as functions, then they later can be replaced by functions.
+				rmp := newCircuit(v.Output.Identifier, currentCircuit)
+				rmp.taskStack.add(&Constraint{
+					Output: Token{
+						Type:       RETURN,
+						Identifier: "",
+					},
+					Inputs: []*Constraint{v},
+				})
+				inputs[i] = rmp
+
 			}
 			//nextCircuit = nextCircuit.clone()
 			old := nextCircuit.rereferenceFunctionInputs(inputs)

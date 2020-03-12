@@ -80,8 +80,8 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		}
 
 		fmt.Println("\n generating ER1CS")
-		r1cs := program.GatesToR1CS(gates)
-		r1csSparse := program.GatesToSparseR1CS(gates)
+		r1cs := program.GatesToR1CS(gates, true)
+		r1csSparse := program.GatesToSparseR1CS(gates, true)
 		//transposedR1csSparse := r1csSparse.TransposeSparse()
 		trasposedR1Cs := r1cs.Transpose()
 		fmt.Println(r1cs.L)
