@@ -12,55 +12,6 @@ import (
 	"time"
 )
 
-type InOut struct {
-	inputs []*big.Int
-	result *big.Int
-}
-
-type TraceCorrectnessTest struct {
-	code  string
-	io    []InOut
-	skipp bool
-}
-
-var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
-var correctnessEAPTests = []TraceCorrectnessTest{
-
-	{
-		skipp: false,
-		io: []InOut{{
-			inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
-			result: big.NewInt(int64(1729500084900343)),
-		}, {
-			inputs: []*big.Int{big.NewInt(int64(365235)), big.NewInt(int64(11876525))},
-
-			result: bigNumberResult1,
-		}},
-		code: `
-	func main( x  ,  z ) {
-		return (do(z) + add(x,x))*x
-	}		
-
-	func do(x){
-		var e = x * 5
-		var b = e * 6
-		var c = b * 7
-		var f = c * 1
-		var d = c * f
-		return d * mul(d,e)
-	}
-	
-	func add(x ,k){
-		var z = k * x
-		return do(x) + mul(x,z)
-	}
-
-	func mul(a,b){
-		return a * b
-	}`,
-	},
-}
-
 func TestGenerateAndVerifyProof(t *testing.T) {
 
 	for _, test := range testPrograms.TestPrograms {

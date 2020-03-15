@@ -173,7 +173,7 @@ func addFactor(facLeft, facRight *factor) (couldAdd bool, sum *factor) {
 
 	}
 
-	if facLeft.typ.Type&facRight.typ.Type&IN != 0 && facLeft.typ.Identifier == facRight.typ.Identifier {
+	if facLeft.typ.Type == facRight.typ.Type && facLeft.typ.Identifier == facRight.typ.Identifier {
 		return true, &factor{typ: facRight.typ, multiplicative: field.Add(facLeft.multiplicative, facRight.multiplicative)}
 
 	}

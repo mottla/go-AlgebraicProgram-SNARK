@@ -199,7 +199,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			f, v, _ := currentCircuit.compile(currentConstraint.Inputs[0], gateCollector)
 			return f, v, true
 		default:
-			panic(currentConstraint)
+
 		}
 
 	case ARGUMENT:
@@ -208,8 +208,6 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			Identifier: currentConstraint.Output.Identifier,
 		}, multiplicative: big.NewInt(1)}
 		return factors{fac}, true, false
-	case VARIABLE_DECLARE:
-
 	case VARIABLE_OVERLOAD:
 
 		if len(currentConstraint.Inputs) != 2 {
@@ -242,6 +240,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			return nil, false, false
 		}
 
+		//TODO
 		f2, _, _ := currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
 
 		if f2.Len() != 1 {
@@ -249,7 +248,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		}
 
 		if ex {
-			context.functions[toOverloadIdentifier] = primitiveReturnfunction(f2[0].typ)
+			context.functions[toOverloadIdentifier] = f2[0].primitiveReturnfunction()
 		} else {
 			panic("unexpected reach")
 		}
@@ -278,6 +277,32 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 
 	case FUNCTION_CALL:
 		switch currentConstraint.Output.Identifier {
+		case "addGateConstraint":
+			if len(currentConstraint.Inputs) != 2 {
+				panic("addition constraint requires 2 arguments")
+			}
+			leftClone := currentConstraint.Inputs[0].clone()
+			rightClone := currentConstraint.Inputs[1].clone()
+			leftFactors, _, _ := currentCircuit.compile(leftClone, gateCollector)
+			rightFactors, _, _ := currentCircuit.compile(rightClone, gateCollector)
+			sig, _, _ := extractConstant(leftFactors, rightFactors)
+
+			nTok := Token{
+				Type:       ARGUMENT,
+				Identifier: sig.identifier.Identifier,
+			}
+
+			rootGate := &Gate{
+				gateType: additionGate,
+				value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
+				leftIns:  addFactors(leftFactors, rightFactors),
+				output:   bigOne,
+			}
+			gateCollector.Add(rootGate)
+			return factors{&factor{
+				typ:            nTok,
+				multiplicative: bigOne,
+			}}, true, false
 		case "scalarBaseMultiply":
 			if len(currentConstraint.Inputs) != 1 {
 				panic("scalarBaseMultiply argument missmatch")
@@ -310,25 +335,20 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			}
 			leftClone := currentConstraint.Inputs[0].clone()
 			rightClone := currentConstraint.Inputs[1].clone()
-			l, _, _ := currentCircuit.compile(leftClone, gateCollector)
-			r, _, _ := currentCircuit.compile(rightClone, gateCollector)
-			sort.Sort(l)
-			sort.Sort(r)
-			hl := hashToBig(l)
-			hr := hashToBig(r)
-			//this way equal(a,b) = equal(b,a). collision is unlikely but possible
-			sig := new(big.Int).Add(hl, hr).String()[:16]
+			leftFactors, _, _ := currentCircuit.compile(leftClone, gateCollector)
+			rightFactors, _, _ := currentCircuit.compile(rightClone, gateCollector)
 
+			sig, _, _ := extractConstant(leftFactors, rightFactors)
 			nTok := Token{
 				Type:       ARGUMENT,
-				Identifier: sig,
+				Identifier: sig.identifier.Identifier,
 			}
 
 			rootGate := &Gate{
 				gateType: equalityGate,
 				value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
-				leftIns:  l,
-				rightIns: r,
+				leftIns:  leftFactors,
+				rightIns: rightFactors,
 				output:   bigOne,
 			}
 			gateCollector.Add(rootGate)
@@ -345,6 +365,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			//if the argument is a function, but not a call, we pass it on
 			for i, v := range currentConstraint.Inputs {
 
+				//TODO the order may matter.. check that.. the code here is troublesome I feel
 				if cn, ex := currentCircuit.findFunctionInBloodline(v.Output.Identifier); ex && v.Output.Type != FUNCTION_CALL {
 					inputs[i] = cn
 					continue
@@ -353,7 +374,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				f, varEnd, _ := currentCircuit.compile(v, gateCollector)
 
 				if !varEnd {
-					inputs[i] = primitiveReturnfunction(f[0].typ)
+					inputs[i] = f[0].primitiveReturnfunction()
 					continue
 				}
 
@@ -383,7 +404,6 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			}
 			nextCircuit.rereferenceFunctionInputs(old)
 			return nil, false, false
-			//panic("every function must return somewhere")
 		}
 	default:
 
@@ -413,7 +433,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			case "+":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
-				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, false
+				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
 			case "/":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
@@ -423,7 +443,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
 				rightFactors = negateFactors(rightFactors)
-				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, false
+				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
 			}
 			break
 		case AssignmentOperatorToken:
@@ -433,14 +453,10 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		}
 
 		if !(variableAtLeftEnd && variableAtRightEnd) {
-			return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, false
+			return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
 		}
 
 		sig, newLef, newRigh := extractConstant(leftFactors, rightFactors)
-
-		if out, ex := gateCollector.contains(sig.identifier); ex {
-			return factors{{typ: out.identifier, multiplicative: sig.commonExtracted}}, true, false
-		}
 
 		nTok := Token{
 			Type:       ARGUMENT,
@@ -456,7 +472,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 
 		gateCollector.Add(rootGate)
 
-		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true, false
+		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true, currentConstraint.Output.Type == RETURN
 	}
 
 	panic(currentConstraint)
@@ -502,7 +518,7 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 		}
 		value := val.multiplicative
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
-		arr[indexMap[val.typ.Identifier]] = value
+		arr[indexMap[val.typ.Identifier]] = utils.Field.ArithmeticField.Add(arr[indexMap[val.typ.Identifier]], value)
 	}
 	size := len(indexMap)
 	for _, g := range mGates {
@@ -568,6 +584,23 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 
 			bConstraint[0] = big.NewInt(int64(1))
 
+			r1CS.L = append(r1CS.L, aConstraint)
+			r1CS.R = append(r1CS.R, bConstraint)
+			r1CS.E = append(r1CS.E, eConstraint)
+			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		case additionGate:
+			aConstraint := utils.ArrayOfBigZeros(size)
+			bConstraint := utils.ArrayOfBigZeros(size)
+			eConstraint := utils.ArrayOfBigZeros(size)
+			cConstraint := utils.ArrayOfBigZeros(size)
+
+			for _, val := range g.leftIns {
+				insertValue(val, aConstraint)
+			}
+
+			bConstraint[0] = big.NewInt(int64(1))
+			cConstraint[indexMap[g.value.identifier.Identifier]] = g.output
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
@@ -642,7 +675,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		}
 		value := val.multiplicative
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
-		arr.Insert(uint(indexMap[val.typ.Identifier]), value)
+		arr.Put(uint(indexMap[val.typ.Identifier]), value, utils.Field.ArithmeticField.Add)
 	}
 
 	for _, g := range mGates {
@@ -670,6 +703,23 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 				aConstraint = cConstraint
 				cConstraint = tmp
 			}
+			r1CS.L = append(r1CS.L, aConstraint)
+			r1CS.R = append(r1CS.R, bConstraint)
+			r1CS.E = append(r1CS.E, eConstraint)
+			r1CS.O = append(r1CS.O, cConstraint)
+			break
+		case additionGate:
+			aConstraint := utils.NewAvlTree()
+			bConstraint := utils.NewAvlTree()
+			eConstraint := utils.NewAvlTree()
+			cConstraint := utils.NewAvlTree()
+
+			for _, val := range g.leftIns {
+				insertValue(val, eConstraint)
+			}
+			bConstraint.Insert(uint(0), big.NewInt(int64(1)))
+			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), big.NewInt(int64(1)))
+
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)

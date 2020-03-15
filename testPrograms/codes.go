@@ -14,12 +14,55 @@ type TraceCorrectnessTest struct {
 }
 
 var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
-var bigNumberResult2, _ = new(big.Int).SetString("75263346540254220740876250", 10)
 var pubkeyOf42OnBn256_G1, _ = new(big.Int).SetString("4312786488925573964619847916436127219510912864504589785209181363209026354996", 10)
 
 var TestPrograms = []TraceCorrectnessTest{
 	{
-		Skip: false,
+		Skip: true,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(1))},
+		}},
+
+		Code: `
+func main(x){
+	return (1/fubunaci(8,x))*(x*x)
+}
+
+func fubunaci(a,v){
+	var dyn[] = {v,v}
+	var i = 2
+	for (i<a;i=i+1){
+		var n = addGateConstraint(dyn[0],dyn[1])
+		dyn[0] = dyn[1]
+		dyn[1] = n
+	}
+    return dyn[1]
+}
+`},
+	{
+		Skip: true,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(3))},
+		}},
+
+		Code: `
+func main(x){
+	return (1/fubunaci(8,x))*(x*x)
+}
+
+func fubunaci(a,v){
+	var dyn[] = {v,v}
+	var i = 2
+	for (i<a;i=i+1){
+		var n = dyn[0]+dyn[1]
+		dyn[0] = dyn[1]
+		dyn[1] = n
+	}
+    return dyn[1]
+}
+`},
+	{
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(5)), big.NewInt(int64(7))},
 		}},
@@ -38,7 +81,7 @@ func add(a,b){
 
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
@@ -61,12 +104,12 @@ func fubunaci(a){
 	{
 		Skip: false,
 		IO: []InOut{{
-			Inputs: []*big.Int{big.NewInt(int64(3))},
+			Inputs: []*big.Int{},
 		}},
 
 		Code: `
-func main(x){
-	return (1/fubunaci(7))*(x*x)
+func main(){
+	return (fubunaci(7))
 }
 func fubunaci(a){
 	if a==0{
@@ -75,7 +118,7 @@ func fubunaci(a){
 	if a==1{
 		return 1
 	}
-	return fubunaci(a-1)+fubunaci(a-2)
+	return addGateConstraint(fubunaci(a-1),fubunaci(a-2))
 }
 `},
 	{

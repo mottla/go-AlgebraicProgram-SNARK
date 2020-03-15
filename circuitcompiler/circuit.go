@@ -451,9 +451,41 @@ func (w *watchstack) addPrimitiveReturn(tok Token) {
 	})
 }
 
-func primitiveReturnfunction(from Token) (gives *function) {
+func (from Token) primitiveReturnfunction() (gives *function) {
 	rmp := newCircuit(from.Identifier, nil)
 	rmp.taskStack.addPrimitiveReturn(from)
+	return rmp
+}
+func (from factor) primitiveReturnfunction() (gives *function) {
+
+	if from.typ.Type == NumberToken {
+		return from.typ.primitiveReturnfunction()
+	}
+	if from.multiplicative.Cmp(bigOne) == 0 {
+		return from.typ.primitiveReturnfunction()
+	}
+	rmp := newCircuit(from.typ.Identifier, nil)
+	rmp.taskStack.add(&Constraint{
+		Output: Token{
+			Type:       RETURN,
+			Identifier: "",
+		},
+		Inputs: []*Constraint{
+			&Constraint{
+				Output: Token{
+					Type:       ArithmeticOperatorToken,
+					Identifier: "*",
+				},
+			}, &Constraint{
+				Output: Token{
+					Type:       NumberToken,
+					Identifier: from.multiplicative.String(),
+				},
+			}, &Constraint{
+				Output: from.typ,
+			},
+		},
+	})
 	return rmp
 }
 

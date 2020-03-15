@@ -11,6 +11,7 @@ const (
 	multiplicationGate gateType = iota
 	scalarBaseMultiplyGate
 	equalityGate
+	additionGate
 )
 
 type Gate struct {

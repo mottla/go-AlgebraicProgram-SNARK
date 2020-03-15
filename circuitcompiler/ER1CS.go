@@ -108,13 +108,17 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
 	witness[0] = big.NewInt(int64(1))
-	rnd, rnderr := utils.Field.CurveOrderField.Rand()
-	if rnderr != nil {
-		panic(rnderr)
-	}
-	witness[r1cs.indexMap[randInput]] = rnd
 	set[0] = true
-	set[r1cs.indexMap[randInput]] = true
+
+	if r1cs.indexMap[randInput] != 0 {
+		rnd, rnderr := utils.Field.CurveOrderField.Rand()
+		if rnderr != nil {
+			panic(rnderr)
+		}
+		witness[r1cs.indexMap[randInput]] = rnd
+		set[r1cs.indexMap[randInput]] = true
+	}
+
 	for _, v := range input {
 		witness[r1cs.indexMap[v.identifier]] = v.value
 		set[r1cs.indexMap[v.identifier]] = true
@@ -225,13 +229,17 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
 	witness[0] = big.NewInt(int64(1))
-	rnd, rnderr := utils.Field.CurveOrderField.Rand()
-	if rnderr != nil {
-		panic(rnderr)
-	}
-	witness[r1cs.indexMap[randInput]] = rnd
 	set[0] = true
-	set[r1cs.indexMap[randInput]] = true
+
+	if r1cs.indexMap[randInput] != 0 {
+		rnd, rnderr := utils.Field.CurveOrderField.Rand()
+		if rnderr != nil {
+			panic(rnderr)
+		}
+		witness[r1cs.indexMap[randInput]] = rnd
+		set[r1cs.indexMap[randInput]] = true
+	}
+
 	for _, v := range input {
 		witness[r1cs.indexMap[v.identifier]] = v.value
 		set[r1cs.indexMap[v.identifier]] = true
