@@ -26,9 +26,9 @@ func TestCorrectness(t *testing.T) {
 
 		gates := program.ReduceCombinedTree()
 
-		for i, g := range gates {
-			fmt.Printf("%v %v\n", i, g)
-		}
+		//for i, g := range gates {
+		//	fmt.Printf("%v %v\n", i, g)
+		//}
 
 		fmt.Println("\n generating ER1CS")
 		r1cs := program.GatesToR1CS(gates, false)
@@ -38,6 +38,10 @@ func TestCorrectness(t *testing.T) {
 		fmt.Println(r1cs.E)
 		fmt.Println(r1cs.O)
 
+		//fmt.Println(r1csSparse.L)
+		//fmt.Println(r1csSparse.R)
+		//fmt.Println(r1csSparse.E)
+		//fmt.Println(r1csSparse.O)
 		for _, io := range test.IO {
 			fmt.Println("input")
 			inputs := CombineInputs(program.GlobalInputs, io.Inputs)
@@ -46,11 +50,11 @@ func TestCorrectness(t *testing.T) {
 			assert.NoError(t, err)
 			fmt.Println("witness")
 			fmt.Println(w)
-			w, err = CalculateSparseWitness(r1csSparse, inputs)
+			wSparse, err := CalculateSparseWitness(r1csSparse, inputs)
 			assert.NoError(t, err)
+			assert.Equal(t, w, wSparse)
 			fmt.Println("witness")
-			fmt.Println(w)
-
+			fmt.Println(wSparse)
 		}
 	}
 }

@@ -107,8 +107,8 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
-	witness[0] = big.NewInt(int64(1))
-	set[0] = true
+	//witness[0] = big.NewInt(int64(1))
+	//set[0] = true
 
 	if r1cs.indexMap[randInput] != 0 {
 		rnd, rnderr := utils.Field.CurveOrderField.Rand()

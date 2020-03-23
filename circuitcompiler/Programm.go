@@ -61,7 +61,7 @@ type Program struct {
 func newProgram() (program *Program) {
 	program = &Program{
 		globalFunction: newCircuit("global", nil),
-		GlobalInputs:   []string{},
+		GlobalInputs:   []string{"1"},
 	}
 	return
 }
@@ -76,12 +76,12 @@ func (in InputArgument) String() string {
 }
 
 func CombineInputs(abstract []string, concrete []*big.Int) (res []InputArgument) {
+	//we add the neutral element here
+	concrete = append([]*big.Int{big.NewInt(1)}, concrete...)
 	if len(abstract) != len(concrete) {
 		panic("argument missmatch")
 	}
-	if len(abstract) == 0 {
-		return
-	}
+
 	res = make([]InputArgument, len(abstract))
 
 	for k, v := range abstract {
@@ -104,7 +104,7 @@ func (p *Program) ReduceCombinedTree() (orderedmGates []*Gate) {
 	container := newGateContainer()
 	mainCircuit := p.getMainCircuit()
 
-	p.GlobalInputs = mainCircuit.Inputs
+	p.GlobalInputs = append(p.GlobalInputs, mainCircuit.Inputs...)
 
 	for i := 0; i < mainCircuit.taskStack.len(); i++ {
 		f, _, returns := mainCircuit.compile(mainCircuit.taskStack.data[i], container)
@@ -201,7 +201,6 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		default:
 
 		}
-
 	case ARGUMENT:
 		fac := &factor{typ: Token{
 			Type:       ARGUMENT,
@@ -406,11 +405,9 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			return nil, false, false
 		}
 	default:
-
 	}
 
 	if len(currentConstraint.Inputs) == 3 {
-
 		left := currentConstraint.Inputs[1]
 		right := currentConstraint.Inputs[2]
 		operation := currentConstraint.Inputs[0].Output
@@ -482,14 +479,13 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 	// from flat code to ER1CS
 	r1CS = &ER1CS{}
-	neutralElement := "1"
 
 	//offset := len(p.GlobalInputs) + 2
 	//  one + in1 +in2+... + gate1 + gate2 .. + randIn + randOut
 	//size := offset + len(mGates)
 	indexMap := make(map[string]int)
 	r1CS.indexMap = indexMap
-	indexMap[neutralElement] = len(indexMap)
+
 	for _, v := range p.GlobalInputs {
 		indexMap[v] = len(indexMap)
 	}
@@ -639,14 +635,13 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CSSparse) {
 	// from flat code to ER1CS
 	r1CS = &ER1CSSparse{}
-	neutralElement := "1"
 
 	//offset := len(p.GlobalInputs) + 2
 	//  one + in1 +in2+... + gate1 + gate2 .. + randIn + randOut
 	//size := offset + len(mGates)
 	indexMap := make(map[string]int)
 	r1CS.indexMap = indexMap
-	indexMap[neutralElement] = len(indexMap)
+
 	for _, v := range p.GlobalInputs {
 		indexMap[v] = len(indexMap)
 	}
@@ -679,7 +674,6 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 	}
 
 	for _, g := range mGates {
-
 		switch g.gateType {
 		case multiplicationGate:
 			aConstraint := utils.NewAvlTree()
@@ -715,7 +709,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 			cConstraint := utils.NewAvlTree()
 
 			for _, val := range g.leftIns {
-				insertValue(val, eConstraint)
+				insertValue(val, aConstraint)
 			}
 			bConstraint.Insert(uint(0), big.NewInt(int64(1)))
 			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), big.NewInt(int64(1)))

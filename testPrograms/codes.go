@@ -18,14 +18,14 @@ var pubkeyOf42OnBn256_G1, _ = new(big.Int).SetString("43127864889255739646198479
 
 var TestPrograms = []TraceCorrectnessTest{
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(1))},
 		}},
 
 		Code: `
 func main(x){
-	return (1/fubunaci(8,x))*(x*x)
+	return (1/fubunaci(8,x))
 }
 
 func fubunaci(a,v){
@@ -40,7 +40,7 @@ func fubunaci(a,v){
 }
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
@@ -62,7 +62,7 @@ func fubunaci(a,v){
 }
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(5)), big.NewInt(int64(7))},
 		}},
@@ -81,7 +81,7 @@ func add(a,b){
 
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},

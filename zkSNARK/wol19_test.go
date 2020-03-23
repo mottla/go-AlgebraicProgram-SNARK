@@ -26,13 +26,13 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 		gates := program.ReduceCombinedTree()
 		utils.Field.PolynomialField.InitBases(len(gates) + 1)
-		for _, g := range gates {
-			fmt.Printf("\n %v", g)
-		}
+		//for _, g := range gates {
+		//	fmt.Printf("\n %v", g)
+		//}
 
 		fmt.Println("\n generating ER1CS")
 		r1cs := program.GatesToR1CS(gates, true)
-		r1csSparse := program.GatesToSparseR1CS(gates, true)
+		//r1csSparse := program.GatesToSparseR1CS(gates, true)
 		//transposedR1csSparse := r1csSparse.TransposeSparse()
 		trasposedR1Cs := r1cs.Transpose()
 		fmt.Println(r1cs.L)
@@ -46,7 +46,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		//fmt.Println(e)
 		//fmt.Println(o)
 
-		setup, err := GenerateTrustedSetup(utils.Field, len(r1cs.L[0]), len(r1cs.L), 2, l, r, e, o)
+		setup, err := GenerateTrustedSetup(program.GlobalInputCount(), l, r, e, o)
 		assert.NoError(t, err)
 
 		for _, io := range test.IO {
@@ -54,14 +54,14 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
 
 			assert.NoError(t, err)
-			wsparse, werr := circuitcompiler.CalculateSparseWitness(r1csSparse, inputs)
-			assert.NoError(t, werr)
+			//wsparse, werr := circuitcompiler.CalculateSparseWitness(r1csSparse, inputs)
+			//assert.NoError(t, werr)
 
 			fmt.Println("input")
 			fmt.Println(inputs)
 			fmt.Println("witness")
 			fmt.Println(w)
-			fmt.Println(wsparse)
+			//fmt.Println(wsparse)
 			//assert.Equal(t, io.result, w[len(w)-1])
 			// CombineSparsePolynomials(program.Fields, w, transposedR1csSparse)
 			mf, px := CombinePolynomials2(w, trasposedR1Cs)
@@ -91,7 +91,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			assert.Equal(t, pf.Add(pf.Mul(LVec, RVec), mf), pf.Add(OVec, pf.Mul(Qx, setup.Pk.Domain)))
 
 			before := time.Now()
-			proof, err := GenerateProofs(utils.Field, len(r1cs.L[0]), 2, &setup.Pk, w, px)
+			proof, err := GenerateProofs(program.GlobalInputCount(), &setup.Pk, w, px)
 			{
 				x, _ := utils.Field.CurveOrderField.Rand()
 
@@ -112,9 +112,9 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 			fmt.Println("proof generation time elapsed:", time.Since(before))
 			assert.Nil(t, err)
 			before = time.Now()
-			assert.True(t, VerifyProof(&setup.Pk, proof, w[:3], true))
+			assert.True(t, VerifyProof(&setup.Pk, proof, w[:program.GlobalInputCount()], true))
 			fmt.Println("verify proof time elapsed:", time.Since(before))
-			fmt.Println(proof)
+			fmt.Println("Proof Elements: ", proof)
 		}
 
 	}
