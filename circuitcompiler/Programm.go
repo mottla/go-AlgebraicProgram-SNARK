@@ -4,73 +4,68 @@ import (
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
 	"math/big"
-	"sort"
 )
 
 type gateContainer struct {
 	orderedmGates    []*Gate
-	computedFactors  map[Token]MultiplicationGateSignature
-	splittedElements map[Token][]uint
+	computedFactors  map[string]bool
+	splittedElements map[string][]uint
 }
 
 func newGateContainer() *gateContainer {
 	return &gateContainer{
 		orderedmGates:    []*Gate{},
-		computedFactors:  make(map[Token]MultiplicationGateSignature),
-		splittedElements: map[Token][]uint{}, //the array stores the indices of the zeroOrOne check gates
+		computedFactors:  make(map[string]bool),
+		splittedElements: map[string][]uint{}, //the array stores the indices of the zeroOrOne check gates
 	}
 }
 
-func (g *gateContainer) appendFactors(f factors) {
-	if f == nil {
+func (g *gateContainer) completeFunction(f factors) {
+
+	//if len f is 1, we can simpl
+	if f == nil || len(f) == 0 {
 		return
 	}
-	for _, fac := range f {
-		for _, k := range g.orderedmGates {
-			if k.value.identifier.Identifier == fac.typ.Identifier {
-				k.output = utils.Field.ArithmeticField.Inverse(fac.multiplicative)
-			}
-		}
+	//if the function {..return x*1} , we dont introduce a new gate, as knowledge proof of a multiplication with 1 is trivial and not necessary
+	if len(f) == 1 && f[0].multiplicative.Cmp(bigOne) == 0 {
+		return
 	}
+	//the function returned but had a extracted constant
+	// example
+	//main (x,y){
+	//var x = y*y*3
+	//return 4*x }
+	// x will be set as y*y, and the 3 will be stored aside. each time we access x, we include the 3
+	// if we now return, we get the factor 12. we expect the prover to perform the computation x*12
+	// Note that some optimization still could be done here. if a gate is not used by others, we could multiply the factor into it
+	// insteead of creating a new addition gate
+	rootGate := &Gate{
+		gateType:   additionGate,
+		identifier: f.factorSignature(),
+		leftIns:    f,
+		outIns: factors{&factor{
+			typ: Token{
+				Type:       ARGUMENT,
+				Identifier: f.factorSignature(),
+			},
+			multiplicative: bigOne,
+		}},
+	}
+	g.Add(rootGate)
+
 }
 
-func (g *gateContainer) contains(tok Token) (MultiplicationGateSignature, bool) {
-	val, ex := g.computedFactors[tok]
-	return val, ex
+func (g *gateContainer) contains(tok string) bool {
+	_, ex := g.computedFactors[tok]
+	return ex
 }
-
-//func (g *gateContainer) Insert(l, r, e, o factors, identifier Token, gt gateType) {
-//
-//	sort.Sort(l)
-//	sort.Sort(r)
-//	sort.Sort(e)
-//	sort.Sort(o)
-//
-//	h := new(big.Int).Mul(hashToBig(l), hashToBig(r))
-//	h = h.Add(h, hashToBig(e))
-//	h = h.Add(h, hashToBig(o))
-//
-//	rootGate := &Gate{
-//		gateType: gt,
-//		value:    MultiplicationGateSignature{identifier: identifier, commonExtracted: bigOne},
-//		leftIns:  l,
-//		rightIns: r,
-//		expoIns:  e,
-//		outIns:   o,
-//		output:   bigOne,
-//	}
-//	if _, ex := g.computedFactors[h.String()[:16]]; !ex {
-//		g.computedFactors[gate.value.identifier] = gate.value
-//		g.orderedmGates = append(g.orderedmGates, gate)
-//	}
-//}
 
 func (g *gateContainer) Add(gate *Gate) (wasAlredyAdded bool) {
 	wasAlredyAdded = true
 
-	var find = func(a MultiplicationGateSignature) uint {
+	var find = func(a string) uint {
 		for i := len(g.orderedmGates) - 1; i >= 0; i-- {
-			if g.orderedmGates[i].value == a {
+			if g.orderedmGates[i].identifier == a {
 				return uint(i)
 			}
 		}
@@ -78,19 +73,21 @@ func (g *gateContainer) Add(gate *Gate) (wasAlredyAdded bool) {
 	}
 
 	if gate.gateType == sumCheckGate {
-		g.splittedElements[gate.value.identifier] = []uint{}
+		g.splittedElements[gate.identifier] = []uint{}
 		gate.gateType = additionGate
 	}
-	if _, ex := g.computedFactors[gate.value.identifier]; !ex {
-		g.computedFactors[gate.value.identifier] = gate.value
+
+	if _, ex := g.computedFactors[gate.identifier]; !ex {
+		g.computedFactors[gate.identifier] = true
 		g.orderedmGates = append(g.orderedmGates, gate)
 		wasAlredyAdded = false
 	}
+
 	if gate.gateType == zeroOrOneGate {
-		if _, ex := g.computedFactors[gate.value.identifier]; !ex {
+		if _, ex := g.computedFactors[gate.identifier]; !ex {
 			panic("err")
 		}
-		g.splittedElements[gate.value.identifier] = append(g.splittedElements[gate.value.identifier], find(gate.value))
+		g.splittedElements[gate.identifier] = append(g.splittedElements[gate.identifier], find(gate.identifier))
 	}
 
 	return
@@ -160,7 +157,7 @@ func (p *Program) ReduceCombinedTree() (orderedmGates *gateContainer) {
 
 	for i := 0; i < mainCircuit.taskStack.len(); i++ {
 		f, _, returns := mainCircuit.compile(mainCircuit.taskStack.data[i], container)
-		container.appendFactors(f)
+		container.completeFunction(f)
 		if returns {
 			break
 		}
@@ -339,7 +336,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			}
 
 			//hmm what is this actually good for
-			//sig := hashToBig(in).String()[:16]
+			//sig := hashFactorsToBig(in).String()[:16]
 
 			//get the number N of bits needed to represent an arbitrary element of the finite field
 			N := utils.Field.ArithmeticField.Q.BitLen()
@@ -357,28 +354,26 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				}
 				zeroOrOneGate := &Gate{
 					gateType:                zeroOrOneGate,
-					value:                   MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
-					output:                  bigOne,
+					identifier:              nTok.Identifier,
 					arithmeticRepresentatnt: in[0].typ,
 				}
 				gateCollector.Add(zeroOrOneGate)
 				sum[i] = &factor{
 					typ:            nTok,
-					invert:         false,
 					multiplicative: new(big.Int).Lsh(bigOne, uint(i)),
 				}
 				// we need to add the bits during precompilations so we can access them like from an array
 				//	currentCircuit.constraintMap
 			}
 			//add the sum constraint \sum Z_i 2^i = Z to ensure that the Zi are the bit representation of Z
+
 			sumgate := &Gate{
 				gateType:    sumCheckGate,
-				value:       MultiplicationGateSignature{identifier: in[0].typ, commonExtracted: bigOne},
-				output:      bigOne,
+				identifier:  in[0].typ.Identifier,
 				leftIns:     sum,
 				noNewOutput: true,
 			}
-			//cConstraint[indexMap[g.value.identifier.Identifier]] = g.output
+			//cConstraint[indexMap[g.value.identifier.Identifier]] = g.extractedConstants
 			gateCollector.Add(sumgate)
 			return nil, false, false
 		case "AND":
@@ -389,7 +384,6 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			//rightClone := currentConstraint.Inputs[1].clone()
 			//leftFactors, _, _ := currentCircuit.compile(leftClone, gateCollector)
 			//rightFactors, _, _ := currentCircuit.compile(rightClone, gateCollector)
-
 		case "NAND":
 		case "OR":
 		case "NOT":
@@ -401,48 +395,38 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			rightClone := currentConstraint.Inputs[1].clone()
 			leftFactors, _, _ := currentCircuit.compile(leftClone, gateCollector)
 			rightFactors, _, _ := currentCircuit.compile(rightClone, gateCollector)
-			sig, _, _ := extractConstant(leftFactors, rightFactors)
-
-			nTok := Token{
-				Type:       ARGUMENT,
-				Identifier: sig.identifier.Identifier,
-			}
+			sig, extractedLeft, extractedRight := extractConstant(leftFactors, rightFactors)
 
 			rootGate := &Gate{
-				gateType: additionGate,
-				value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
-				leftIns:  addFactors(leftFactors, rightFactors),
-				output:   bigOne,
+				gateType:   additionGate,
+				identifier: sig.identifier.Identifier,
+				leftIns:    addFactors(extractedLeft, extractedRight),
+				outIns: factors{&factor{
+					typ:            sig.identifier,
+					multiplicative: bigOne,
+				}},
 			}
 			gateCollector.Add(rootGate)
 			return factors{&factor{
-				typ:            nTok,
-				multiplicative: bigOne,
+				typ:            sig.identifier,
+				multiplicative: sig.commonExtracted,
 			}}, true, false
 		case "scalarBaseMultiply":
 			if len(currentConstraint.Inputs) != 1 {
 				panic("scalarBaseMultiply argument missmatch")
 			}
-			secretFactors, _, _ := currentCircuit.compile(currentConstraint.Inputs[0], gateCollector)
-
-			sort.Sort(secretFactors)
-			sig := hashToBig(secretFactors).String()[:16]
-
-			nTok := Token{
-				Type:       ARGUMENT,
-				Identifier: sig,
-			}
+			exponentInputFactors, _, _ := currentCircuit.compile(currentConstraint.Inputs[0], gateCollector)
+			sig, _ := extractGCD_andSignature(exponentInputFactors)
 
 			rootGate := &Gate{
-				gateType: scalarBaseMultiplyGate,
-				value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
-				expoIns:  secretFactors,
-				output:   bigOne,
+				gateType:   scalarBaseMultiplyGate,
+				identifier: sig.identifier.Identifier,
+				expoIns:    exponentInputFactors,
 			}
 			gateCollector.Add(rootGate)
 
 			return factors{&factor{
-				typ:            nTok,
+				typ:            sig.identifier,
 				multiplicative: bigOne,
 			}}, true, false
 		case "equal":
@@ -456,17 +440,13 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 
 			//couldnt this be confused with extraction of common additon
 			sig, _, _ := extractConstant(leftFactors, rightFactors)
-			nTok := Token{
-				Type:       ARGUMENT,
-				Identifier: sig.identifier.Identifier,
-			}
+			nTok := sig.identifier
 
 			rootGate := &Gate{
 				gateType:    equalityGate,
-				value:       MultiplicationGateSignature{identifier: nTok, commonExtracted: bigOne},
+				identifier:  nTok.Identifier,
 				leftIns:     leftFactors,
 				rightIns:    rightFactors,
-				output:      bigOne,
 				noNewOutput: true,
 			}
 			gateCollector.Add(rootGate)
@@ -518,7 +498,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 					nextCircuit.rereferenceFunctionInputs(old)
 					return f, varend, true
 				}
-				gateCollector.appendFactors(f)
+				gateCollector.completeFunction(f)
 			}
 			nextCircuit.rereferenceFunctionInputs(old)
 			return nil, false, false
@@ -527,10 +507,12 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 	}
 
 	if len(currentConstraint.Inputs) == 3 {
+
+		var leftFactors, rightFactors, outFactors factors
 		left := currentConstraint.Inputs[1]
 		right := currentConstraint.Inputs[2]
 		operation := currentConstraint.Inputs[0].Output
-		var leftFactors, rightFactors factors
+
 		var variableAtLeftEnd, variableAtRightEnd bool
 
 		switch operation.Type {
@@ -553,7 +535,15 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			case "/":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
-				leftFactors = invertFactors(leftFactors)
+				inverted := invertFactors(rightFactors)
+				if inverted.bitComplexity() > rightFactors.bitComplexity() {
+					tmp := leftFactors
+					aConstraint = cConstraint
+					cConstraint = tmp
+					break
+				}
+				rightFactors = inverted
+
 				break
 			case "-":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
@@ -573,24 +563,23 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		}
 
 		sig, newLef, newRigh := extractConstant(leftFactors, rightFactors)
-
-		nTok := Token{
-			Type:       ARGUMENT,
-			Identifier: sig.identifier.Identifier,
-		}
+		nTok := sig.identifier
 		rootGate := &Gate{
-			gateType: multiplicationGate,
-			value:    MultiplicationGateSignature{identifier: nTok, commonExtracted: sig.commonExtracted},
-			leftIns:  newLef,
-			rightIns: newRigh,
-			output:   big.NewInt(int64(1)),
+			gateType:   multiplicationGate,
+			identifier: nTok.Identifier,
+			leftIns:    newLef,
+			rightIns:   newRigh,
+			outIns: factors{&factor{
+				typ:            nTok,
+				multiplicative: bigOne,
+			}},
 		}
 
 		gateCollector.Add(rootGate)
 
 		return factors{{typ: nTok, multiplicative: sig.commonExtracted}}, true, currentConstraint.Output.Type == RETURN
 	}
-
+	fmt.Sprintf("sadf")
 	panic(currentConstraint)
 }
 
@@ -616,18 +605,18 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 			//size = size - 1
 			continue
 		}
-		if _, ex := indexMap[v.value.identifier.Identifier]; !ex {
-			indexMap[v.value.identifier.Identifier] = uint(len(indexMap))
+		if _, ex := indexMap[v.identifier]; !ex {
+			indexMap[v.identifier] = uint(len(indexMap))
 
 		} else {
-			panic(fmt.Sprintf("rewriting %v ", v.value))
+			panic(fmt.Sprintf("rewriting %v ", v.identifier))
 		}
 		//we store where a variables bit representatives are
 		if v.gateType == zeroOrOneGate {
 			if _, ex := r1CS.splitmap[v.arithmeticRepresentatnt.Identifier]; !ex {
-				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = []uint{indexMap[v.value.identifier.Identifier]}
+				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = []uint{indexMap[v.identifier]}
 			} else {
-				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = append(r1CS.splitmap[v.arithmeticRepresentatnt.Identifier], indexMap[v.value.identifier.Identifier])
+				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = append(r1CS.splitmap[v.arithmeticRepresentatnt.Identifier], indexMap[v.identifier])
 			}
 		}
 	}
@@ -664,15 +653,15 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 			for _, val := range g.rightIns {
 				insertValue(val, bConstraint)
 			}
-			cConstraint[indexMap[g.value.identifier.Identifier]] = g.output
+
+			for _, val := range g.outIns {
+				insertValue(val, cConstraint)
+			}
+
+			//cConstraint[indexMap[g.identifier]] = g.extractedConstants
 
 			//cConstraint[indexMap[g.value.identifier]] = big.NewInt(int64(1))
 
-			if g.rightIns[0].invert {
-				tmp := aConstraint
-				aConstraint = cConstraint
-				cConstraint = tmp
-			}
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
@@ -688,7 +677,7 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 				insertValue(val, eConstraint)
 			}
 
-			cConstraint[indexMap[g.value.identifier.Identifier]] = big.NewInt(int64(1))
+			cConstraint[indexMap[g.identifier]] = big.NewInt(int64(1))
 
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
@@ -724,8 +713,8 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 			cConstraint := utils.ArrayOfBigZeros(size)
 
 			aConstraint[0] = big.NewInt(int64(-1))
-			aConstraint[indexMap[g.value.identifier.Identifier]] = big.NewInt(int64(1))
-			bConstraint[indexMap[g.value.identifier.Identifier]] = big.NewInt(int64(1))
+			aConstraint[indexMap[g.identifier]] = big.NewInt(int64(1))
+			bConstraint[indexMap[g.identifier]] = big.NewInt(int64(1))
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
@@ -741,7 +730,9 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 				insertValue(val, aConstraint)
 			}
 			bConstraint[0] = big.NewInt(int64(1))
-			cConstraint[indexMap[g.value.identifier.Identifier]] = g.output
+			for _, val := range g.outIns {
+				insertValue(val, cConstraint)
+			}
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
@@ -794,18 +785,18 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 			//size = size - 1
 			continue
 		}
-		if _, ex := indexMap[v.value.identifier.Identifier]; !ex {
-			indexMap[v.value.identifier.Identifier] = uint(len(indexMap))
+		if _, ex := indexMap[v.identifier]; !ex {
+			indexMap[v.identifier] = uint(len(indexMap))
 		} else {
-			panic(fmt.Sprintf("rewriting %v ", v.value))
+			panic(fmt.Sprintf("rewriting %v ", v.identifier))
 		}
 
 		//we store where a variables bit representatives are
 		if v.gateType == zeroOrOneGate {
 			if _, ex := r1CS.splitmap[v.arithmeticRepresentatnt.Identifier]; !ex {
-				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = []uint{(indexMap[v.value.identifier.Identifier])}
+				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = []uint{(indexMap[v.identifier])}
 			} else {
-				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = append(r1CS.splitmap[v.arithmeticRepresentatnt.Identifier], (indexMap[v.value.identifier.Identifier]))
+				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = append(r1CS.splitmap[v.arithmeticRepresentatnt.Identifier], (indexMap[v.identifier]))
 			}
 		}
 	}
@@ -840,15 +831,11 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 			for _, val := range g.rightIns {
 				insertValue(val, bConstraint)
 			}
-			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), g.output)
 
-			//cConstraint[indexMap[g.value.identifier]] = big.NewInt(int64(1))
-
-			if g.rightIns[0].invert {
-				tmp := aConstraint
-				aConstraint = cConstraint
-				cConstraint = tmp
+			for _, val := range g.outIns {
+				insertValue(val, cConstraint)
 			}
+
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
@@ -864,7 +851,10 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 				insertValue(val, aConstraint)
 			}
 			bConstraint.Insert(uint(0), big.NewInt(int64(1)))
-			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), big.NewInt(int64(1)))
+
+			for _, val := range g.outIns {
+				insertValue(val, cConstraint)
+			}
 
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
@@ -881,7 +871,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 				insertValue(val, eConstraint)
 			}
 
-			cConstraint.Insert(uint(indexMap[g.value.identifier.Identifier]), big.NewInt(int64(1)))
+			cConstraint.Insert(uint(indexMap[g.identifier]), big.NewInt(int64(1)))
 
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
@@ -896,8 +886,8 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 			cConstraint := utils.NewAvlTree()
 
 			aConstraint.Insert(0, big.NewInt(int64(-1)))
-			aConstraint.Insert(indexMap[g.value.identifier.Identifier], big.NewInt(int64(1)))
-			bConstraint.Insert(indexMap[g.value.identifier.Identifier], big.NewInt(int64(1)))
+			aConstraint.Insert(indexMap[g.identifier], big.NewInt(int64(1)))
+			bConstraint.Insert(indexMap[g.identifier], big.NewInt(int64(1)))
 			r1CS.L = append(r1CS.L, aConstraint)
 			r1CS.R = append(r1CS.R, bConstraint)
 			r1CS.E = append(r1CS.E, eConstraint)
@@ -926,11 +916,8 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 			break
 		default:
 			panic("no supported gate type")
-
 		}
-
 	}
-
 	if randomize {
 		//randomizer gate
 		aConstraint := utils.NewAvlTree()

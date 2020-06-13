@@ -23,10 +23,10 @@ var TestPrograms = []TraceCorrectnessTest{
 			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(4))},
 		}},
 		Code: `
-func main(x,y){
-	SPLIT(y*x*x)
-	var v = x*x
-	return
+func main(x,y){	
+	var a = (3)*x*x
+	var c= (a+4)*y*(4)
+	return a+c
 }
 
 `},
@@ -40,7 +40,7 @@ func main(x,y){
 #import "/github.com/mottla/go-AlgebraicProgram-SNARK/utils/basicOperations"
 
 func main(x){
-	return (1/fubunaci(8,x))
+	return (1*fubunaci(8,x))
 }
 
 func fubunaci(a,v){
@@ -62,7 +62,7 @@ func fubunaci(a,v){
 
 		Code: `
 func main(x){
-	return (1/fubunaci(8,x))*(x*x)
+	return (1*fubunaci(8,x))*(x*x)
 }
 
 func fubunaci(a,v){
@@ -84,7 +84,7 @@ func fubunaci(a,v){
 
 		Code: `
 func main(x,y,z){
-	return mul(add(mul(x,y),z)-132,z)
+	return mul(add(mul(x,y),z)+132,z)
 }
 
 func mul(a,b){

@@ -421,8 +421,8 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 				Identifier: combineString(r),
 			}
 			c2 := &Constraint{Output: tok}
-			constraint.Inputs = append(constraint.Inputs, c2)
 			p.parseExpression(l, constraint)
+			constraint.Inputs = append(constraint.Inputs, c2)
 			p.parseExpression(r, c2)
 			return
 		}

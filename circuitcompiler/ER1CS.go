@@ -183,15 +183,6 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 		}
 		outKnowns, outUnknowns := getKnownsAndUnknowns(gatesOutputs)
 
-		//equality gate
-		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) == 0 {
-			result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
-			if result.Cmp(sum(outKnowns)) != 0 {
-				return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
-			}
-
-		}
-
 		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) > 1 {
 			return nil, errors.New(fmt.Sprintf("at gate %v:computing more then one unknown in Gate assignment is not possible", i))
 		}
@@ -240,6 +231,22 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 			set[outUnknowns[0]] = true
 			witness[outUnknowns[0]] = result
 			continue
+		}
+		//we computed the unkown and now check if the ER1C is satisfied
+		leftKnowns, leftUnknowns = getKnownsAndUnknowns(gatesLeftInputs)
+		rightKnowns, rightUnknowns = getKnownsAndUnknowns(gatesRightInputs)
+		exponentKnowns, exponentUnknowns = getKnownsAndUnknowns(gatesExpInputs)
+		outKnowns, outUnknowns = getKnownsAndUnknowns(gatesOutputs)
+
+		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns)+len(exponentUnknowns) != 0 {
+			return nil, errors.New(fmt.Sprintf("at gate %v some unknowns remain", i))
+
+		}
+		//now check if the gate is satisfiable
+		result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+		result = utils.Field.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
+		if result.Cmp(sum(outKnowns)) != 0 {
+			return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
 		}
 
 	}
@@ -396,6 +403,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 		}
 		//now check if the gate is satisfiable
 		result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+		result = utils.Field.ArithmeticField.Add(result, new(bn256.G1).ScalarBaseMult(sum(exponentKnowns)).X())
 		if result.Cmp(sum(outKnowns)) != 0 {
 			return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
 		}

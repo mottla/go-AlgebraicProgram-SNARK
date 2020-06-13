@@ -18,7 +18,6 @@ type factors []*factor
 
 type factor struct {
 	typ            Token
-	invert         bool
 	multiplicative *big.Int
 }
 
@@ -40,16 +39,14 @@ func (f factors) Less(i, j int) bool {
 func (f factor) String() string {
 
 	str := f.typ.Identifier
-	if f.invert {
-		str += "^-1"
-	}
+
 	return fmt.Sprintf("(\"%s\"  fac: %v)", str, f.multiplicative)
 }
 
 func (f factors) clone() (res factors) {
 	res = make(factors, len(f))
 	for k, v := range f {
-		res[k] = &factor{multiplicative: new(big.Int).Set(v.multiplicative), typ: v.typ, invert: v.invert}
+		res[k] = &factor{multiplicative: new(big.Int).Set(v.multiplicative), typ: v.typ}
 	}
 	return
 }
@@ -68,12 +65,22 @@ func extractGCD(f factors) (factors, *big.Int) {
 
 }
 
-func hashToBig(f factors) *big.Int {
+func hashFactorsToBig(f factors) *big.Int {
 	sha := sha256.New()
 	for _, fac := range f {
 		sha.Write([]byte(fac.String()))
 	}
 	return new(big.Int).SetBytes(sha.Sum(nil))
+}
+
+func (fac factors) factorSignature() string {
+	h := hashFactorsToBig(fac)
+	return h.String()[:16]
+}
+
+func extractGCD_andSignature(leftFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors factors) {
+	mulL, facL := factorSignature(leftFactors)
+	return MultiplicationGateSignature{identifier: Token{Type: ARGUMENT, Identifier: facL.factorSignature()}, commonExtracted: mulL}, facL
 }
 
 func extractConstant(leftFactors, rightFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors, extractedRightFactors factors) {
@@ -86,22 +93,28 @@ func extractConstant(leftFactors, rightFactors factors) (sig MultiplicationGateS
 	//since we use a cryptographic hash, addition is save enough e.g. collisions are very unlikely
 	mul := append(facL, facR...)
 	sort.Sort(mul)
-	hash := hashToBig(mul)
 
 	res := field.Mul(mulL, mulR)
 
-	return MultiplicationGateSignature{identifier: Token{Identifier: hash.String()[:16]}, commonExtracted: res}, facL, facR
+	return MultiplicationGateSignature{identifier: Token{Type: ARGUMENT, Identifier: mul.factorSignature()}, commonExtracted: res}, facL, facR
 }
 
-func factorSignature(rightFactors factors) (gcd *big.Int, extractedRightFactors factors) {
-	rightFactors = rightFactors.clone()
-	rightFactors, gcd = extractGCD(rightFactors)
-	sort.Sort(rightFactors)
-	return gcd, rightFactors
+func factorSignature(facs factors) (gcd *big.Int, extractedRightFactors factors) {
+	facs = facs.clone()
+	facs, gcd = extractGCD(facs)
+	sort.Sort(facs)
+	return gcd, facs
+}
+
+func (fact factors) scalarMultiplyFactors(x *big.Int) (result factors) {
+	for _, left := range fact {
+		left.multiplicative = field.Mul(left.multiplicative, x)
+	}
+	return fact
 }
 
 //multiplies factor elements and returns the result
-//in case the factors do not hold any constants and all inputs are distinct, the output will be the concatenation of left+right
+//in case the factors do not hold any constants and all inputs are distinct, the extractedConstants will be the concatenation of left+right
 func mulFactors(leftFactors, rightFactors factors) (result factors) {
 
 	if len(leftFactors) < len(rightFactors) {
@@ -115,12 +128,12 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 		for _, right := range rightFactors {
 
 			if left.typ.Type == NumberToken && right.typ.Type&IN != 0 {
-				leftFactors[i] = &factor{typ: right.typ, invert: right.invert, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: right.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if left.typ.Type&IN != 0 && right.typ.Type == NumberToken {
-				leftFactors[i] = &factor{typ: left.typ, invert: left.invert, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: left.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
@@ -133,25 +146,21 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 			//tricky part here
 			//this one should only be reached, after a true multiplicationGate had its left and right braches computed. here we
 			//a factor can appear at most in quadratic form. we reduce terms a*a^-1 here.
-			if right.typ.Type&left.typ.Type&IN != 0 {
-				if left.typ.Identifier == right.typ.Identifier {
-					if right.invert != left.invert {
-						leftFactors[i] = &factor{typ: Token{Type: NumberToken}, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
-						continue
-					}
-				}
-
-				//rightFactors[i] = factor{typ: CONST, negate: Xor(facRight.negate, facLeft.negate), multiplicative: mul2DVector(facRight.multiplicative, facLeft.multiplicative)}
-				//continue
-
-			}
-			fmt.Println("")
+			//if right.typ.Type&left.typ.Type&IN != 0 {
+			//	if left.typ.Identifier == right.typ.Identifier {
+			//		if right.invert != left.invert {
+			//			leftFactors[i] = &factor{typ: Token{Type: NumberToken}, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
+			//			continue
+			//		}
+			//	}
+			//
+			//	//rightFactors[i] = factor{typ: CONST, negate: Xor(facRight.negate, facLeft.negate), multiplicative: mul2DVector(facRight.multiplicative, facLeft.multiplicative)}
+			//	//continue
+			//
+			//}
 			panic("unexpected. If this errror is thrown, its probably brcause a true multiplication Gate has been skipped and treated as on with constant multiplication or addition ")
-
 		}
-
 	}
-
 	return leftFactors
 }
 
@@ -219,7 +228,6 @@ func addFactors(leftFactors, rightFactors factors) factors {
 				Type:       NumberToken,
 				Identifier: "0",
 			},
-			invert:         false,
 			multiplicative: bigZero,
 		}}
 	}
@@ -234,10 +242,17 @@ func negateFactors(leftFactors factors) factors {
 	}
 	return leftFactors
 }
+func (fac factors) bitComplexity() (res int) {
+	for _, i := range fac {
+		res += i.multiplicative.BitLen()
+	}
+	return res
+}
+
 func invertFactors(leftFactors factors) factors {
+	leftFactors = leftFactors.clone()
 	for i := range leftFactors {
 		leftFactors[i].multiplicative = field.Inverse(leftFactors[i].multiplicative)
-		leftFactors[i].invert = !leftFactors[i].invert
 		if leftFactors[i].typ.Type == NumberToken {
 			leftFactors[i].typ.Identifier = leftFactors[i].multiplicative.String()
 		}
