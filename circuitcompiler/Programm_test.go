@@ -31,12 +31,12 @@ func TestCorrectness(t *testing.T) {
 		//}
 
 		fmt.Println("\n generating ER1CS")
-		r1cs := program.GatesToR1CS(gates, false)
-		r1csSparse := program.GatesToSparseR1CS(gates, false)
-		fmt.Println(r1cs.L)
-		fmt.Println(r1cs.R)
-		fmt.Println(r1cs.E)
-		fmt.Println(r1cs.O)
+		r1cs := program.GatesToR1CS(gates.orderedmGates, false)
+		r1csSparse := program.GatesToSparseR1CS(gates.orderedmGates, false)
+		fmt.Println(r1csSparse.L)
+		fmt.Println(r1csSparse.R)
+		fmt.Println(r1csSparse.E)
+		fmt.Println(r1csSparse.O)
 
 		//fmt.Println(r1csSparse.L)
 		//fmt.Println(r1csSparse.R)

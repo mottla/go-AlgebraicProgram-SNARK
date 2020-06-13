@@ -3,30 +3,32 @@ package circuitcompiler
 import (
 	"errors"
 	"fmt"
-	"github.com/go-ethereum/common/math"
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
+	"math"
 	"math/big"
 )
 
 var randInput, randOutput = "1@randomIn", "1@randomOut"
 
 type ER1CS struct {
-	indexMap map[string]int
+	indexMap map[string]uint
+	splitmap map[string][]uint
 	L        [][]*big.Int
 	R        [][]*big.Int
 	E        [][]*big.Int
 	O        [][]*big.Int
 }
 type ER1CSSparse struct {
-	indexMap map[string]int
+	indexMap map[string]uint
+	splitmap map[string][]uint
 	L        []*utils.AvlTree
 	R        []*utils.AvlTree
 	E        []*utils.AvlTree
 	O        []*utils.AvlTree
 }
 type ER1CSsPARSETransposed struct {
-	indexMap map[string]int
+	indexMap map[string]uint
 	MaxKey   int
 	L        []*utils.AvlTree
 	R        []*utils.AvlTree
@@ -34,7 +36,7 @@ type ER1CSsPARSETransposed struct {
 	O        []*utils.AvlTree
 }
 type ER1CSTransposed struct {
-	indexMap map[string]int
+	indexMap map[string]uint
 	L        [][]*big.Int
 	R        [][]*big.Int
 	E        [][]*big.Int
@@ -107,8 +109,8 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
-	//witness[0] = big.NewInt(int64(1))
-	//set[0] = true
+	witness[0] = big.NewInt(int64(1))
+	set[0] = true
 
 	if r1cs.indexMap[randInput] != 0 {
 		rnd, rnderr := utils.Field.CurveOrderField.Rand()
@@ -124,6 +126,22 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 		set[r1cs.indexMap[v.identifier]] = true
 	}
 
+	//inverseSplitmap maps each bit index onto (bitposition,positionOfFather)
+	inverseSplitmap := make(map[uint][]uint)
+	// all inputs, which get split into bits at some point, are now added to the witnesstrace
+	for k, v := range r1cs.splitmap {
+		if set[r1cs.indexMap[k]] {
+			for bitPos, zGateIndex := range v {
+				witness[zGateIndex] = big.NewInt(int64(witness[r1cs.indexMap[k]].Bit(bitPos)))
+				set[zGateIndex] = true
+			}
+		}
+		for bitpos, zGateIndex := range v {
+			inverseSplitmap[zGateIndex] = []uint{uint(bitpos), r1cs.indexMap[k]}
+		}
+
+	}
+
 	zero := big.NewInt(int64(0))
 
 	getKnownsAndUnknowns := func(array []*big.Int) (knowns []*big.Int, unknownsAtIndices []int) {
@@ -131,6 +149,13 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 		for j, val := range array {
 			if val.Cmp(zero) != 0 {
 				if !set[j] {
+					if bitPosAndFather, exists := inverseSplitmap[uint(j)]; exists {
+						bit := big.NewInt(int64(witness[bitPosAndFather[1]].Bit(int(bitPosAndFather[0]))))
+						witness[j] = bit
+						set[j] = true
+						knowns[j] = bit
+						continue
+					}
 					unknownsAtIndices = append(unknownsAtIndices, j)
 				} else {
 					knowns[j] = val
@@ -245,12 +270,35 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 		set[r1cs.indexMap[v.identifier]] = true
 	}
 
+	//inverseSplitmap maps each bit index onto (bitposition,positionOfFather)
+	inverseSplitmap := make(map[uint][]uint)
+	// all inputs, which get split into bits at some point, are now added to the witnesstrace
+	for k, v := range r1cs.splitmap {
+		if set[r1cs.indexMap[k]] {
+			for bitPos, zGateIndex := range v {
+				witness[zGateIndex] = big.NewInt(int64(witness[r1cs.indexMap[k]].Bit(bitPos)))
+				set[zGateIndex] = true
+			}
+		}
+		for bitpos, zGateIndex := range v {
+			inverseSplitmap[zGateIndex] = []uint{uint(bitpos), r1cs.indexMap[k]}
+		}
+
+	}
+
 	zero := big.NewInt(int64(0))
 
 	getKnownsAndUnknowns := func(array *utils.AvlTree) (knowns *utils.AvlTree, unknownsAtIndices []uint) {
 		knowns = utils.NewAvlTree()
 		for val := range array.ChannelNodes(true) {
 			if !set[val.Key] {
+				if bitPosAndFather, exists := inverseSplitmap[val.Key]; exists {
+					bit := big.NewInt(int64(witness[bitPosAndFather[1]].Bit(int(bitPosAndFather[0]))))
+					witness[val.Key] = bit
+					set[val.Key] = true
+					knowns.Insert(val.Key, bit)
+					continue
+				}
 				unknownsAtIndices = append(unknownsAtIndices, val.Key)
 			} else {
 				knowns.Insert(val.Key, val.Value)
@@ -277,15 +325,6 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 		}
 		outKnowns, outUnknowns := getKnownsAndUnknowns(gatesOutputs)
 
-		//equality gate
-		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) == 0 {
-			result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
-			if result.Cmp(sum(outKnowns)) != 0 {
-				return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
-			}
-
-		}
-
 		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns) > 1 {
 			return nil, errors.New(fmt.Sprintf("at gate %v:computing more then one unknown in Gate assignment is not possible", i))
 		}
@@ -311,7 +350,6 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 			result = utils.Field.ArithmeticField.Div(result, v) //divide by a
 			set[leftUnknowns[0]] = true
 			witness[leftUnknowns[0]] = result
-			continue
 		}
 		// (a + b + c..) (d+e*x+..) + (G^(k+v..)) = (F+g+..)   we solve for x
 		if len(rightUnknowns) == 1 {
@@ -329,7 +367,6 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 			result = utils.Field.ArithmeticField.Div(result, v) //divide by a
 			set[rightUnknowns[0]] = true
 			witness[rightUnknowns[0]] = result
-			continue
 		}
 
 		// (a + b + c..) (d+e+..) + (G^(k+v..)) = (F+x*g+..)   we solve for x
@@ -345,7 +382,22 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 			result = utils.Field.ArithmeticField.Div(result, v) //divide by a
 			set[outUnknowns[0]] = true
 			witness[outUnknowns[0]] = result
-			continue
+		}
+
+		//we computed the unkown and now check if the ER1C is satisfied
+		leftKnowns, leftUnknowns = getKnownsAndUnknowns(gatesLeftInputs)
+		rightKnowns, rightUnknowns = getKnownsAndUnknowns(gatesRightInputs)
+		exponentKnowns, exponentUnknowns = getKnownsAndUnknowns(gatesExpInputs)
+		outKnowns, outUnknowns = getKnownsAndUnknowns(gatesOutputs)
+
+		if len(leftUnknowns)+len(rightUnknowns)+len(outUnknowns)+len(exponentUnknowns) != 0 {
+			return nil, errors.New(fmt.Sprintf("at gate %v some unknowns remain", i))
+
+		}
+		//now check if the gate is satisfiable
+		result := utils.Field.ArithmeticField.Mul(sum(rightKnowns), sum(leftKnowns))
+		if result.Cmp(sum(outKnowns)) != 0 {
+			return nil, errors.New(fmt.Sprintf("at equality gate %v there is unequality. %v != %v .We cannot process", i, result.String(), sum(outKnowns).String()))
 		}
 
 	}

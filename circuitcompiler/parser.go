@@ -5,68 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"io/ioutil"
 )
-
-// Constraint is the data structure of a flat code operation
-type Constraint struct {
-	Output Token
-	Inputs []*Constraint
-}
-
-func (c Constraint) String() string {
-	//fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
-	//if c.Output.Type == FUNCTION_CALL {
-	//	return fmt.Sprintf("|%v , %v|", c.Output, c.Inputs)
-	//}
-	return fmt.Sprintf("|%v|", c.Output)
-}
-func (c Constraint) MD5Signature() string {
-	md5 := md5.New()
-	c.idd(md5)
-	return string(md5.Sum(nil))
-}
-
-//clone returns a deep copy of c
-func (c *Constraint) clone() *Constraint {
-	in := make([]*Constraint, len(c.Inputs))
-	for i, cc := range c.Inputs {
-		in[i] = cc.clone()
-	}
-	return &Constraint{
-		Output: c.Output,
-		Inputs: in,
-	}
-}
-
-func (c Constraint) idd(h hash.Hash) {
-	h.Write([]byte(c.Output.String()))
-	for _, v := range c.Inputs {
-		v.idd(h)
-	}
-}
-
-func (c Constraint) PrintConstraintTree() string {
-	str := c.String()
-	for _, v := range c.Inputs {
-		str += v.PrintConstraintTree()
-	}
-	return str
-}
-
-//isDeterministicExpression takes a constraint and checks if all leaves are numbers.
-func isDeterministicExpression(c *Constraint) bool {
-	if c.Output.Type == NumberToken {
-		return true
-	}
-	if len(c.Inputs) == 0 {
-		return false
-	}
-	res := true
-	for _, v := range c.Inputs {
-		res = res && isDeterministicExpression(v)
-	}
-	return res
-}
 
 type Parser struct {
 	lexer          *Lexer
@@ -163,6 +103,19 @@ func (p *Parser) statementMode(tokens []Token) {
 	}
 
 	switch tokens[0].Type {
+	case IMPORT:
+		if len(tokens) == 1 || tokens[1].Type != IDENTIFIER_VARIABLE {
+			p.error("import failed")
+		}
+
+		dat, err := ioutil.ReadFile(tokens[1].Identifier)
+		if err != nil {
+			panic(err)
+		}
+		tmpParser := newParser(string(dat), false)
+		t := tmpParser.stackAllTokens()
+		//we glue em together, but remove the EOF from t first
+		p.statementMode(append(t[:len(t)-1], tokens[2:]...))
 	case FUNCTION_DEFINE:
 		toks := Tokens{toks: tokens}
 		var tok = toks.next() //func
@@ -335,8 +288,6 @@ func (p *Parser) statementMode(tokens []Token) {
 		p.constraintChan <- varConst
 		p.statementMode(r)
 		return
-		//}
-		p.error("missing assignment")
 	case VARIABLE_DECLARE:
 		l, r := splitTokensAtFirstString(tokens, "\n")
 		if r != nil && r[0].Identifier != "\n" {
@@ -802,4 +753,46 @@ func (p *Parser) cutAtSemiCol(in []Token) (cut []Token) {
 	}
 
 	return p.cutAtSemiCol(in[:len(in)-1])
+}
+
+// Constraint is the data structure of a flat code operation
+type Constraint struct {
+	Output Token
+	Inputs []*Constraint
+}
+
+func (c Constraint) String() string {
+	return fmt.Sprintf("|%v|", c.Output)
+}
+func (c Constraint) MD5Signature() string {
+	md5 := md5.New()
+	c.idd(md5)
+	return string(md5.Sum(nil))
+}
+
+//clone returns a deep copy of c
+func (c *Constraint) clone() *Constraint {
+	in := make([]*Constraint, len(c.Inputs))
+	for i, cc := range c.Inputs {
+		in[i] = cc.clone()
+	}
+	return &Constraint{
+		Output: c.Output,
+		Inputs: in,
+	}
+}
+
+func (c Constraint) idd(h hash.Hash) {
+	h.Write([]byte(c.Output.String()))
+	for _, v := range c.Inputs {
+		v.idd(h)
+	}
+}
+
+func (c Constraint) PrintConstraintTree() string {
+	str := c.String()
+	for _, v := range c.Inputs {
+		str += v.PrintConstraintTree()
+	}
+	return str
 }

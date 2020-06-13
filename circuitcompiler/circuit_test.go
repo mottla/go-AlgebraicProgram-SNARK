@@ -33,7 +33,7 @@ func TestPrintTree(t *testing.T) {
 
 		gates := program.ReduceCombinedTree()
 
-		for _, g := range gates {
+		for _, g := range gates.orderedmGates {
 			fmt.Printf("\n %v", g)
 		}
 

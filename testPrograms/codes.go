@@ -20,10 +20,25 @@ var TestPrograms = []TraceCorrectnessTest{
 	{
 		Skip: false,
 		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(4))},
+		}},
+		Code: `
+func main(x,y){
+	SPLIT(y*x*x)
+	var v = x*x
+	return
+}
+
+`},
+	{
+		Skip: false,
+		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(1))},
 		}},
 
 		Code: `
+#import "/github.com/mottla/go-AlgebraicProgram-SNARK/utils/basicOperations"
+
 func main(x){
 	return (1/fubunaci(8,x))
 }

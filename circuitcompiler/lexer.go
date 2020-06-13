@@ -83,6 +83,7 @@ func init() {
 		"else":   ELSE,
 		"for":    FOR,
 		"func":   FUNCTION_DEFINE,
+		"import": IMPORT,
 	}
 
 }
@@ -101,6 +102,7 @@ const (
 	BinaryComperatorToken
 	//UnaryOperatorToken
 	EOF
+	IMPORT
 	IDENTIFIER_VARIABLE
 	FUNCTION_DEFINE
 	FUNCTION_CALL
@@ -137,8 +139,8 @@ func (ch TokenType) String() string {
 		return "BitOperatorToken"
 	case BinaryComperatorToken:
 		return "BinaryComperatorToken"
-	//case	UnaryOperatorToken:
-	//	return "UnaryOperatorToken"
+	case IMPORT:
+		return "import"
 	case NESTED_STATEMENT_END:
 		return "For ends"
 	case SyntaxToken:
@@ -388,9 +390,22 @@ func IdentState(l *Lexer) StateFunc {
 
 	if isDigit(peek) {
 		return NumberState
-	} else if strings.ContainsRune(syntaxTokens, peek) {
+	}
+	if strings.ContainsRune(syntaxTokens, peek) {
 		l.Next()
 		l.Emit(SyntaxToken)
+		return ProbablyWhitespaceState
+	}
+
+	if peek == '"' {
+		l.Next()
+		l.Ignore()
+		for l.Peek() != '"' { // we read everything inside " ", used for import
+			l.Next()
+		}
+		l.Emit(IDENTIFIER_VARIABLE)
+		l.Next()
+		l.Ignore()
 		return ProbablyWhitespaceState
 	}
 

@@ -12,15 +12,21 @@ const (
 	scalarBaseMultiplyGate
 	equalityGate
 	additionGate
+	sumCheckGate
+	zeroOrOneGate
 )
 
 type Gate struct {
-	gateType gateType
-	value    MultiplicationGateSignature
-	leftIns  factors //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
-	rightIns factors
-	expoIns  factors
-	output   *big.Int
+	gateType    gateType
+	value       MultiplicationGateSignature
+	leftIns     factors //leftIns and RightIns after addition gates have been reduced. only multiplication gates remain
+	rightIns    factors
+	expoIns     factors
+	outIns      factors
+	output      *big.Int
+	noNewOutput bool
+	//only for yero or one gates. they carry the information
+	arithmeticRepresentatnt Token
 }
 
 func (g Gate) String() string {

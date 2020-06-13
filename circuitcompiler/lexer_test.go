@@ -13,7 +13,8 @@ func Test_LexerError2(t *testing.T) {
 	//	return  d `
 	//
 	code := `
-	def main( x  ,  z ) {
+import "asdf"
+	func main( x  ,  z ) {
 		if 3 < 4{
 		}
 		var a = func(x){return x}

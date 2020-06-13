@@ -1,8 +1,8 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
-	"github.com/timtadh/data-structures/errors"
 	"math/big"
 	"strings"
 	"sync"
@@ -294,7 +294,7 @@ func (self *AvlNode) Has(key uint) (has bool) {
 
 func (self *AvlNode) Get(key uint) (value *big.Int, err error) {
 	if self == nil {
-		return nil, errors.NotFound(key)
+		return nil, errors.New(fmt.Sprintf("not found %v", key))
 	}
 	if self.key == (key) {
 		return self.value, nil
@@ -427,7 +427,7 @@ func (self *AvlNode) Put(key uint, value *big.Int, insert func(old, new *big.Int
 
 func (self *AvlNode) Remove(key uint) (_ *AvlNode, value *big.Int, err error) {
 	if self == nil {
-		return nil, nil, errors.NotFound(key)
+		return nil, nil, errors.New(fmt.Sprintf("not found %v", key))
 	}
 
 	if self.key == (key) {
