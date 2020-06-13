@@ -1,0 +1,616 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="now supporting if -else if - else,&#10;moving pairing lib,">
+      <change afterPath="$PROJECT_DIR$/.idea/go-AlgebraicProgram-SNARK.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/basicOperations" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/circuit_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/circuit_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/gate.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/gate.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/lexer.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/lexer.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/lexer_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/lexer_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/parser.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/parser.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/testPrograms/codes.go" beforeDir="false" afterPath="$PROJECT_DIR$/testPrograms/codes.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/avl.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/avl.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/finiteField.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/finiteField.go" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_DATA_SOURCES" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <option name="HIDDEN_KINDS">
+      <set />
+    </option>
+    <expand />
+    <select />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
+  </component>
+  <component name="GOROOT" path="/usr/local/go" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/circuitcompiler/Programm_test.go" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="ProjectId" id="1Tl0IJ8ltNbY7ck0dleqcGjRijY" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="DefaultGoTemplateProperty" value="Go File" />
+    <property name="GO_FMT" value="true" />
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="configurable.Global.GOPATH.is.expanded" value="true" />
+    <property name="configurable.Module.GOPATH.is.expanded" value="false" />
+    <property name="configurable.Project.GOPATH.is.expanded" value="true" />
+    <property name="full.screen.before.presentation.mode" value="false" />
+    <property name="go.gopath.indexing.explicitly.defined" value="true" />
+    <property name="go.import.settings.migrated" value="true" />
+    <property name="go.sdk.automatically.set" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
+    <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="restartRequiresConfirmation" value="false" />
+    <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
+    <property name="settings.editor.selected.configurable" value="goland.project.structure" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/utils" />
+      <recent name="$PROJECT_DIR$/circuitcompiler" />
+      <recent name="$PROJECT_DIR$/circuitcompiler/fields" />
+      <recent name="$PROJECT_DIR$/zkSNARK" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/circuitcompiler" />
+      <recent name="$PROJECT_DIR$/circuitcompiler/pairing" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Go Test.TestCorrectness in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler">
+    <configuration name="go build github.com/mottla/go-AlgebraicProgram-SNARK" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
+      <module name="go-AlgebraicProgram-SNARK" />
+      <working_directory value="$PROJECT_DIR$/" />
+      <kind value="PACKAGE" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK" />
+      <directory value="$PROJECT_DIR$/" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestCorrectness in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-AlgebraicProgram-SNARK" />
+      <working_directory value="$PROJECT_DIR$/circuitcompiler" />
+      <framework value="gotest" />
+      <kind value="PACKAGE" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
+      <directory value="$PROJECT_DIR$/" />
+      <filePath value="$PROJECT_DIR$/" />
+      <pattern value="^TestCorrectness$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestGenerateAndVerifyProof in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-AlgebraicProgram-SNARK" />
+      <working_directory value="$PROJECT_DIR$/zkSNARK" />
+      <framework value="gotest" />
+      <kind value="PACKAGE" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
+      <directory value="$PROJECT_DIR$/" />
+      <filePath value="$PROJECT_DIR$/" />
+      <pattern value="^TestGenerateAndVerifyProof$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestPrintTree in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-AlgebraicProgram-SNARK" />
+      <working_directory value="$PROJECT_DIR$/circuitcompiler" />
+      <framework value="gotest" />
+      <kind value="PACKAGE" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
+      <directory value="$PROJECT_DIR$/" />
+      <filePath value="$PROJECT_DIR$/" />
+      <pattern value="^TestPrintTree$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="go test go-AlgebraicProgram-SNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-AlgebraicProgram-SNARK" />
+      <working_directory value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <kind value="DIRECTORY" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$/" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Go Test.TestCorrectness in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
+        <item itemvalue="Go Test.TestPrintTree in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
+        <item itemvalue="Go Test.go test go-AlgebraicProgram-SNARK" />
+        <item itemvalue="Go Test.TestGenerateAndVerifyProof in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
+        <item itemvalue="Go Build.go build github.com/mottla/go-AlgebraicProgram-SNARK" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="StructureViewFactory">
+    <option name="AUTOSCROLL_MODE" value="false" />
+    <option name="ACTIVE_ACTIONS" value=",ALPHA_COMPARATOR" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="now supporting if -else if - else,&#10;moving pairing lib," />
+      <created>1591361075219</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1591361075219</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="2" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.py" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="1">
+          <value>
+            <State>
+              <option name="SHOW_ONLY_AFFECTED_CHANGES" value="true" />
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                  <entry key="roots">
+                    <value>
+                      <list>
+                        <option value="$PROJECT_DIR$" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="OPEN_GENERIC_TABS">
+      <map>
+        <entry key="1" value="TOOL_WINDOW" />
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Huge parser/lexer update in progress" />
+    <MESSAGE value="milstone, ONLY for backup" />
+    <MESSAGE value="progress" />
+    <MESSAGE value="Completing implementation" />
+    <MESSAGE value="Getting parser to run" />
+    <MESSAGE value="supporting minus and division" />
+    <MESSAGE value="adding support for arrays&#10;var john[] = {1,2,3*4,foo()}&#10;&#10;access with: john[i] where 0&lt;=i&lt;4" />
+    <MESSAGE value="advanced compilation; intermediate commit" />
+    <MESSAGE value="now supporting alone standing function calls" />
+    <MESSAGE value="now supporting equality check!&#10;equal(a,b)&#10;will create a gate that enforces a==b to be true.&#10;This gate is extremely powerful &gt;D&#10;equal(a,b) is the same as equal(b,a)." />
+    <MESSAGE value="now supporting variable overloading&#10;fist declare &#10;var a = ...&#10;then overloading simple via&#10;a = ..." />
+    <MESSAGE value="advancing implementation; readme; remove unnecessary empty gates when performing equality check." />
+    <MESSAGE value="supoorting for loop now and internal function definitions" />
+    <MESSAGE value="now supporting if -else if - else,&#10;moving pairing lib,&#10;updating readme" />
+    <MESSAGE value="advancing implementation" />
+    <MESSAGE value="optimizations" />
+    <MESSAGE value="introducing randimization gate to make the proof zero-knowledge;&#10;preparing transfer from classic array to sparse array datatype" />
+    <MESSAGE value="Introduce sparse array datatype" />
+    <MESSAGE value="advancing sparse array" />
+    <MESSAGE value="language supports functions as arguments." />
+    <MESSAGE value="recursive call bug fixed; added fibonacci circuit example (naiv and dynamical program)" />
+    <MESSAGE value="cleanup and bugfixes" />
+    <MESSAGE value="arguments passed are converted into functions if they are not constants" />
+    <MESSAGE value="cleanup" />
+    <MESSAGE value="Advancing Implementation; cleanups;" />
+    <option name="LAST_COMMIT_MESSAGE" value="Advancing Implementation; cleanups;" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="164" y="96" width="1585" height="786" key="#com.intellij.execution.junit2.states.ComparisonFailureState$DiffDialog" timestamp="1584740194758">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="164" y="96" width="1585" height="786" key="#com.intellij.execution.junit2.states.ComparisonFailureState$DiffDialog/65.24.1783.957@65.24.1783.957" timestamp="1584740194758" />
+    <state x="634" y="294" width="643" height="388" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1586780898914">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="634" y="294" width="643" height="388" key="#com.intellij.fileTypes.FileTypeChooser/65.24.1783.957@65.24.1783.957" timestamp="1586780898914" />
+    <state x="1215" y="494" key="#xdebugger.evaluate" timestamp="1591979939376">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="1215" y="494" key="#xdebugger.evaluate/67.27.1853.1053@67.27.1853.1053" timestamp="1591979939376" />
+    <state x="474" y="97" width="1019" height="805" key="CommitChangelistDialog2" timestamp="1584959679390">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="474" y="97" width="1019" height="805" key="CommitChangelistDialog2/65.24.1783.957@65.24.1783.957" timestamp="1584959679390" />
+    <state x="198" y="191" width="1591" height="790" key="DiffContextDialog" timestamp="1584031850450">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="198" y="191" width="1591" height="790" key="DiffContextDialog/65.24.1783.957@65.24.1783.957" timestamp="1584031850450" />
+    <state x="179" y="143" width="1655" height="812" key="DiffContextDialog/65.24.1855.984@65.24.1855.984" timestamp="1583610652368" />
+    <state x="752" y="254" width="424" height="482" key="FileChooserDialogImpl" timestamp="1585678156694">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="752" y="254" width="424" height="482" key="FileChooserDialogImpl/65.24.1783.957@65.24.1783.957" timestamp="1585678156694" />
+    <state width="1809" height="345" key="GridCell.Tab.0.bottom" timestamp="1591981548026">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.0.bottom/65.24.1783.957@65.24.1783.957" timestamp="1586784937263" />
+    <state width="1809" height="356" key="GridCell.Tab.0.bottom/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
+    <state width="1809" height="345" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548026" />
+    <state width="1809" height="345" key="GridCell.Tab.0.center" timestamp="1591981548025">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.0.center/65.24.1783.957@65.24.1783.957" timestamp="1586784937262" />
+    <state width="1809" height="356" key="GridCell.Tab.0.center/65.24.1855.984@65.24.1855.984" timestamp="1583611331550" />
+    <state width="1809" height="345" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548025" />
+    <state width="1809" height="345" key="GridCell.Tab.0.left" timestamp="1591981548024">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.0.left/65.24.1783.957@65.24.1783.957" timestamp="1586784937261" />
+    <state width="1809" height="356" key="GridCell.Tab.0.left/65.24.1855.984@65.24.1855.984" timestamp="1583611331550" />
+    <state width="1809" height="345" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548024" />
+    <state width="1809" height="345" key="GridCell.Tab.0.right" timestamp="1591981548025">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.0.right/65.24.1783.957@65.24.1783.957" timestamp="1586784937262" />
+    <state width="1809" height="356" key="GridCell.Tab.0.right/65.24.1855.984@65.24.1855.984" timestamp="1583611331555" />
+    <state width="1809" height="345" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548025" />
+    <state width="1809" height="345" key="GridCell.Tab.1.bottom" timestamp="1591981548027">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.1.bottom/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
+    <state width="1809" height="356" key="GridCell.Tab.1.bottom/65.24.1855.984@65.24.1855.984" timestamp="1583611331557" />
+    <state width="1809" height="345" key="GridCell.Tab.1.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548027" />
+    <state width="1809" height="345" key="GridCell.Tab.1.center" timestamp="1591981548026">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.1.center/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
+    <state width="1809" height="356" key="GridCell.Tab.1.center/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
+    <state width="1809" height="345" key="GridCell.Tab.1.center/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548026" />
+    <state width="1809" height="345" key="GridCell.Tab.1.left" timestamp="1591981548026">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.1.left/65.24.1783.957@65.24.1783.957" timestamp="1586784937263" />
+    <state width="1809" height="356" key="GridCell.Tab.1.left/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
+    <state width="1809" height="345" key="GridCell.Tab.1.left/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548026" />
+    <state width="1809" height="345" key="GridCell.Tab.1.right" timestamp="1591981548027">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state width="1737" height="296" key="GridCell.Tab.1.right/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
+    <state width="1809" height="356" key="GridCell.Tab.1.right/65.24.1855.984@65.24.1855.984" timestamp="1583611331557" />
+    <state width="1809" height="345" key="GridCell.Tab.1.right/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548027" />
+    <state x="644" y="210" width="649" height="573" key="RollbackChangesDialog" timestamp="1584037665124">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="644" y="210" width="649" height="573" key="RollbackChangesDialog/65.24.1783.957@65.24.1783.957" timestamp="1584037665124" />
+    <state x="667" y="215" width="649" height="573" key="RollbackChangesDialog/65.24.1855.984@65.24.1855.984" timestamp="1583610656611" />
+    <state x="568" y="127" key="SettingsEditor" timestamp="1591362263257">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="547" y="115" key="SettingsEditor/65.24.1783.957@65.24.1783.957" timestamp="1584953868298" />
+    <state x="568" y="127" key="SettingsEditor/67.27.1853.1053@67.27.1853.1053" timestamp="1591362263257" />
+    <state x="572" y="233" key="Vcs.Push.Dialog.v2" timestamp="1584959682546">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="572" y="233" key="Vcs.Push.Dialog.v2/65.24.1783.957@65.24.1783.957" timestamp="1584959682546" />
+    <state x="650" y="226" width="610" height="524" key="VcsDiffUtil.ChangesDialog" timestamp="1584031857186">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="650" y="226" width="610" height="524" key="VcsDiffUtil.ChangesDialog/65.24.1783.957@65.24.1783.957" timestamp="1584031857186" />
+    <state x="628" y="118" width="488" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1584740199043">
+      <screen x="65" y="24" width="1783" height="957" />
+    </state>
+    <state x="628" y="118" width="488" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/65.24.1783.957@65.24.1783.957" timestamp="1584740199043" />
+    <state x="655" y="221" width="700" height="633" key="search.everywhere.popup" timestamp="1583607707746">
+      <screen x="65" y="24" width="1855" height="984" />
+    </state>
+    <state x="655" y="221" width="700" height="633" key="search.everywhere.popup/65.24.1855.984@65.24.1855.984" timestamp="1583607707746" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19.go</url>
+          <line>392</line>
+          <option name="timeStamp" value="20" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/factorHandling.go</url>
+          <line>148</line>
+          <option name="timeStamp" value="289" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/factorHandling.go</url>
+          <line>147</line>
+          <option name="timeStamp" value="290" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/../../go-lexer/lexer.go</url>
+          <line>297</line>
+          <option name="timeStamp" value="451" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/../../go-lexer/lexer.go</url>
+          <line>298</line>
+          <option name="timeStamp" value="452" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/../../go-lexer/lexer.go</url>
+          <line>277</line>
+          <option name="timeStamp" value="453" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>327</line>
+          <option name="timeStamp" value="718" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
+          <line>417</line>
+          <option name="timeStamp" value="766" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/polynomialField.go</url>
+          <line>2</line>
+          <option name="timeStamp" value="811" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>361</line>
+          <option name="timeStamp" value="862" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/polynomialField.go</url>
+          <line>142</line>
+          <option name="timeStamp" value="867" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/polynomialField.go</url>
+          <line>143</line>
+          <option name="timeStamp" value="868" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>288</line>
+          <option name="timeStamp" value="927" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>343</line>
+          <option name="timeStamp" value="930" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>323</line>
+          <option name="timeStamp" value="936" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>324</line>
+          <option name="timeStamp" value="939" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>157</line>
+          <option name="timeStamp" value="969" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
+          <line>288</line>
+          <option name="timeStamp" value="981" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
+          <line>289</line>
+          <option name="timeStamp" value="982" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>128</line>
+          <option name="timeStamp" value="985" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparseArray.go</url>
+          <line>140</line>
+          <option name="timeStamp" value="1003" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/avl.go</url>
+          <line>454</line>
+          <option name="timeStamp" value="1012" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
+          <line>152</line>
+          <option name="timeStamp" value="1016" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
+          <line>394</line>
+          <option name="timeStamp" value="1030" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial.go</url>
+          <line>85</line>
+          <option name="timeStamp" value="1031" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial.go</url>
+          <line>156</line>
+          <option name="timeStamp" value="1032" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial.go</url>
+          <line>131</line>
+          <option name="timeStamp" value="1033" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
+          <line>385</line>
+          <option name="timeStamp" value="1034" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19.go</url>
+          <line>154</line>
+          <option name="timeStamp" value="1035" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>370</line>
+          <option name="timeStamp" value="1054" />
+        </line-breakpoint>
+        <line-breakpoint type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
+          <line>89</line>
+          <option name="timeStamp" value="1162" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
+          <line>935</line>
+          <option name="timeStamp" value="1196" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>381</line>
+          <option name="timeStamp" value="1253" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
+          <line>282</line>
+          <option name="timeStamp" value="1269" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
+          <line>253</line>
+          <option name="timeStamp" value="1289" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
+          <line>776</line>
+          <option name="timeStamp" value="1299" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>66</line>
+          <option name="timeStamp" value="1307" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>33</line>
+          <option name="timeStamp" value="1309" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>26</line>
+          <option name="timeStamp" value="1310" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>27</line>
+          <option name="timeStamp" value="1311" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
+          <line>602</line>
+          <option name="timeStamp" value="1312" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>110</line>
+          <option name="timeStamp" value="1314" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/lexer.go</url>
+          <line>404</line>
+          <option name="timeStamp" value="1321" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/circuit_test.go</url>
+          <line>24</line>
+          <option name="timeStamp" value="1327" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
+          <line>328</line>
+          <option name="timeStamp" value="1332" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
+          <line>299</line>
+          <option name="timeStamp" value="1339" />
+        </line-breakpoint>
+      </breakpoints>
+      <default-breakpoints>
+        <breakpoint type="DlvErrorBreakpoint" />
+      </default-breakpoints>
+    </breakpoint-manager>
+    <watches-manager>
+      <configuration name="GoTestRunConfiguration">
+        <watch expression="*(*&quot;string&quot;)(824635061608)" />
+        <watch expression="*(*&quot;string&quot;)(824634920808)" />
+        <watch expression="*(*&quot;string&quot;)(824634920088)" />
+      </configuration>
+    </watches-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/go_AlgebraicProgram_SNARK$go_test_go_AlgebraicProgram_SNARK.out" NAME="go test go-AlgebraicProgram-SNARK Coverage Results" MODIFIED="1591362510856" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="GoCoverage" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" />
+  </component>
+</project>

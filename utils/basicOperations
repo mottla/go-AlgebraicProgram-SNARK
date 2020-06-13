@@ -1,0 +1,3 @@
+func SPLIT(value,bits){
+    return a*b
+}
