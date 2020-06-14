@@ -24,8 +24,9 @@ var TestPrograms = []TraceCorrectnessTest{
 		}},
 		Code: `
 func main(x,y){	
+	SPLIT(x)
 	var a = (3)*x*x
-	var c= (a+4)*y*(4)
+	var c= (a+4)/(y*(1/4))
 	return a+c
 }
 

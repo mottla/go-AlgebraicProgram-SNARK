@@ -83,20 +83,14 @@ func extractGCD_andSignature(leftFactors factors) (sig MultiplicationGateSignatu
 	return MultiplicationGateSignature{identifier: Token{Type: ARGUMENT, Identifier: facL.factorSignature()}, commonExtracted: mulL}, facL
 }
 
-func extractConstant(leftFactors, rightFactors factors) (sig MultiplicationGateSignature, extractedLeftFactors, extractedRightFactors factors) {
+func extractConstant(leftFactors, rightFactors factors) (gcd *big.Int, extractedLeftFactors, extractedRightFactors factors) {
 
 	mulL, facL := factorSignature(leftFactors)
 	mulR, facR := factorSignature(rightFactors)
 
-	//we did all this, because multiplication is commutativ, and we want the signature of a
-	//mulitplication Gate   factorsSignature(a,b) == factorsSignature(b,a)
-	//since we use a cryptographic hash, addition is save enough e.g. collisions are very unlikely
-	mul := append(facL, facR...)
-	sort.Sort(mul)
-
 	res := field.Mul(mulL, mulR)
 
-	return MultiplicationGateSignature{identifier: Token{Type: ARGUMENT, Identifier: mul.factorSignature()}, commonExtracted: res}, facL, facR
+	return res, facL, facR
 }
 
 func factorSignature(facs factors) (gcd *big.Int, extractedRightFactors factors) {

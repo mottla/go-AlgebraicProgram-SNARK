@@ -19,23 +19,12 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="now supporting if -else if - else,&#10;moving pairing lib,">
-      <change afterPath="$PROJECT_DIR$/.idea/go-AlgebraicProgram-SNARK.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/basicOperations" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" afterDir="false" />
+    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="removing unnecessary datastructure; introducing R1CS construction where constraints consider lowest bit complexity representation">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/circuit_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/circuit_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circuitcompiler/factorHandling.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/factorHandling.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/circuitcompiler/gate.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/gate.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/lexer.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/lexer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/lexer_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/lexer_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/parser.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/parser.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/testPrograms/codes.go" beforeDir="false" afterPath="$PROJECT_DIR$/testPrograms/codes.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/avl.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/avl.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/finiteField.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/finiteField.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -185,6 +174,14 @@
       <option name="presentableId" value="Default" />
       <updated>1591361075219</updated>
     </task>
+    <task id="LOCAL-00001" summary="removing unnecessary datastructure; introducing R1CS construction where constraints consider lowest bit complexity representation">
+      <created>1592054749307</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1592054749307</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -236,7 +233,6 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Huge parser/lexer update in progress" />
     <MESSAGE value="milstone, ONLY for backup" />
     <MESSAGE value="progress" />
     <MESSAGE value="Completing implementation" />
@@ -261,7 +257,8 @@
     <MESSAGE value="arguments passed are converted into functions if they are not constants" />
     <MESSAGE value="cleanup" />
     <MESSAGE value="Advancing Implementation; cleanups;" />
-    <option name="LAST_COMMIT_MESSAGE" value="Advancing Implementation; cleanups;" />
+    <MESSAGE value="removing unnecessary datastructure; introducing R1CS construction where constraints consider lowest bit complexity representation" />
+    <option name="LAST_COMMIT_MESSAGE" value="removing unnecessary datastructure; introducing R1CS construction where constraints consider lowest bit complexity representation" />
   </component>
   <component name="WindowStateProjectService">
     <state x="164" y="96" width="1585" height="786" key="#com.intellij.execution.junit2.states.ComparisonFailureState$DiffDialog" timestamp="1584740194758">
@@ -272,6 +269,10 @@
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="634" y="294" width="643" height="388" key="#com.intellij.fileTypes.FileTypeChooser/65.24.1783.957@65.24.1783.957" timestamp="1586780898914" />
+    <state x="2649" y="248" width="451" height="581" key="#com.intellij.ide.util.MemberChooser" timestamp="1592134507686">
+      <screen x="67" y="27" width="3773" height="1053" />
+    </state>
+    <state x="2649" y="248" width="451" height="581" key="#com.intellij.ide.util.MemberChooser/67.27.3773.1053@67.27.3773.1053" timestamp="1592134507686" />
     <state x="1215" y="494" key="#xdebugger.evaluate" timestamp="1591979939376">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
@@ -280,77 +281,85 @@
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="474" y="97" width="1019" height="805" key="CommitChangelistDialog2/65.24.1783.957@65.24.1783.957" timestamp="1584959679390" />
-    <state x="198" y="191" width="1591" height="790" key="DiffContextDialog" timestamp="1584031850450">
-      <screen x="65" y="24" width="1783" height="957" />
+    <state x="1882" y="0" width="1853" height="872" maximized="true" key="DiffContextDialog" timestamp="1592134508195">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
     <state x="198" y="191" width="1591" height="790" key="DiffContextDialog/65.24.1783.957@65.24.1783.957" timestamp="1584031850450" />
     <state x="179" y="143" width="1655" height="812" key="DiffContextDialog/65.24.1855.984@65.24.1855.984" timestamp="1583610652368" />
+    <state x="205" y="208" width="1482" height="872" key="DiffContextDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1592036777374" />
+    <state x="1882" y="0" width="1853" height="872" maximized="true" key="DiffContextDialog/67.27.3773.1053@67.27.3773.1053" timestamp="1592134508195" />
     <state x="752" y="254" width="424" height="482" key="FileChooserDialogImpl" timestamp="1585678156694">
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="752" y="254" width="424" height="482" key="FileChooserDialogImpl/65.24.1783.957@65.24.1783.957" timestamp="1585678156694" />
-    <state width="1809" height="345" key="GridCell.Tab.0.bottom" timestamp="1591981548026">
-      <screen x="67" y="27" width="1853" height="1053" />
+    <state width="1876" height="453" key="GridCell.Tab.0.bottom" timestamp="1592136024550">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.bottom/65.24.1783.957@65.24.1783.957" timestamp="1586784937263" />
     <state width="1809" height="356" key="GridCell.Tab.0.bottom/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
-    <state width="1809" height="345" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548026" />
-    <state width="1809" height="345" key="GridCell.Tab.0.center" timestamp="1591981548025">
-      <screen x="67" y="27" width="1853" height="1053" />
+    <state width="1809" height="345" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
+    <state width="1876" height="453" key="GridCell.Tab.0.bottom/67.27.3773.1053@67.27.3773.1053" timestamp="1592136024550" />
+    <state width="1876" height="453" key="GridCell.Tab.0.center" timestamp="1592136024550">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.center/65.24.1783.957@65.24.1783.957" timestamp="1586784937262" />
     <state width="1809" height="356" key="GridCell.Tab.0.center/65.24.1855.984@65.24.1855.984" timestamp="1583611331550" />
-    <state width="1809" height="345" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548025" />
-    <state width="1809" height="345" key="GridCell.Tab.0.left" timestamp="1591981548024">
-      <screen x="67" y="27" width="1853" height="1053" />
+    <state width="1809" height="345" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
+    <state width="1876" height="453" key="GridCell.Tab.0.center/67.27.3773.1053@67.27.3773.1053" timestamp="1592136024550" />
+    <state width="1876" height="453" key="GridCell.Tab.0.left" timestamp="1592136024550">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.left/65.24.1783.957@65.24.1783.957" timestamp="1586784937261" />
     <state width="1809" height="356" key="GridCell.Tab.0.left/65.24.1855.984@65.24.1855.984" timestamp="1583611331550" />
-    <state width="1809" height="345" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548024" />
-    <state width="1809" height="345" key="GridCell.Tab.0.right" timestamp="1591981548025">
-      <screen x="67" y="27" width="1853" height="1053" />
+    <state width="1809" height="345" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
+    <state width="1876" height="453" key="GridCell.Tab.0.left/67.27.3773.1053@67.27.3773.1053" timestamp="1592136024550" />
+    <state width="1876" height="453" key="GridCell.Tab.0.right" timestamp="1592136024550">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.right/65.24.1783.957@65.24.1783.957" timestamp="1586784937262" />
     <state width="1809" height="356" key="GridCell.Tab.0.right/65.24.1855.984@65.24.1855.984" timestamp="1583611331555" />
-    <state width="1809" height="345" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548025" />
-    <state width="1809" height="345" key="GridCell.Tab.1.bottom" timestamp="1591981548027">
+    <state width="1809" height="345" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
+    <state width="1876" height="453" key="GridCell.Tab.0.right/67.27.3773.1053@67.27.3773.1053" timestamp="1592136024550" />
+    <state width="1809" height="345" key="GridCell.Tab.1.bottom" timestamp="1592055292783">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.bottom/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
     <state width="1809" height="356" key="GridCell.Tab.1.bottom/65.24.1855.984@65.24.1855.984" timestamp="1583611331557" />
-    <state width="1809" height="345" key="GridCell.Tab.1.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548027" />
-    <state width="1809" height="345" key="GridCell.Tab.1.center" timestamp="1591981548026">
+    <state width="1809" height="345" key="GridCell.Tab.1.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292783" />
+    <state width="1809" height="345" key="GridCell.Tab.1.center" timestamp="1592055292782">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.center/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
     <state width="1809" height="356" key="GridCell.Tab.1.center/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
-    <state width="1809" height="345" key="GridCell.Tab.1.center/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548026" />
-    <state width="1809" height="345" key="GridCell.Tab.1.left" timestamp="1591981548026">
+    <state width="1809" height="345" key="GridCell.Tab.1.center/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
+    <state width="1809" height="345" key="GridCell.Tab.1.left" timestamp="1592055292782">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.left/65.24.1783.957@65.24.1783.957" timestamp="1586784937263" />
     <state width="1809" height="356" key="GridCell.Tab.1.left/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
-    <state width="1809" height="345" key="GridCell.Tab.1.left/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548026" />
-    <state width="1809" height="345" key="GridCell.Tab.1.right" timestamp="1591981548027">
+    <state width="1809" height="345" key="GridCell.Tab.1.left/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
+    <state width="1809" height="345" key="GridCell.Tab.1.right" timestamp="1592055292783">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.right/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
     <state width="1809" height="356" key="GridCell.Tab.1.right/65.24.1855.984@65.24.1855.984" timestamp="1583611331557" />
-    <state width="1809" height="345" key="GridCell.Tab.1.right/67.27.1853.1053@67.27.1853.1053" timestamp="1591981548027" />
-    <state x="644" y="210" width="649" height="573" key="RollbackChangesDialog" timestamp="1584037665124">
-      <screen x="65" y="24" width="1783" height="957" />
+    <state width="1809" height="345" key="GridCell.Tab.1.right/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292783" />
+    <state x="669" y="232" width="649" height="573" key="RollbackChangesDialog" timestamp="1592036591885">
+      <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="644" y="210" width="649" height="573" key="RollbackChangesDialog/65.24.1783.957@65.24.1783.957" timestamp="1584037665124" />
     <state x="667" y="215" width="649" height="573" key="RollbackChangesDialog/65.24.1855.984@65.24.1855.984" timestamp="1583610656611" />
+    <state x="669" y="232" key="RollbackChangesDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1592036591885" />
     <state x="568" y="127" key="SettingsEditor" timestamp="1591362263257">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="547" y="115" key="SettingsEditor/65.24.1783.957@65.24.1783.957" timestamp="1584953868298" />
     <state x="568" y="127" key="SettingsEditor/67.27.1853.1053@67.27.1853.1053" timestamp="1591362263257" />
-    <state x="572" y="233" key="Vcs.Push.Dialog.v2" timestamp="1584959682546">
-      <screen x="65" y="24" width="1783" height="957" />
+    <state x="542" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1592036801483">
+      <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="572" y="233" key="Vcs.Push.Dialog.v2/65.24.1783.957@65.24.1783.957" timestamp="1584959682546" />
+    <state x="542" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1592036801483" />
     <state x="650" y="226" width="610" height="524" key="VcsDiffUtil.ChangesDialog" timestamp="1584031857186">
       <screen x="65" y="24" width="1783" height="957" />
     </state>
@@ -359,10 +368,15 @@
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="628" y="118" width="488" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/65.24.1783.957@65.24.1783.957" timestamp="1584740199043" />
-    <state x="655" y="221" width="700" height="633" key="search.everywhere.popup" timestamp="1583607707746">
-      <screen x="65" y="24" width="1855" height="984" />
+    <state x="682" y="366" key="git4idea.ui.GitUnstashDialog" timestamp="1592036579136">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="682" y="366" key="git4idea.ui.GitUnstashDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1592036579136" />
+    <state x="656" y="238" width="700" height="678" key="search.everywhere.popup" timestamp="1592073470748">
+      <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="655" y="221" width="700" height="633" key="search.everywhere.popup/65.24.1855.984@65.24.1855.984" timestamp="1583607707746" />
+    <state x="656" y="238" width="700" height="678" key="search.everywhere.popup/67.27.1853.1053@67.27.1853.1053" timestamp="1592073470748" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -374,12 +388,12 @@
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/factorHandling.go</url>
-          <line>148</line>
+          <line>154</line>
           <option name="timeStamp" value="289" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/factorHandling.go</url>
-          <line>147</line>
+          <line>153</line>
           <option name="timeStamp" value="290" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
@@ -524,7 +538,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>935</line>
+          <line>941</line>
           <option name="timeStamp" value="1196" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
@@ -539,13 +553,8 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>253</line>
+          <line>228</line>
           <option name="timeStamp" value="1289" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>776</line>
-          <option name="timeStamp" value="1299" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
@@ -569,7 +578,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>602</line>
+          <line>576</line>
           <option name="timeStamp" value="1312" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
@@ -589,26 +598,34 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
-          <line>328</line>
+          <line>335</line>
           <option name="timeStamp" value="1332" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
-          <line>299</line>
+          <line>306</line>
           <option name="timeStamp" value="1339" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>369</line>
+          <option name="timeStamp" value="1342" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
+          <line>30</line>
+          <option name="timeStamp" value="1362" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
+          <line>551</line>
+          <option name="timeStamp" value="1363" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
         <breakpoint type="DlvErrorBreakpoint" />
       </default-breakpoints>
     </breakpoint-manager>
-    <watches-manager>
-      <configuration name="GoTestRunConfiguration">
-        <watch expression="*(*&quot;string&quot;)(824635061608)" />
-        <watch expression="*(*&quot;string&quot;)(824634920808)" />
-        <watch expression="*(*&quot;string&quot;)(824634920088)" />
-      </configuration>
-    </watches-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/go_AlgebraicProgram_SNARK$go_test_go_AlgebraicProgram_SNARK.out" NAME="go test go-AlgebraicProgram-SNARK Coverage Results" MODIFIED="1591362510856" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="GoCoverage" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" />
