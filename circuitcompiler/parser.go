@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash"
 	"io/ioutil"
+	"strconv"
 )
 
 type Parser struct {
@@ -132,12 +133,40 @@ func (p *Parser) statementMode(tokens []Token) {
 		}
 
 		rest := p.argumentParse(toks.toks, splitAtClosingBrackets, FuncConstraint)
+		var FuncConstraintInputs []*Constraint
 		for _, v := range FuncConstraint.Inputs {
+
+			if v.Output.Type == ARRAY_CALL {
+				var arrayDimensions = make([]int64, len(v.Inputs))
+				var err error
+				for i, in := range v.Inputs {
+					if in.Output.Type != NumberToken {
+						p.error("Invalid array declaration in function header, got %v, expect static size", v.Inputs[0])
+					}
+					arrayDimensions[i], err = strconv.ParseInt(in.Output.Identifier, 10, 64)
+					if err != nil || arrayDimensions[i] <= 0 {
+						p.error(err.Error())
+					}
+				}
+				arrayPostfixes := []string{}
+				ArrayStringBuild(arrayDimensions, "", &arrayPostfixes)
+				for _, post := range arrayPostfixes {
+					FuncConstraintInputs = append(FuncConstraintInputs, &Constraint{
+						Output: Token{
+							Type:       ARGUMENT,
+							Identifier: fmt.Sprintf("%v%v", v.Output.Identifier, post),
+						},
+					})
+				}
+				continue
+			}
 			if v.Output.Type != IDENTIFIER_VARIABLE {
 				p.error("Invalid function header, got %v : %v", v.Output.Identifier, v.Output.Type)
 			}
 			v.Output.Type = ARGUMENT
+			FuncConstraintInputs = append(FuncConstraintInputs, v)
 		}
+		FuncConstraint.Inputs = FuncConstraintInputs
 		toks.toks = rest
 		tok = toks.next()
 		if tok.Identifier != "{" {
@@ -372,6 +401,17 @@ func (p *Parser) statementMode(tokens []Token) {
 	}
 }
 
+func ArrayStringBuild(in []int64, res string, coll *[]string) {
+	if len(in) == 0 {
+		*coll = append(*coll, res)
+		return
+	}
+	for j := int64(0); j < in[0]; j++ {
+		str := fmt.Sprintf("%v[%v]", res, j)
+		ArrayStringBuild(in[1:], str, coll)
+	}
+}
+
 // epx := (exp) | exp Operator exp | Identifier(arg) | Identifier | Number | Identifier[exp]
 //arg := exp | arg,exp
 func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
@@ -466,7 +506,12 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 		}
 		cr := &Constraint{Output: rtok}
 		constraint.Inputs = append(constraint.Inputs, cr)
-		p.parseExpression(stack[2:len(stack)-1], cr)
+		l, r, _ := splitAtClosingSquareBrackets(stack[2:])
+		p.parseExpression(l, cr)
+		for len(r) != 0 {
+			l, r, _ = splitAtClosingSquareBrackets(r)
+			p.parseExpression(l, cr)
+		}
 		return
 	}
 
@@ -719,6 +764,9 @@ func splitAtClosingBrackets(in []Token) (cutLeft, cutRight []Token, success bool
 func splitAtClosingSwingBrackets(in []Token) (cutLeft, cutRight []Token, success bool) {
 	return splitAtClosingStringBrackets(in, "{", "}")
 }
+func splitAtClosingSquareBrackets(in []Token) (cutLeft, cutRight []Token, success bool) {
+	return splitAtClosingStringBrackets(in, "[", "]")
+}
 
 func splitAtClosingStringBrackets(in []Token, open, close string) (cutLeft, cutRight []Token, success bool) {
 	ctr := 0
@@ -736,7 +784,7 @@ func splitAtClosingStringBrackets(in []Token, open, close string) (cutLeft, cutR
 			ctr--
 			if ctr == 0 {
 				if i == len(in)-1 {
-					return in[1:i], cutRight, true
+					return in[start:i], cutRight, true
 				}
 				return in[start:i], in[i+1:], true
 			}

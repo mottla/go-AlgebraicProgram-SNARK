@@ -16,7 +16,89 @@ type TraceCorrectnessTest struct {
 var bigNumberResult1, _ = new(big.Int).SetString("2297704271284150716235246193843898764109352875", 10)
 var pubkeyOf42OnBn256_G1, _ = new(big.Int).SetString("4312786488925573964619847916436127219510912864504589785209181363209026354996", 10)
 
+var sudoku = func() []*big.Int {
+	field := [9][9]int64{
+		{9, 5, 7, 6, 1, 3, 2, 8, 4},
+		{4, 8, 3, 2, 5, 7, 1, 9, 6},
+		{6, 1, 2, 8, 4, 9, 5, 3, 7},
+		{1, 7, 8, 3, 6, 4, 9, 5, 2},
+		{5, 2, 4, 9, 7, 1, 3, 6, 8},
+		{3, 6, 9, 5, 2, 8, 7, 4, 1},
+		{8, 4, 5, 7, 9, 2, 6, 1, 3},
+		{2, 9, 1, 4, 3, 6, 8, 7, 5},
+		{7, 3, 6, 1, 8, 5, 4, 2, 9},
+	}
+	res := []*big.Int{}
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 9; j++ {
+			res = append(res, new(big.Int).SetInt64(field[i][j]))
+		}
+	}
+	return res
+}
+
 var TestPrograms = []TraceCorrectnessTest{
+	{
+		Skip: false,
+		IO: []InOut{{
+			Inputs: sudoku(),
+		}},
+		Code: `
+
+func main(x[9][9]){		
+	# we check if all inputs are in the range 1 to 9
+	var i = 0
+	for (i<9;i=i+1){
+		var j = 0
+			for (j<9;j=j+1){
+				equal(constraint(x[i][j]),0)
+		}
+	}
+	#we check if all columns  
+	i = 0
+	for (i<9;i=i+1){
+		var colProduct = 1		
+		var j = 0
+		for (j<9;j=j+1){
+			colProduct = colProduct * x[i][j]			
+		}
+		equal(colProduct,2*3*4*5*6*7*8*9)
+	}
+	#we check if all rows  
+	i = 0
+	for (i<9;i=i+1){
+		var colProduct = 1		
+		var j = 0
+		for (j<9;j=j+1){
+			colProduct = colProduct * x[j][i]			
+		}
+		equal(colProduct,2*3*4*5*6*7*8*9)
+	}
+	#we check if each 3x3 box is satisfied
+	i = 0
+	for (i<9;i=i+3){			
+		var j = 0
+		for (j<9;j=j+3){
+			var colProduct = 1	
+			var k = 0
+			for (k<3;k=k+1){
+				var l = 0
+					for (l<3;l=l+1){
+						colProduct = colProduct * x[i+k][j+l]	
+				}
+			}
+			equal(colProduct,2*3*4*5*6*7*8*9)		
+		}
+		
+	}
+	
+	return
+}
+func constraint(x){
+	return (x-1)*(x-2)*(x-3)*(x-4)*(x-5)*(x-6)*(x-7)*(x-8)*(x-9)
+}
+
+`},
 	{
 		Skip: false,
 		IO: []InOut{{
@@ -85,7 +167,7 @@ func fubunaci(a,v){
 
 		Code: `
 func main(x,y,z){
-	return mul(add(mul(x,y),z)+132,z)
+	return mul(add(mul(x,y),z)-132,z)
 }
 
 func mul(a,b){

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
 	"math/big"
+	"strconv"
 )
 
 type gateContainer struct {
@@ -113,7 +114,7 @@ func CombineInputs(abstract []string, concrete []*big.Int) (res []InputArgument)
 	//we add the neutral element here
 	concrete = append([]*big.Int{big.NewInt(1)}, concrete...)
 	if len(abstract) != len(concrete) {
-		panic("argument missmatch")
+		panic(fmt.Sprintf("argument missmatch, programm requires %v inputs, you provided %v", len(abstract), len(concrete)))
 	}
 
 	res = make([]InputArgument, len(abstract))
@@ -288,20 +289,27 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		return nil, false, false
 	case ARRAY_CALL:
 
-		if len(currentConstraint.Inputs) != 1 {
+		if len(currentConstraint.Inputs) < 1 {
 			panic("accessing array index failed")
 		}
-		indexFactors, variable, _ := currentCircuit.compile(currentConstraint.Inputs[0], gateCollector)
-		if variable {
-			panic("cannot access array dynamically in an arithmetic circuit currently")
-		}
-		if len(facs) > 1 {
-			panic("unexpected")
+		var arrayIdentifier = currentConstraint.Output.Identifier
+
+		for _, in := range currentConstraint.Inputs {
+			indexFactors, variable, _ := currentCircuit.compile(in, gateCollector)
+			if variable {
+				panic("cannot access array dynamically in an arithmetic circuit currently")
+			}
+			if len(indexFactors) > 1 {
+				panic("unexpected")
+			}
+			tmp, err := strconv.ParseInt(indexFactors[0].typ.Identifier, 10, 64)
+			if err != nil || tmp < 0 {
+				panic(err.Error())
+			}
+			arrayIdentifier += fmt.Sprintf("[%v]", tmp)
 		}
 
-		elementName := fmt.Sprintf("%s[%v]", currentConstraint.Output.Identifier, indexFactors[0].multiplicative.String())
-
-		if con, ex := currentCircuit.findConstraintInBloodline(elementName); ex {
+		if con, ex := currentCircuit.findConstraintInBloodline(arrayIdentifier); ex {
 			return currentCircuit.compile(con, gateCollector)
 		} else {
 			panic(fmt.Sprintf("array %s not declared", currentConstraint.Output.Identifier))
@@ -626,7 +634,8 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 		}
 		value := val.multiplicative
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
-		arr[indexMap[val.typ.Identifier]] = utils.Field.ArithmeticField.Add(arr[indexMap[val.typ.Identifier]], value)
+		arr[indexMap[val.typ.Identifier]] = new(big.Int).Add(arr[indexMap[val.typ.Identifier]], value)
+		//arr[indexMap[val.typ.Identifier]] = utils.Field.ArithmeticField.Add(arr[indexMap[val.typ.Identifier]], value)
 	}
 	size := len(indexMap)
 	for _, g := range mGates {
@@ -769,7 +778,8 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 		r1CS.O = append(r1CS.O, cConstraint)
 
 	}
-
+	r1CS.NumberOfGates = len(mGates)
+	r1CS.WitnessLength = len(indexMap)
 	return
 }
 

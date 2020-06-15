@@ -58,7 +58,7 @@ func extractGCD(f factors) (factors, *big.Int) {
 		gcd = new(big.Int).GCD(nil, nil, f[i].multiplicative, gcd)
 	}
 	for i := 0; i < len(f); i++ {
-		f[i].multiplicative = field.Div(f[i].multiplicative, gcd)
+		f[i].multiplicative = new(big.Int).Div(f[i].multiplicative, gcd)
 
 	}
 	return f, gcd
@@ -88,7 +88,7 @@ func extractConstant(leftFactors, rightFactors factors) (gcd *big.Int, extracted
 	mulL, facL := factorSignature(leftFactors)
 	mulR, facR := factorSignature(rightFactors)
 
-	res := field.Mul(mulL, mulR)
+	res := new(big.Int).Mul(mulL, mulR)
 
 	return res, facL, facR
 }
@@ -122,18 +122,22 @@ func mulFactors(leftFactors, rightFactors factors) (result factors) {
 		for _, right := range rightFactors {
 
 			if left.typ.Type == NumberToken && right.typ.Type&IN != 0 {
-				leftFactors[i] = &factor{typ: right.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: right.typ, multiplicative: new(big.Int).Mul(right.multiplicative, left.multiplicative)}
+				//leftFactors[i] = &factor{typ: right.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if left.typ.Type&IN != 0 && right.typ.Type == NumberToken {
-				leftFactors[i] = &factor{typ: left.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
+				leftFactors[i] = &factor{typ: left.typ, multiplicative: new(big.Int).Mul(right.multiplicative, left.multiplicative)}
+				//leftFactors[i] = &factor{typ: left.typ, multiplicative: field.Mul(right.multiplicative, left.multiplicative)}
 				continue
 			}
 
 			if right.typ.Type&left.typ.Type == NumberToken {
-				res := field.Mul(right.multiplicative, left.multiplicative)
+				res := new(big.Int).Mul(right.multiplicative, left.multiplicative)
 				leftFactors[i] = &factor{typ: Token{Type: NumberToken, Identifier: res.String()}, multiplicative: res}
+				//res := field.Mul(right.multiplicative, left.multiplicative)
+				//leftFactors[i] = &factor{typ: Token{Type: NumberToken, Identifier: res.String()}, multiplicative: res}
 				continue
 
 			}
@@ -168,7 +172,8 @@ func abs(n int) (val int, positive bool) {
 //adds two factors to one iff they are both are constants or of the same variable
 func addFactor(facLeft, facRight *factor) (couldAdd bool, sum *factor) {
 	if facLeft.typ.Type&facRight.typ.Type == NumberToken {
-		res := field.Add(facLeft.multiplicative, facRight.multiplicative)
+		//res := field.Add(facLeft.multiplicative, facRight.multiplicative)
+		res := new(big.Int).Add(facLeft.multiplicative, facRight.multiplicative)
 		return true, &factor{typ: Token{
 			Type:       NumberToken,
 			Identifier: res.String(),
@@ -229,7 +234,8 @@ func addFactors(leftFactors, rightFactors factors) factors {
 }
 func negateFactors(leftFactors factors) factors {
 	for i := range leftFactors {
-		leftFactors[i].multiplicative = field.Neg(leftFactors[i].multiplicative)
+		//leftFactors[i].multiplicative = field.Neg(leftFactors[i].multiplicative)
+		leftFactors[i].multiplicative = leftFactors[i].multiplicative.Neg(leftFactors[i].multiplicative)
 		if leftFactors[i].typ.Type == NumberToken {
 			leftFactors[i].typ.Identifier = leftFactors[i].multiplicative.String()
 		}

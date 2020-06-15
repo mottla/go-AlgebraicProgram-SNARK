@@ -372,7 +372,7 @@ func NumberState(l *Lexer) StateFunc {
 func readIdent(l *Lexer) {
 
 	r := l.Next()
-	for isLetter(r) || r == '_' {
+	for isLetter(r) || isDigit(r) || r == '_' {
 		r = l.Next()
 	}
 	l.Rewind()

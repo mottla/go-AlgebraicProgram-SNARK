@@ -289,9 +289,11 @@ func (circ *function) contextCheck(constraint *Constraint) {
 			}
 		}
 	case ARRAY_CALL:
-		if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
-			panic(fmt.Sprintf("array %s not declared", constraint.Output.Identifier))
-		}
+		//we handy arra acces completely during execution now. some precompilation checks could be implemented however
+		//TODO rethink
+		//if _, ex := circ.findConstraintInBloodline(constraint.Output.Identifier); !ex {
+		//	panic(fmt.Sprintf("array %s not declared", constraint.Output.Identifier))
+		//}
 	default:
 
 	}

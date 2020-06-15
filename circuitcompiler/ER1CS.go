@@ -13,7 +13,8 @@ var randInput, randOutput = "1@randomIn", "1@randomOut"
 
 type ER1CS struct {
 	//indexMap maps each variable to its position in the witness trace
-	indexMap map[string]uint
+	indexMap                     map[string]uint
+	WitnessLength, NumberOfGates int
 	//splitMap maps each variable (which is split into its bit represants at some point in the code) onto the positions
 	//of the its bits in the indexMap
 	splitmap map[string][]uint

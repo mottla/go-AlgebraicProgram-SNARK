@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func TestBuild(t *testing.T) {
+	c := []string{}
+	ArrayStringBuild([]int64{2, 3, 4}, "", &c)
+	fmt.Println(c)
+}
+
 func Test_Parser(t *testing.T) {
 
 	//code := `def main(a){
