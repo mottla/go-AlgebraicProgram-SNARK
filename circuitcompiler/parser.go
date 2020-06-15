@@ -63,6 +63,7 @@ func newParser(code string, log bool) (p *Parser) {
 	return &Parser{constraintChan: make(chan *Constraint), tokenChannel: make(chan Token), done: make(chan struct{}), lexer: lexer, log: log}
 }
 
+//read the code, check syntax and semantics, translate it into an function tree ready for execution
 func Parse(code string, checkSemantics bool) (p *Program) {
 
 	parser := newParser(code, false)

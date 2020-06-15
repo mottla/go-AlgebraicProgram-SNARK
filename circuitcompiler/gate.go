@@ -2,6 +2,7 @@ package circuitcompiler
 
 import (
 	"fmt"
+	"math/big"
 	"sort"
 )
 
@@ -46,11 +47,14 @@ func (gate *Gate) setAndGetID() (id string) {
 
 	sort.Sort(gate.leftIns)
 	sort.Sort(gate.rightIns)
-	lr := append(gate.leftIns, gate.rightIns...)
+	l := hashFactorsToBig(gate.leftIns)
+	r := hashFactorsToBig(gate.rightIns)
+	//we add the hashes of the multiplication part. a cheap way to consider the commutativity in the id creation to avoid duplicates such as a*b and b*a
+	lr := new(big.Int).Add(l, r)
 	sort.Sort(gate.expoIns)
 	sort.Sort(gate.outIns)
-	ID := hashFactorsToBig(append(append(gate.expoIns, lr...), gate.outIns...))
-	gate.identifier = ID.String()[:16]
+	eo := hashFactorsToBig(append(gate.expoIns, gate.outIns...))
+	gate.identifier = new(big.Int).Xor(lr, eo).String()[:16]
 	return gate.identifier
 }
 func (gate *Gate) minimizeR1CSDescriptiveComplexity() {

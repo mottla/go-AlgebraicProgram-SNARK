@@ -12,7 +12,10 @@ import (
 var randInput, randOutput = "1@randomIn", "1@randomOut"
 
 type ER1CS struct {
+	//indexMap maps each variable to its position in the witness trace
 	indexMap map[string]uint
+	//splitMap maps each variable (which is split into its bit represants at some point in the code) onto the positions
+	//of the its bits in the indexMap
 	splitmap map[string][]uint
 	L        [][]*big.Int
 	R        [][]*big.Int
@@ -20,20 +23,21 @@ type ER1CS struct {
 	O        [][]*big.Int
 }
 type ER1CSSparse struct {
-	indexMap map[string]uint
-	splitmap map[string][]uint
-	L        []*utils.AvlTree
-	R        []*utils.AvlTree
-	E        []*utils.AvlTree
-	O        []*utils.AvlTree
+	indexMap                     map[string]uint
+	splitmap                     map[string][]uint
+	WitnessLength, NumberOfGates int
+	L                            []*utils.AvlTree
+	R                            []*utils.AvlTree
+	E                            []*utils.AvlTree
+	O                            []*utils.AvlTree
 }
 type ER1CSsPARSETransposed struct {
-	indexMap map[string]uint
-	MaxKey   int
-	L        []*utils.AvlTree
-	R        []*utils.AvlTree
-	E        []*utils.AvlTree
-	O        []*utils.AvlTree
+	indexMap                     map[string]uint
+	WitnessLength, NumberOfGates int
+	L                            []*utils.AvlTree
+	R                            []*utils.AvlTree
+	E                            []*utils.AvlTree
+	O                            []*utils.AvlTree
 }
 type ER1CSTransposed struct {
 	indexMap map[string]uint
@@ -45,12 +49,14 @@ type ER1CSTransposed struct {
 
 func (er1cs *ER1CSSparse) TransposeSparse() (transposed ER1CSsPARSETransposed) {
 	transposed.indexMap = er1cs.indexMap
-	var l, r, e, o int
-	transposed.L, l = utils.TransposeSparse(er1cs.L)
-	transposed.R, r = utils.TransposeSparse(er1cs.R)
-	transposed.E, e = utils.TransposeSparse(er1cs.E)
-	transposed.O, o = utils.TransposeSparse(er1cs.O)
-	transposed.MaxKey = maximum(l, r, e, o)
+	transposed.NumberOfGates = er1cs.NumberOfGates
+	transposed.WitnessLength = er1cs.WitnessLength
+
+	transposed.L = utils.TransposeSparse(er1cs.L)
+	transposed.R = utils.TransposeSparse(er1cs.R)
+	transposed.E = utils.TransposeSparse(er1cs.E)
+	transposed.O = utils.TransposeSparse(er1cs.O)
+
 	return
 }
 
@@ -100,6 +106,30 @@ func (er1cs *ER1CSTransposed) ER1CSToEAP() (lPoly, rPoly, ePoly, oPoly [][]*big.
 		oPoly = append(oPoly, utils.Field.PolynomialField.LagrangeInterpolation(oT[i]))
 	}
 
+	return
+}
+
+// R1CSToQAP converts the ER1CS* values to the EAP values
+//it uses Lagrange interpolation to to fit a polynomial through each slice. The x coordinate
+//is simply a linear increment starting at 1
+//within this process, the polynomial is evaluated at position 0
+//so an alpha/beta/gamma value is the polynomial evaluated at 0
+// the domain polynomial therefor is (-1+x)(-2+x)...(-n+x)
+func (er1cs *ER1CSsPARSETransposed) SparseER1CSToEAP() (lPoly, rPoly, ePoly, oPoly []*utils.AvlTree) {
+
+	lT := er1cs.L
+	rT := er1cs.R
+	eT := er1cs.E
+	oT := er1cs.O
+	for i := 0; i < len(lT); i++ {
+		lPoly = append(lPoly, utils.Field.ArithmeticField.InterpolateSparseArray(lT[i], er1cs.NumberOfGates))
+
+		rPoly = append(rPoly, utils.Field.ArithmeticField.InterpolateSparseArray(rT[i], er1cs.NumberOfGates))
+
+		ePoly = append(ePoly, utils.Field.ArithmeticField.InterpolateSparseArray(eT[i], er1cs.NumberOfGates))
+
+		oPoly = append(oPoly, utils.Field.ArithmeticField.InterpolateSparseArray(oT[i], er1cs.NumberOfGates))
+	}
 	return
 }
 

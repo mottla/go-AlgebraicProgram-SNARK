@@ -192,19 +192,19 @@ func (f Fq) AddPolynomials(polynomials []*AvlTree) (sumPoly *AvlTree) {
 	return
 }
 
-func TransposeSparse(matrix []*AvlTree) (tra []*AvlTree, max int) {
+func TransposeSparse(matrix []*AvlTree) (tra []*AvlTree) {
 	r := []*AvlTree{}
 
-	for y, s := range matrix {
-		if k := int(s.MaxPower()); k > max {
-			max = k
-		}
-		for val := range s.ChannelNodes(true) {
+	for y, tree := range matrix {
+		//if k := int(tree.MaxPower()); k > max {
+		//	max = k
+		//}
+		for val := range tree.ChannelNodes(true) {
 			for int(val.Key)+1 > len(r) {
 				r = append(r, NewAvlTree())
 			}
 			r[int(val.Key)].InsertNoOverwriteAllowed(uint(y), val.Value)
 		}
 	}
-	return r, max
+	return r
 }

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func TestGenerateAndVerifyProof(t *testing.T) {
+func TestGenerateAndVerifyProof_OldArray(t *testing.T) {
 
 	for _, test := range testPrograms.TestPrograms {
 		if test.Skip {
@@ -21,24 +21,24 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 
 		program := circuitcompiler.Parse(test.Code, true)
 
-		fmt.Println("\n unreduced")
+		fmt.Println("Code>>")
 		fmt.Println(test.Code)
 
-		gates := program.ReduceCombinedTree()
+		before := time.Now()
+		fmt.Println("Generating CRS...")
+		gates := program.Execute()
 		utils.Field.PolynomialField.InitBases(len(gates) + 1)
-		//for _, g := range gates {
-		//	fmt.Printf("\n %v", g)
-		//}
 
 		fmt.Println("\n generating ER1CS")
 		r1cs := program.GatesToR1CS(gates, true)
+
 		//r1csSparse := program.GatesToSparseR1CS(gates, true)
 		//transposedR1csSparse := r1csSparse.TransposeSparse()
 		trasposedR1Cs := r1cs.Transpose()
-		fmt.Println(r1cs.L)
-		fmt.Println(r1cs.R)
-		fmt.Println(r1cs.E)
-		fmt.Println(r1cs.O)
+		//fmt.Println(r1cs.L)
+		//fmt.Println(r1cs.R)
+		//fmt.Println(r1cs.E)
+		//fmt.Println(r1cs.O)
 		// ER1CS to QAP
 		l, r, e, o := trasposedR1Cs.ER1CSToEAP()
 		//fmt.Println(l)
@@ -47,6 +47,7 @@ func TestGenerateAndVerifyProof(t *testing.T) {
 		//fmt.Println(o)
 
 		setup, err := GenerateTrustedSetup(program.GlobalInputCount(), l, r, e, o)
+		fmt.Println("CRS generation time elapsed:", time.Since(before))
 		assert.NoError(t, err)
 
 		for _, io := range test.IO {

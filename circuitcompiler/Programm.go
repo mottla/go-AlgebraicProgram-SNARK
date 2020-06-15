@@ -62,6 +62,14 @@ func (g *gateContainer) contains(tok string) bool {
 
 func (g *gateContainer) Add(gate *Gate) {
 
+	//we want to reduce the number of exponentiations in the slower group G2
+	//since a*b = b*a, we swap in case
+	//if len(gate.rightIns) > len(gate.leftIns) {
+	//	tmp := gate.rightIns
+	//	gate.rightIns = gate.leftIns
+	//	gate.leftIns = tmp
+	//}
+
 	if _, ex := g.computedFactors[gate.ID()]; !ex {
 		g.computedFactors[gate.ID()] = true
 		g.orderedmGates = append(g.orderedmGates, gate)
@@ -125,7 +133,8 @@ func (p *Program) getMainCircuit() *function {
 	return p.globalFunction.functions["main"]
 }
 
-func (p *Program) ReduceCombinedTree() (orderedmGates *gateContainer) {
+//Execute runs on a program and returns a precursor for the final R1CS description
+func (p *Program) Execute() (orderedmGates []*Gate) {
 
 	container := newGateContainer()
 	mainCircuit := p.getMainCircuit()
@@ -138,9 +147,8 @@ func (p *Program) ReduceCombinedTree() (orderedmGates *gateContainer) {
 		if returns {
 			break
 		}
-
 	}
-	return container
+	return container.orderedmGates
 }
 
 func (currentCircuit *function) rereferenceFunctionInputs(newInputs []*function) (oldInputs []*function) {
@@ -567,7 +575,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 	panic(currentConstraint)
 }
 
-// GenerateR1CS generates the ER1CS polynomials from the function
+// GenerateR1CS generates the ER1CS Language from an array of gates
 func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 	// from flat code to ER1CS
 	r1CS = &ER1CS{}
@@ -953,5 +961,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		r1CS.E = append(r1CS.E, eConstraint)
 		r1CS.O = append(r1CS.O, cConstraint)
 	}
+	r1CS.NumberOfGates = len(mGates)
+	r1CS.WitnessLength = len(indexMap)
 	return
 }

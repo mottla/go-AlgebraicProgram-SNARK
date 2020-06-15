@@ -20,11 +20,11 @@ var TestPrograms = []TraceCorrectnessTest{
 	{
 		Skip: false,
 		IO: []InOut{{
-			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(4))},
+			Inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(4))},
 		}},
 		Code: `
 func main(x,y){	
-	SPLIT(x)
+	SPLIT(2*x)	
 	var a = (3)*x*x
 	var c= (a+4)/(y*(1/4))
 	return a+c

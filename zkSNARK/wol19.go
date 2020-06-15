@@ -180,12 +180,12 @@ func CombineSparsePolynomials(witness []*big.Int, TransposedR1cs circuitcompiler
 		p := g1ScalarBaseMultiply(v.Value)
 		mG_pointsVec.InsertNoOverwriteAllowed(v.Key, p.X())
 	}
-	Gx = pf.InterpolateSparseArray(mG_pointsVec, TransposedR1cs.MaxKey)
+	Gx = pf.InterpolateSparseArray(mG_pointsVec, TransposedR1cs.WitnessLength)
 	a := pf.MulSparse(LVec, RVec)
 	pf.AddToSparse(a, mG_pointsVec)
 	pf.SubToSparse(a, OVec)
 
-	return Gx, pf.InterpolateSparseArray(a, TransposedR1cs.MaxKey)
+	return Gx, pf.InterpolateSparseArray(a, TransposedR1cs.WitnessLength)
 }
 
 func g1ScalarBaseMultiply(in *big.Int) *bn256.G1 {
