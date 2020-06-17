@@ -53,7 +53,7 @@ func TestPol(t *testing.T) {
 	f := NewFq(r)
 
 	// new Polynomial Field
-	pf := NewPolynomialFieldPrecomputedLagriangian(f, 100)
+	pf := NewPolynomialField(f)
 
 	// polynomial multiplication
 	o := pf.Mul(a, b)
@@ -99,26 +99,88 @@ func TestLagrangeInterpolation(t *testing.T) {
 	var Npoints = int64(100)
 	r := new(big.Int).Set(bn256.P)
 	f := NewFq(r)
+
 	// new Polynomial Field
-	pf := NewPolynomialFieldPrecomputedLagriangian(f, int(Npoints))
+	pf := NewPolynomialField(f)
 
 	var err error
 
 	Xpoints := make([]*big.Int, Npoints)
 	for i := int64(0); i < Npoints; i++ {
 		Xpoints[i] = new(big.Int).SetInt64(i)
+
 	}
 
-	for runs := 0; runs < 10; runs++ {
+	for runs := 0; runs < 3; runs++ {
 		Ypoints := make([]*big.Int, Npoints)
+
 		for i := int64(0); i < Npoints; i++ {
 			Ypoints[i], err = f.Rand()
 			assert.Nil(t, err)
 		}
-		Ypoints[3] = new(big.Int).SetInt64(int64(0))
+		tree := NewSparseArrayFromArray(Ypoints)
 		alpha := pf.LagrangeInterpolation(Ypoints)
+		interpolatedSparse := f.InterpolateSparseArray(tree, int(Npoints))
 		for i := int64(0); i < Npoints; i++ {
 			if f.EvalPoly(alpha, Xpoints[i]).Cmp(Ypoints[i]) != 0 {
+				t.Fail()
+				fmt.Println("fail")
+			}
+			if v := f.EvalSparsePoly(interpolatedSparse, Xpoints[i]); v.Cmp(Ypoints[i]) != 0 {
+				t.Fail()
+				fmt.Printf("fail sparse at %v", Xpoints[i])
+			}
+		}
+	}
+}
+
+func TestCombine(t *testing.T) {
+	// new Finite Field
+	var Npoints = int64(100)
+	r := new(big.Int).Set(bn256.P)
+	f := NewFq(r)
+
+	// new Polynomial Field
+	pf := NewPolynomialField(f)
+
+	var err error
+
+	Xpoints := make([]*big.Int, Npoints)
+	for i := int64(0); i < Npoints; i++ {
+		Xpoints[i] = new(big.Int).SetInt64(i)
+
+	}
+
+	for runs := 0; runs < 3; runs++ {
+		Ypoints := make([]*big.Int, Npoints)
+		Zpoints := make([]*big.Int, Npoints)
+		for i := int64(0); i < Npoints; i++ {
+			Ypoints[i], err = f.Rand()
+			assert.Nil(t, err)
+			Zpoints[i], err = f.Rand()
+			assert.Nil(t, err)
+		}
+		l1 := pf.LagrangeInterpolation(Ypoints)
+		l2 := pf.LagrangeInterpolation(Zpoints)
+		sum := pf.Add(l1, l2)
+		sum2 := pf.Add(Ypoints, Zpoints)
+		sum2In := pf.LagrangeInterpolation(sum2)
+		if !BigArraysEqual(sum, sum2In) {
+			t.Error("adding and then interpolating must yield the same results as interpolating then adding")
+		}
+
+		mul := pf.Mul(l1, l2)
+		mul2 := pf.Mul(Ypoints, Zpoints)
+		mul2Iterp := pf.LagrangeInterpolation(mul2)
+		if BigArraysEqual(mul, mul2Iterp) {
+			t.Error("should be unequal")
+		}
+		for i := int64(0); i < Npoints; i++ {
+			if f.EvalPoly(sum, Xpoints[i]).Cmp(f.Add(Ypoints[i], Zpoints[i])) != 0 {
+				t.Fail()
+				fmt.Println("fail")
+			}
+			if f.EvalPoly(mul, Xpoints[i]).Cmp(f.Mul(Ypoints[i], Zpoints[i])) != 0 {
 				t.Fail()
 				fmt.Println("fail")
 			}

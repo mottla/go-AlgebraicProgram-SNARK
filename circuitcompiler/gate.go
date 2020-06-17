@@ -33,7 +33,7 @@ type Gate struct {
 }
 
 func (g Gate) String() string {
-	return fmt.Sprintf("Gate: %v  with left %v right %v", g.identifier, g.leftIns, g.rightIns)
+	return fmt.Sprintf("Gate: %v  with left %v right %v expo %v out %v", g.identifier, g.leftIns, g.rightIns, g.expoIns, g.outIns)
 }
 
 func (gate *Gate) ID() (id string) {

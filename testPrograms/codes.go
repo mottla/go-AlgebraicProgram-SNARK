@@ -114,7 +114,7 @@ func main(x,y){
 
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(1))},
 		}},
@@ -138,14 +138,14 @@ func fubunaci(a,v){
 }
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
 
 		Code: `
 func main(x){
-	return (1*fubunaci(8,x))*(x*x)
+	return (x*x*fubunaci(8,x))*(x*x)
 }
 
 func fubunaci(a,v){
@@ -160,7 +160,7 @@ func fubunaci(a,v){
 }
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(5)), big.NewInt(int64(7))},
 		}},
@@ -179,7 +179,7 @@ func add(a,b){
 
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
@@ -200,7 +200,7 @@ func fubunaci(a){
 }
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{},
 		}},
@@ -220,7 +220,7 @@ func fubunaci(a){
 }
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},

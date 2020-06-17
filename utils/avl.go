@@ -59,10 +59,6 @@ type AvlTree struct {
 func NewAvlTree() *AvlTree {
 	return &AvlTree{lock: &sync.RWMutex{}}
 }
-func CloneAvlTree(set *AvlTree) *AvlTree {
-
-	return &AvlTree{lock: &sync.RWMutex{}}
-}
 
 // Add inserts an element to tree with root `t`
 func (t *AvlTree) InsertNoOverwriteAllowed(key uint, value *big.Int) (err error) {
@@ -118,7 +114,7 @@ func (t *AvlTree) MaxNode() *AvlNode {
 }
 func (root *AvlNode) maxNode() (t *AvlNode) {
 	if root == nil {
-		return nil
+		return &AvlNode{key: 0, value: bigZero}
 	}
 	if root.right != nil {
 		return root.right.maxNode()
@@ -137,6 +133,24 @@ func (root *AvlNode) minNode() (t *AvlNode) {
 		return root.left.minNode()
 	}
 	return root
+}
+
+func (t *AvlTree) ToArray(length int) (collectedNodes []*big.Int) {
+	if t == nil {
+		return nil
+	}
+	if length < int(t.MaxPower()) {
+		panic("")
+	}
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	entries := []Entry{}
+	t.root.AllNodes(&entries)
+	collectedNodes = ArrayOfBigZeros(length)
+	for _, v := range entries {
+		collectedNodes[int(v.Key)] = v.Value
+	}
+	return
 }
 
 // Each recursively traverses tree `tree` and collects all nodes
@@ -294,7 +308,7 @@ func (self *AvlNode) Has(key uint) (has bool) {
 
 func (self *AvlNode) Get(key uint) (value *big.Int, err error) {
 	if self == nil {
-		return nil, errors.New(fmt.Sprintf("not found %v", key))
+		return bigZero, errors.New(fmt.Sprintf("not found %v", key))
 	}
 	if self.key == (key) {
 		return self.value, nil

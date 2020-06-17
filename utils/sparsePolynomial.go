@@ -20,7 +20,7 @@ func (fq Fq) MulSparse(a, b *AvlTree) *AvlTree {
 
 // Mul multiplies a sparse polynomail with a scalar over the Finite Field
 func (fq Fq) MulSparseScalar(a *AvlTree, scalar *big.Int) *AvlTree {
-
+	a = a.Clone()
 	for L := range a.ChannelNodes(true) {
 		a.Put(L.Key, scalar, fq.Mul)
 	}
@@ -66,6 +66,7 @@ func (fq Fq) AddToSparse(a, b *AvlTree) *AvlTree {
 	//for v := range a.ChannelNodes(false) {
 	//	r.Put(v.Key, v.Value, fq.Add)
 	//}
+	a = a.Clone()
 	for v := range b.ChannelNodes(false) {
 		a.Put(v.Key, v.Value, fq.Add)
 	}
@@ -118,10 +119,8 @@ func euclid(a, b uint) (q, r uint) {
 
 // Sub subtracts two polinomials over the Finite Field
 func (fq Fq) SubToSparse(a, b *AvlTree) *AvlTree {
-	//r := NewAvlTree()
-	//for v := range a.ChannelNodes(false) {
-	//	r.Put(v.Key, v.Value, fq.Add)
-	//}
+
+	a = a.Clone()
 	for v := range b.ChannelNodes(false) {
 		a.Put(v.Key, fq.Neg(v.Value), fq.Add)
 	}
@@ -129,12 +128,17 @@ func (fq Fq) SubToSparse(a, b *AvlTree) *AvlTree {
 }
 
 // LagrangeInterpolation performs the Lagrange Interpolation / Lagrange Polynomials operation
-func (f Fq) InterpolateSparseArray(dataArray *AvlTree, till int) (polynom *AvlTree) {
+func (f Fq) InterpolateSparseArray(dataArray *AvlTree, degree int) (polynom *AvlTree) {
 	// https://en.wikipedia.org/wiki/Lagrange_polynomial
-
+	if dataArray.MaxPower() >= uint(degree) {
+		panic("interpolation degree cannot be smaller then highest degree in the polynomial")
+	}
 	var base = func(pointPos, totalPoints int) (r *AvlTree) {
-		r = NewAvlTree()
 
+		if v, ex := f.bases[baseLengthPair{baseIndex: pointPos, Length: totalPoints}]; ex {
+			return v
+		}
+		//r = NewAvlTree()
 		facBig := big.NewInt(1)
 
 		for i := 0; i < pointPos; i++ {
@@ -143,20 +147,34 @@ func (f Fq) InterpolateSparseArray(dataArray *AvlTree, till int) (polynom *AvlTr
 		for i := pointPos + 1; i < totalPoints; i++ {
 			facBig = f.Mul(facBig, big.NewInt(int64(pointPos-i)))
 		}
-		hf := f.Inverse(facBig)
-		r = NewSparseArrayWith(uint(0), hf)
+
+		r = NewSparseArrayWith(uint(0), new(big.Int).SetInt64(1))
 		for i := 0; i < totalPoints; i++ {
 			if i != pointPos {
 				r = f.MulSparse(r, NewSparseArrayFromArray([]*big.Int{big.NewInt(int64(-i)), big.NewInt(int64(1))}))
 			}
 		}
+		hf := f.Inverse(facBig)
+		r = f.MulSparseScalar(r, hf)
+		f.bases[baseLengthPair{baseIndex: pointPos, Length: totalPoints}] = r
 		return r
 	}
+	//if  IsZeroArray(dataArray.ToArray(degree)){
+	//	//at position -1 we store the all zero polynomial
+	//	if v,ex:=f.bases[baseLengthPair{baseIndex: -1,Length: degree}];ex{
+	//		return v
+	//	}
+	//	p:= PolynomialField{
+	//		F: f,
+	//	}
+	//	DomainPoly := NewSparseArrayFromArray(p.DomainPolynomial(degree))
+	//	f.bases[baseLengthPair{baseIndex: -1,Length: degree}]= DomainPoly
+	//	return DomainPoly
+	//}
 	polynom = NewAvlTree()
 	for v := range dataArray.ChannelNodes(true) {
-		prod := f.MulSparseScalar(base(int(v.Key), till), v.Value)
+		prod := f.MulSparseScalar(base(int(v.Key), degree), v.Value)
 		polynom = f.AddToSparse(polynom, prod)
-
 	}
 	return polynom
 }
@@ -192,17 +210,19 @@ func (f Fq) AddPolynomials(polynomials []*AvlTree) (sumPoly *AvlTree) {
 	return
 }
 
-func TransposeSparse(matrix []*AvlTree) (tra []*AvlTree) {
-	r := []*AvlTree{}
-
+func TransposeSparse(matrix []*AvlTree, witness int) (tra []*AvlTree) {
+	r := make([]*AvlTree, witness)
+	for i := 0; i < witness; i++ {
+		r[i] = NewAvlTree()
+	}
 	for y, tree := range matrix {
 		//if k := int(tree.MaxPower()); k > max {
 		//	max = k
 		//}
 		for val := range tree.ChannelNodes(true) {
-			for int(val.Key)+1 > len(r) {
-				r = append(r, NewAvlTree())
-			}
+			//for int(val.Key)+1 > len(r) {
+			//	r = append(r, NewAvlTree())
+			//}
 			r[int(val.Key)].InsertNoOverwriteAllowed(uint(y), val.Value)
 		}
 	}

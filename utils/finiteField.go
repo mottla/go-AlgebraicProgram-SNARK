@@ -21,7 +21,7 @@ func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
 	// new Finite Field
 	fqR := NewFq(FieldOrder)
 	// new Polynomial Field
-	pf := NewPolynomialFieldPrecomputedLagriangian(fqR, 0)
+	pf := NewPolynomialField(fqR)
 
 	return Fields{
 		ArithmeticField: fqR,
@@ -30,15 +30,23 @@ func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
 	}
 }
 
+type baseLengthPair struct {
+	baseIndex, Length int
+}
+
 // Fq is the Z field over modulus Q
 type Fq struct {
-	Q *big.Int // Q
+	Q            *big.Int // Q
+	bases        map[baseLengthPair]*AvlTree
+	basesClassic map[baseLengthPair][]*big.Int
 }
 
 // NewFq generates a new Fq
 func NewFq(q *big.Int) Fq {
 	return Fq{
 		q,
+		make(map[baseLengthPair]*AvlTree),
+		make(map[baseLengthPair][]*big.Int),
 	}
 }
 
@@ -111,6 +119,9 @@ func (fq Fq) MulScalar(base, e *big.Int) *big.Int {
 
 // Inverse returns the inverse on the Fq
 func (fq Fq) Inverse(a *big.Int) *big.Int {
+	if a.Cmp(bigZero) == 0 {
+		return a
+	}
 	return new(big.Int).ModInverse(a, fq.Q)
 
 }
@@ -160,6 +171,7 @@ func (fq Fq) ExpInt(base *big.Int, e uint) *big.Int {
 
 //EvalPoly Evaluates a polynomial v at position x, using the Horners Rule
 func (fq Fq) EvalPoly(v []*big.Int, x *big.Int) *big.Int {
+
 	if len(v) == 1 {
 		return v[0]
 	}

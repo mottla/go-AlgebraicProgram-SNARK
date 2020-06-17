@@ -19,19 +19,18 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="advancing implementation, fixed a severe logic error in division gates">
+    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="Adding Sudoku proof">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/circuit_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/circuit_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/circuitcompiler/gate.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/gate.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/parser.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/parser.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/testPrograms/codes.go" beforeDir="false" afterPath="$PROJECT_DIR$/testPrograms/codes.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/avl.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/avl.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/finiteField.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/finiteField.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/polynomialField.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/polynomialField.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/sparseArray.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/polynomialField_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/polynomialField_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/sparsePolynomial.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/sparsePolynomial.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/sparsePolynomial_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/sparsePolynomial_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/zkSNARK/wol19.go" beforeDir="false" afterPath="$PROJECT_DIR$/zkSNARK/wol19.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/zkSNARK/wol19_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/zkSNARK/wol19_test.go" afterDir="false" />
     </list>
@@ -87,7 +86,7 @@
     <property name="go.gopath.indexing.explicitly.defined" value="true" />
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/utils" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="nodejs_package_manager_path" value="npm" />
@@ -96,39 +95,29 @@
     <property name="settings.editor.selected.configurable" value="goland.project.structure" />
   </component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/utils" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/circuitcompiler" />
+      <recent name="$PROJECT_DIR$/circuitcompiler/pairing" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/utils" />
       <recent name="$PROJECT_DIR$/circuitcompiler" />
       <recent name="$PROJECT_DIR$/circuitcompiler/fields" />
       <recent name="$PROJECT_DIR$/zkSNARK" />
     </key>
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/circuitcompiler" />
-      <recent name="$PROJECT_DIR$/circuitcompiler/pairing" />
-    </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestCorrectness in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler">
-    <configuration name="TestCorrectness in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Go Test.TestGenerateAndVerifyProof_OldArray in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK">
+    <configuration name="TestCombine in github.com/mottla/go-AlgebraicProgram-SNARK/utils" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="go-AlgebraicProgram-SNARK" />
-      <working_directory value="$PROJECT_DIR$/circuitcompiler" />
+      <working_directory value="$PROJECT_DIR$/utils" />
       <framework value="gotest" />
       <kind value="PACKAGE" />
-      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/utils" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^TestCorrectness$" />
-      <method v="2" />
-    </configuration>
-    <configuration name="TestGenerateAndVerifyProof in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
-      <module name="go-AlgebraicProgram-SNARK" />
-      <working_directory value="$PROJECT_DIR$/zkSNARK" />
-      <framework value="gotest" />
-      <kind value="PACKAGE" />
-      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
-      <directory value="$PROJECT_DIR$/" />
-      <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^TestGenerateAndVerifyProof$" />
+      <pattern value="^TestCombine$" />
       <method v="2" />
     </configuration>
     <configuration name="TestGenerateAndVerifyProof_OldArray in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
@@ -142,34 +131,45 @@
       <pattern value="^TestGenerateAndVerifyProof_OldArray$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestPrintTree in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestGenerateAndVerifyProof_both in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="go-AlgebraicProgram-SNARK" />
-      <working_directory value="$PROJECT_DIR$/circuitcompiler" />
+      <working_directory value="$PROJECT_DIR$/zkSNARK" />
       <framework value="gotest" />
       <kind value="PACKAGE" />
-      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^TestPrintTree$" />
+      <pattern value="^TestGenerateAndVerifyProof_both$" />
       <method v="2" />
     </configuration>
-    <configuration name="go test go-AlgebraicProgram-SNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestGenerateAndVerifyProof_sparse in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="go-AlgebraicProgram-SNARK" />
-      <working_directory value="$PROJECT_DIR$" />
+      <working_directory value="$PROJECT_DIR$/zkSNARK" />
       <framework value="gotest" />
-      <kind value="DIRECTORY" />
-      <package value="github.com/mottla/go-AlgebraicProgram-SNARK" />
-      <directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
+      <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
+      <pattern value="^TestGenerateAndVerifyProof_sparse$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="polynomialField_test.go" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-AlgebraicProgram-SNARK" />
+      <working_directory value="$PROJECT_DIR$/utils" />
+      <framework value="gotest" />
+      <kind value="FILE" />
+      <package value="github.com/mottla/go-AlgebraicProgram-SNARK" />
+      <directory value="$PROJECT_DIR$/" />
+      <filePath value="$PROJECT_DIR$/utils/polynomialField_test.go" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go Test.TestCorrectness in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
         <item itemvalue="Go Test.TestGenerateAndVerifyProof_OldArray in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
-        <item itemvalue="Go Test.TestGenerateAndVerifyProof in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
-        <item itemvalue="Go Test.TestPrintTree in github.com/mottla/go-AlgebraicProgram-SNARK/circuitcompiler" />
-        <item itemvalue="Go Test.go test go-AlgebraicProgram-SNARK" />
+        <item itemvalue="Go Test.TestGenerateAndVerifyProof_sparse in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
+        <item itemvalue="Go Test.TestCombine in github.com/mottla/go-AlgebraicProgram-SNARK/utils" />
+        <item itemvalue="Go Test.TestGenerateAndVerifyProof_both in github.com/mottla/go-AlgebraicProgram-SNARK/zkSNARK" />
+        <item itemvalue="Go Test.polynomialField_test.go" />
       </list>
     </recent_temporary>
   </component>
@@ -199,7 +199,21 @@
       <option name="project" value="LOCAL" />
       <updated>1592136233462</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="advancing implementation">
+      <created>1592218955041</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1592218955041</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Adding Sudoku proof">
+      <created>1592238218053</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1592238218053</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -251,7 +265,6 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="progress" />
     <MESSAGE value="Completing implementation" />
     <MESSAGE value="Getting parser to run" />
     <MESSAGE value="supporting minus and division" />
@@ -263,7 +276,6 @@
     <MESSAGE value="advancing implementation; readme; remove unnecessary empty gates when performing equality check." />
     <MESSAGE value="supoorting for loop now and internal function definitions" />
     <MESSAGE value="now supporting if -else if - else,&#10;moving pairing lib,&#10;updating readme" />
-    <MESSAGE value="advancing implementation" />
     <MESSAGE value="optimizations" />
     <MESSAGE value="introducing randimization gate to make the proof zero-knowledge;&#10;preparing transfer from classic array to sparse array datatype" />
     <MESSAGE value="Introduce sparse array datatype" />
@@ -276,7 +288,9 @@
     <MESSAGE value="Advancing Implementation; cleanups;" />
     <MESSAGE value="removing unnecessary datastructure; introducing R1CS construction where constraints consider lowest bit complexity representation" />
     <MESSAGE value="advancing implementation, fixed a severe logic error in division gates" />
-    <option name="LAST_COMMIT_MESSAGE" value="advancing implementation, fixed a severe logic error in division gates" />
+    <MESSAGE value="advancing implementation" />
+    <MESSAGE value="Adding Sudoku proof" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adding Sudoku proof" />
   </component>
   <component name="WindowStateProjectService">
     <state x="164" y="96" width="1585" height="786" key="#com.intellij.execution.junit2.states.ComparisonFailureState$DiffDialog" timestamp="1584740194758">
@@ -287,98 +301,108 @@
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="634" y="294" width="643" height="388" key="#com.intellij.fileTypes.FileTypeChooser/65.24.1783.957@65.24.1783.957" timestamp="1586780898914" />
-    <state x="2649" y="248" width="451" height="581" key="#com.intellij.ide.util.MemberChooser" timestamp="1592134507686">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state x="3234" y="227" width="451" height="596" key="#com.intellij.ide.util.MemberChooser" timestamp="1592292199017">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
+    <state x="3234" y="227" width="451" height="596" key="#com.intellij.ide.util.MemberChooser/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592292199017" />
     <state x="2649" y="248" width="451" height="581" key="#com.intellij.ide.util.MemberChooser/67.27.3773.1053@67.27.3773.1053" timestamp="1592134507686" />
-    <state x="1215" y="494" key="#xdebugger.evaluate" timestamp="1591979939376">
+    <state x="400" y="249" width="1025" height="584" key="#xdebugger.XInspectDialog" timestamp="1592383163682">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
+    <state x="400" y="249" width="1025" height="584" key="#xdebugger.XInspectDialog/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592383163682" />
+    <state x="392" y="410" width="1229" height="506" key="#xdebugger.evaluate" timestamp="1592388608507">
+      <screen x="67" y="27" width="1853" height="1053" />
+    </state>
+    <state x="392" y="410" width="1229" height="506" key="#xdebugger.evaluate/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592388608507" />
     <state x="1215" y="494" key="#xdebugger.evaluate/67.27.1853.1053@67.27.1853.1053" timestamp="1591979939376" />
     <state x="474" y="97" width="1019" height="805" key="CommitChangelistDialog2" timestamp="1584959679390">
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="474" y="97" width="1019" height="805" key="CommitChangelistDialog2/65.24.1783.957@65.24.1783.957" timestamp="1584959679390" />
-    <state x="1882" y="0" width="1853" height="872" maximized="true" key="DiffContextDialog" timestamp="1592207625181">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="903" height="465" key="DebuggerActiveHint" timestamp="1592321981086">
+      <screen x="1920" y="0" width="1920" height="1080" />
+    </state>
+    <state width="903" height="465" key="DebuggerActiveHint/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592321981086" />
+    <state x="168" y="185" width="1335" height="895" key="DiffContextDialog" timestamp="1592321161288">
+      <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="198" y="191" width="1591" height="790" key="DiffContextDialog/65.24.1783.957@65.24.1783.957" timestamp="1584031850450" />
-    <state x="179" y="143" width="1655" height="812" key="DiffContextDialog/65.24.1855.984@65.24.1855.984" timestamp="1583610652368" />
+    <state x="168" y="185" width="1335" height="895" key="DiffContextDialog/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592321161288" />
     <state x="205" y="208" width="1482" height="872" key="DiffContextDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1592036777374" />
     <state x="1882" y="0" width="1853" height="872" maximized="true" key="DiffContextDialog/67.27.3773.1053@67.27.3773.1053" timestamp="1592207625181" />
     <state x="752" y="254" width="424" height="482" key="FileChooserDialogImpl" timestamp="1585678156694">
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="752" y="254" width="424" height="482" key="FileChooserDialogImpl/65.24.1783.957@65.24.1783.957" timestamp="1585678156694" />
-    <state width="1876" height="319" key="GridCell.Tab.0.bottom" timestamp="1592218685155">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="424" key="GridCell.Tab.0.bottom" timestamp="1592392507195">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.bottom/65.24.1783.957@65.24.1783.957" timestamp="1586784937263" />
-    <state width="1809" height="356" key="GridCell.Tab.0.bottom/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
-    <state width="1876" height="453" key="GridCell.Tab.0.bottom/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592149155931" />
-    <state width="1809" height="310" key="GridCell.Tab.0.bottom/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592168814385" />
+    <state width="1876" height="424" key="GridCell.Tab.0.bottom/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592392507195" />
+    <state width="1809" height="412" key="GridCell.Tab.0.bottom/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136611" />
     <state width="1809" height="345" key="GridCell.Tab.0.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
-    <state width="1876" height="319" key="GridCell.Tab.0.bottom/67.27.3773.1053@67.27.3773.1053" timestamp="1592218685155" />
-    <state width="1876" height="319" key="GridCell.Tab.0.center" timestamp="1592218685155">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.0.bottom/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902080" />
+    <state width="1876" height="424" key="GridCell.Tab.0.center" timestamp="1592392507195">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.center/65.24.1783.957@65.24.1783.957" timestamp="1586784937262" />
-    <state width="1809" height="356" key="GridCell.Tab.0.center/65.24.1855.984@65.24.1855.984" timestamp="1583611331550" />
-    <state width="1876" height="453" key="GridCell.Tab.0.center/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592149155931" />
-    <state width="1809" height="310" key="GridCell.Tab.0.center/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592168814385" />
+    <state width="1876" height="424" key="GridCell.Tab.0.center/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592392507195" />
+    <state width="1809" height="412" key="GridCell.Tab.0.center/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136611" />
     <state width="1809" height="345" key="GridCell.Tab.0.center/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
-    <state width="1876" height="319" key="GridCell.Tab.0.center/67.27.3773.1053@67.27.3773.1053" timestamp="1592218685155" />
-    <state width="1876" height="319" key="GridCell.Tab.0.left" timestamp="1592218685155">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.0.center/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902079" />
+    <state width="1876" height="424" key="GridCell.Tab.0.left" timestamp="1592392507195">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.left/65.24.1783.957@65.24.1783.957" timestamp="1586784937261" />
-    <state width="1809" height="356" key="GridCell.Tab.0.left/65.24.1855.984@65.24.1855.984" timestamp="1583611331550" />
-    <state width="1876" height="453" key="GridCell.Tab.0.left/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592149155930" />
-    <state width="1809" height="310" key="GridCell.Tab.0.left/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592168814385" />
+    <state width="1876" height="424" key="GridCell.Tab.0.left/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592392507195" />
+    <state width="1809" height="412" key="GridCell.Tab.0.left/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136611" />
     <state width="1809" height="345" key="GridCell.Tab.0.left/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
-    <state width="1876" height="319" key="GridCell.Tab.0.left/67.27.3773.1053@67.27.3773.1053" timestamp="1592218685155" />
-    <state width="1876" height="319" key="GridCell.Tab.0.right" timestamp="1592218685155">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.0.left/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902079" />
+    <state width="1876" height="424" key="GridCell.Tab.0.right" timestamp="1592392507195">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.0.right/65.24.1783.957@65.24.1783.957" timestamp="1586784937262" />
-    <state width="1809" height="356" key="GridCell.Tab.0.right/65.24.1855.984@65.24.1855.984" timestamp="1583611331555" />
-    <state width="1876" height="453" key="GridCell.Tab.0.right/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592149155931" />
-    <state width="1809" height="310" key="GridCell.Tab.0.right/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592168814385" />
+    <state width="1876" height="424" key="GridCell.Tab.0.right/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592392507195" />
+    <state width="1809" height="412" key="GridCell.Tab.0.right/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136611" />
     <state width="1809" height="345" key="GridCell.Tab.0.right/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
-    <state width="1876" height="319" key="GridCell.Tab.0.right/67.27.3773.1053@67.27.3773.1053" timestamp="1592218685155" />
-    <state width="1876" height="355" key="GridCell.Tab.1.bottom" timestamp="1592142513262">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.0.right/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902080" />
+    <state width="1876" height="323" key="GridCell.Tab.1.bottom" timestamp="1592388609538">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.bottom/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
-    <state width="1809" height="356" key="GridCell.Tab.1.bottom/65.24.1855.984@65.24.1855.984" timestamp="1583611331557" />
+    <state width="1876" height="323" key="GridCell.Tab.1.bottom/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592388609538" />
+    <state width="1809" height="314" key="GridCell.Tab.1.bottom/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136602" />
     <state width="1809" height="345" key="GridCell.Tab.1.bottom/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292783" />
-    <state width="1876" height="355" key="GridCell.Tab.1.bottom/67.27.3773.1053@67.27.3773.1053" timestamp="1592142513262" />
-    <state width="1876" height="355" key="GridCell.Tab.1.center" timestamp="1592142513259">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.1.bottom/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902081" />
+    <state width="1876" height="323" key="GridCell.Tab.1.center" timestamp="1592388609538">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.center/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
-    <state width="1809" height="356" key="GridCell.Tab.1.center/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
+    <state width="1876" height="323" key="GridCell.Tab.1.center/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592388609538" />
+    <state width="1809" height="314" key="GridCell.Tab.1.center/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136602" />
     <state width="1809" height="345" key="GridCell.Tab.1.center/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
-    <state width="1876" height="355" key="GridCell.Tab.1.center/67.27.3773.1053@67.27.3773.1053" timestamp="1592142513259" />
-    <state width="1876" height="355" key="GridCell.Tab.1.left" timestamp="1592142513258">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.1.center/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902080" />
+    <state width="1876" height="323" key="GridCell.Tab.1.left" timestamp="1592388609538">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.left/65.24.1783.957@65.24.1783.957" timestamp="1586784937263" />
-    <state width="1809" height="356" key="GridCell.Tab.1.left/65.24.1855.984@65.24.1855.984" timestamp="1583611331556" />
+    <state width="1876" height="323" key="GridCell.Tab.1.left/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592388609538" />
+    <state width="1809" height="314" key="GridCell.Tab.1.left/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136602" />
     <state width="1809" height="345" key="GridCell.Tab.1.left/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292782" />
-    <state width="1876" height="355" key="GridCell.Tab.1.left/67.27.3773.1053@67.27.3773.1053" timestamp="1592142513258" />
-    <state width="1876" height="355" key="GridCell.Tab.1.right" timestamp="1592142513261">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.1.left/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902080" />
+    <state width="1876" height="323" key="GridCell.Tab.1.right" timestamp="1592388609538">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state width="1737" height="296" key="GridCell.Tab.1.right/65.24.1783.957@65.24.1783.957" timestamp="1586784937264" />
-    <state width="1809" height="356" key="GridCell.Tab.1.right/65.24.1855.984@65.24.1855.984" timestamp="1583611331557" />
+    <state width="1876" height="323" key="GridCell.Tab.1.right/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592388609538" />
+    <state width="1809" height="314" key="GridCell.Tab.1.right/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592349136602" />
     <state width="1809" height="345" key="GridCell.Tab.1.right/67.27.1853.1053@67.27.1853.1053" timestamp="1592055292783" />
-    <state width="1876" height="355" key="GridCell.Tab.1.right/67.27.3773.1053@67.27.3773.1053" timestamp="1592142513261" />
-    <state x="1920" y="232" width="649" height="573" key="RollbackChangesDialog" timestamp="1592207278109">
-      <screen x="67" y="27" width="3773" height="1053" />
+    <state width="1876" height="355" key="GridCell.Tab.1.right/67.27.3773.1053@67.27.3773.1053" timestamp="1592238902081" />
+    <state x="2863" y="210" width="649" height="573" key="RollbackChangesDialog" timestamp="1592260533581">
+      <screen x="1920" y="0" width="1920" height="1080" />
     </state>
     <state x="644" y="210" width="649" height="573" key="RollbackChangesDialog/65.24.1783.957@65.24.1783.957" timestamp="1584037665124" />
-    <state x="667" y="215" width="649" height="573" key="RollbackChangesDialog/65.24.1855.984@65.24.1855.984" timestamp="1583610656611" />
+    <state x="2863" y="210" key="RollbackChangesDialog/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592260533581" />
     <state x="669" y="232" key="RollbackChangesDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1592036591885" />
     <state x="1920" y="232" key="RollbackChangesDialog/67.27.3773.1053@67.27.3773.1053" timestamp="1592207278109" />
     <state x="568" y="127" key="SettingsEditor" timestamp="1591362263257">
@@ -386,45 +410,52 @@
     </state>
     <state x="547" y="115" key="SettingsEditor/65.24.1783.957@65.24.1783.957" timestamp="1584953868298" />
     <state x="568" y="127" key="SettingsEditor/67.27.1853.1053@67.27.1853.1053" timestamp="1591362263257" />
-    <state x="542" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1592036801483">
-      <screen x="67" y="27" width="1853" height="1053" />
+    <state x="291" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2" timestamp="1592238219769">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
     <state x="572" y="233" key="Vcs.Push.Dialog.v2/65.24.1783.957@65.24.1783.957" timestamp="1584959682546" />
     <state x="542" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1592036801483" />
+    <state x="291" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.3773.1053@67.27.3773.1053" timestamp="1592238219769" />
     <state x="650" y="226" width="610" height="524" key="VcsDiffUtil.ChangesDialog" timestamp="1584031857186">
       <screen x="65" y="24" width="1783" height="957" />
     </state>
     <state x="650" y="226" width="610" height="524" key="VcsDiffUtil.ChangesDialog/65.24.1783.957@65.24.1783.957" timestamp="1584031857186" />
-    <state x="628" y="118" width="488" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1584740199043">
-      <screen x="65" y="24" width="1783" height="957" />
+    <state width="960" height="541" key="XDebugger.FullValuePopup" timestamp="1592314340606">
+      <screen x="1920" y="0" width="1920" height="1080" />
+    </state>
+    <state width="960" height="541" key="XDebugger.FullValuePopup/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1592314340606" />
+    <state x="470" y="130" width="419" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1592346857606">
+      <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="628" y="118" width="488" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/65.24.1783.957@65.24.1783.957" timestamp="1584740199043" />
+    <state x="470" y="130" width="419" height="613" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/67.27.1853.1053/1920.0.1920.1080@67.27.1853.1053" timestamp="1592346857606" />
+    <state x="887" y="130" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/67.27.3773.1053@67.27.3773.1053" timestamp="1592225496868" />
     <state x="682" y="366" key="git4idea.ui.GitUnstashDialog" timestamp="1592036579136">
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="682" y="366" key="git4idea.ui.GitUnstashDialog/67.27.1853.1053@67.27.1853.1053" timestamp="1592036579136" />
-    <state x="656" y="238" width="700" height="678" key="search.everywhere.popup" timestamp="1592073470748">
-      <screen x="67" y="27" width="1853" height="1053" />
+    <state x="1266" y="238" width="1426" height="678" key="search.everywhere.popup" timestamp="1592233607166">
+      <screen x="67" y="27" width="3773" height="1053" />
     </state>
-    <state x="655" y="221" width="700" height="633" key="search.everywhere.popup/65.24.1855.984@65.24.1855.984" timestamp="1583607707746" />
     <state x="656" y="238" width="700" height="678" key="search.everywhere.popup/67.27.1853.1053@67.27.1853.1053" timestamp="1592073470748" />
+    <state x="1266" y="238" width="1426" height="678" key="search.everywhere.popup/67.27.3773.1053@67.27.3773.1053" timestamp="1592233607166" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/zkSNARK/wol19.go</url>
-          <line>393</line>
+          <line>491</line>
           <option name="timeStamp" value="20" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/factorHandling.go</url>
-          <line>154</line>
+          <line>158</line>
           <option name="timeStamp" value="289" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/factorHandling.go</url>
-          <line>153</line>
+          <line>157</line>
           <option name="timeStamp" value="290" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
@@ -444,12 +475,12 @@
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
-          <line>328</line>
+          <line>357</line>
           <option name="timeStamp" value="718" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
-          <line>417</line>
+          <line>419</line>
           <option name="timeStamp" value="766" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
@@ -458,28 +489,18 @@
           <option name="timeStamp" value="811" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/utils/polynomialField.go</url>
-          <line>142</line>
-          <option name="timeStamp" value="867" />
-        </line-breakpoint>
-        <line-breakpoint type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/utils/polynomialField.go</url>
-          <line>143</line>
-          <option name="timeStamp" value="868" />
-        </line-breakpoint>
-        <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
-          <line>288</line>
+          <line>291</line>
           <option name="timeStamp" value="981" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
-          <line>289</line>
+          <line>292</line>
           <option name="timeStamp" value="982" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/utils/avl.go</url>
-          <line>454</line>
+          <line>469</line>
           <option name="timeStamp" value="1012" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
@@ -489,32 +510,22 @@
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
-          <line>394</line>
+          <line>404</line>
           <option name="timeStamp" value="1030" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/utils/sparsePolynomial.go</url>
-          <line>85</line>
+          <line>86</line>
           <option name="timeStamp" value="1031" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/utils/sparsePolynomial.go</url>
-          <line>156</line>
-          <option name="timeStamp" value="1032" />
-        </line-breakpoint>
-        <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/utils/sparsePolynomial_test.go</url>
-          <line>385</line>
+          <line>395</line>
           <option name="timeStamp" value="1034" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/zkSNARK/wol19.go</url>
-          <line>154</line>
-          <option name="timeStamp" value="1035" />
-        </line-breakpoint>
-        <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
-          <line>371</line>
+          <line>400</line>
           <option name="timeStamp" value="1054" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
@@ -523,38 +534,28 @@
           <option name="timeStamp" value="1162" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>948</line>
-          <option name="timeStamp" value="1196" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
-          <line>382</line>
-          <option name="timeStamp" value="1253" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
           <line>282</line>
           <option name="timeStamp" value="1269" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>280</line>
+          <line>282</line>
           <option name="timeStamp" value="1289" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
-          <line>68</line>
+          <line>53</line>
           <option name="timeStamp" value="1307" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>583</line>
+          <line>593</line>
           <option name="timeStamp" value="1312" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
-          <line>111</line>
+          <line>112</line>
           <option name="timeStamp" value="1314" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
@@ -569,58 +570,108 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
-          <line>365</line>
+          <line>370</line>
           <option name="timeStamp" value="1332" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
-          <line>336</line>
+          <line>341</line>
           <option name="timeStamp" value="1339" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
-          <line>370</line>
+          <line>399</line>
           <option name="timeStamp" value="1342" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>30</line>
-          <option name="timeStamp" value="1362" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>558</line>
-          <option name="timeStamp" value="1363" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/ER1CS.go</url>
-          <line>228</line>
+          <line>233</line>
           <option name="timeStamp" value="1365" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>541</line>
-          <option name="timeStamp" value="1366" />
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>517</line>
+          <option name="timeStamp" value="1371" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>552</line>
-          <option name="timeStamp" value="1367" />
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>496</line>
+          <option name="timeStamp" value="1382" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>553</line>
-          <option name="timeStamp" value="1368" />
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>159</line>
+          <option name="timeStamp" value="1383" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>317</line>
-          <option name="timeStamp" value="1369" />
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser_test.go</url>
+          <line>2</line>
+          <option name="timeStamp" value="1389" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>318</line>
-          <option name="timeStamp" value="1370" />
+          <url>file://$PROJECT_DIR$/circuitcompiler/Programm_test.go</url>
+          <line>44</line>
+          <option name="timeStamp" value="1392" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
+          <line>294</line>
+          <option name="timeStamp" value="1394" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/circuitcompiler/parser.go</url>
+          <line>421</line>
+          <option name="timeStamp" value="1395" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/avl.go</url>
+          <line>90</line>
+          <option name="timeStamp" value="1412" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>98</line>
+          <option name="timeStamp" value="1415" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/sparsePolynomial.go</url>
+          <line>222</line>
+          <option name="timeStamp" value="1419" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>143</line>
+          <option name="timeStamp" value="1424" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>240</line>
+          <option name="timeStamp" value="1491" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19.go</url>
+          <line>321</line>
+          <option name="timeStamp" value="1504" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>179</line>
+          <option name="timeStamp" value="1524" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>248</line>
+          <option name="timeStamp" value="1531" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/utils/polynomialField.go</url>
+          <line>239</line>
+          <option name="timeStamp" value="1532" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/zkSNARK/wol19_test.go</url>
+          <line>55</line>
+          <option name="timeStamp" value="1537" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

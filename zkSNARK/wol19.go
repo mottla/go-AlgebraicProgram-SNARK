@@ -7,7 +7,7 @@ import (
 	bn256 "github.com/mottla/go-AlgebraicProgram-SNARK/pairing"
 	"github.com/mottla/go-AlgebraicProgram-SNARK/utils"
 	"math/big"
-	"math/rand"
+	"time"
 )
 
 type Pk struct {
@@ -72,96 +72,35 @@ type Proof struct {
 }
 
 // CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials2(witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
+func CombinePolynomials2(witness []*big.Int, TransposedR1cs *circuitcompiler.ER1CSTransposed) (Px []*big.Int) {
 
 	pf := utils.Field.PolynomialField
 
-	scalarProduct := func(vec [][]*big.Int) (poly []*big.Int) {
-		var ax []*big.Int
-		for i := 0; i < len(witness); i++ {
-			m := pf.Mul([]*big.Int{witness[i]}, vec[i])
-			ax = pf.Add(ax, m)
-		}
-		return ax
-	}
 	//note thate we could first multiply, add and sub with the datapoints and then interpolate.
 	//however after the multiplication, the degree is higher. interpolation time is
 	//quadratic to the degree. Therefor its more efficient to interpolate and then operate.
 	//however.. the datapoints are sparse. if i interpolate them. they wont be sparse any longer
 	//multiplication takes full square time.
 	//most efficient is therfor precomputing lagrange bases, interpolate and then perform the operations.
-	LVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.L))
-	RVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.R))
-	EVec := scalarProduct(TransposedR1cs.E)
-	OVec := pf.LagrangeInterpolation(scalarProduct(TransposedR1cs.O))
+	LVec := pf.LagrangeInterpolation(pf.AddPolynomials(pf.LinearCombine(TransposedR1cs.L, witness)))
+	RVec := pf.LagrangeInterpolation(pf.AddPolynomials(pf.LinearCombine(TransposedR1cs.R, witness)))
+	EVec := pf.AddPolynomials(pf.LinearCombine(TransposedR1cs.E, witness))
+	OVec := pf.LagrangeInterpolation(pf.AddPolynomials(pf.LinearCombine(TransposedR1cs.O, witness)))
 
 	var mG_pointsVec []*big.Int
 	for i := 0; i < len(EVec); i++ {
 		p := g1ScalarBaseMultiply(EVec[i])
 		mG_pointsVec = append(mG_pointsVec, p.X())
 	}
-	Gx = pf.LagrangeInterpolation(mG_pointsVec)
+	Gx := pf.LagrangeInterpolation(mG_pointsVec)
 	a := pf.Mul(LVec, RVec)
 	b := pf.Add(a, Gx)
 	c := pf.Sub(b, OVec)
-	return Gx, c
-}
-
-//func CombinePolynomials3(fields utils.Fields, witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSTransposed) (Gx, Px []*big.Int) {
-//
-//	pf := fields.PolynomialField
-//
-//	scalarProduct := func(vec [][]*big.Int) (poly []*big.Int) {
-//		var ax []*big.Int
-//		for i := 0; i < len(witness); i++ {
-//			m := pf.Mul([]*big.Int{witness[i]}, vec[i])
-//			ax = pf.Add(ax, m)
-//		}
-//		return ax
-//	}
-//
-//	LVec := (scalarProduct(TransposedR1cs.L))
-//	RVec := (scalarProduct(TransposedR1cs.R))
-//	EVec := scalarProduct(TransposedR1cs.E)
-//	OVec := (scalarProduct(TransposedR1cs.O))
-//
-//	var mG_pointsVec []*big.Int
-//	for i := 0; i < len(EVec); i++ {
-//		p := g1ScalarBaseMultiply(EVec[i])
-//		mG_pointsVec = append(mG_pointsVec, p.X())
-//	}
-//	Gx = pf.LagrangeInterpolation(mG_pointsVec)
-//	a := pf.Mul(LVec, RVec)
-//	b := pf.Add(a, Gx)
-//	c := pf.Sub(b, OVec)
-//	return Gx, pf.LagrangeInterpolation(c)
-//}
-
-// CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombinePolynomials(witness []*big.Int, Li, Ri, Ei, Oi [][]*big.Int) (Gx, Px []*big.Int) {
-
-	pf := utils.Field.PolynomialField
-
-	LVec := pf.AddPolynomials(pf.LinearCombine(Li, witness))
-	RVec := pf.AddPolynomials(pf.LinearCombine(Ri, witness))
-	EVec := pf.AddPolynomials(pf.LinearCombine(Ei, witness))
-	OVec := pf.AddPolynomials(pf.LinearCombine(Oi, witness))
-
-	var mG_pointsVec []*big.Int
-	for i := 0; i < len(EVec); i++ {
-		val := utils.Field.ArithmeticField.EvalPoly(EVec, new(big.Int).SetInt64(int64(i)))
-		p := g1ScalarBaseMultiply(val)
-		mG_pointsVec = append(mG_pointsVec, p.X())
-	}
-	Gx = pf.LagrangeInterpolation(mG_pointsVec)
-	a := pf.Mul(LVec, RVec)
-	b := pf.Add(a, Gx)
-	c := pf.Sub(b, OVec)
-	return Gx, c
+	return c
 }
 
 //CombinePolynomials combine the given polynomials arrays into one, also returns the P(x)
-func CombineSparsePolynomials(witness []*big.Int, TransposedR1cs circuitcompiler.ER1CSsPARSETransposed) (Gx, Px *utils.AvlTree) {
+func CombineSparsePolynomials(witness []*big.Int, TransposedR1cs *circuitcompiler.ER1CSsPARSETransposed) (Px *utils.AvlTree) {
 
 	pf := utils.Field.ArithmeticField
 
@@ -170,22 +109,21 @@ func CombineSparsePolynomials(witness []*big.Int, TransposedR1cs circuitcompiler
 		return
 	}
 
-	LVec := scalarProduct(TransposedR1cs.L)
-	RVec := scalarProduct(TransposedR1cs.R)
+	LVec := pf.InterpolateSparseArray(scalarProduct(TransposedR1cs.L), TransposedR1cs.NumberOfGates)
+	RVec := pf.InterpolateSparseArray(scalarProduct(TransposedR1cs.R), TransposedR1cs.NumberOfGates)
 	EVec := scalarProduct(TransposedR1cs.E)
-	OVec := scalarProduct(TransposedR1cs.O)
+	OVec := pf.InterpolateSparseArray(scalarProduct(TransposedR1cs.O), TransposedR1cs.NumberOfGates)
 
 	var mG_pointsVec = utils.NewAvlTree()
 	for v := range EVec.ChannelNodes(true) {
 		p := g1ScalarBaseMultiply(v.Value)
 		mG_pointsVec.InsertNoOverwriteAllowed(v.Key, p.X())
 	}
-	Gx = pf.InterpolateSparseArray(mG_pointsVec, TransposedR1cs.WitnessLength)
-	a := pf.MulSparse(LVec, RVec)
-	pf.AddToSparse(a, mG_pointsVec)
-	pf.SubToSparse(a, OVec)
-
-	return Gx, pf.InterpolateSparseArray(a, TransposedR1cs.WitnessLength)
+	Gx := pf.InterpolateSparseArray(mG_pointsVec, TransposedR1cs.NumberOfGates)
+	Px = pf.MulSparse(LVec, RVec)
+	Px = pf.AddToSparse(Px, Gx)
+	Px = pf.SubToSparse(Px, OVec)
+	return
 }
 
 func g1ScalarBaseMultiply(in *big.Int) *bn256.G1 {
@@ -196,7 +134,14 @@ func g2ScalarBaseMultiply(in *big.Int) *bn256.G2 {
 }
 
 // GenerateTrustedSetup generates the Trusted Setup from a compiled function. The Setup.Toxic sub data structure must be destroyed
-func GenerateTrustedSetup(publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup, error) {
+func GenerateTrustedSetup(publicinputs int, r1cs *circuitcompiler.ER1CSTransposed) (*Setup, error) {
+	gates, witnessLength := r1cs.NumberOfGates, r1cs.WitnessLength
+
+	//this bastard is heavy to compute. we interpolate all the polynomials
+	fmt.Println("start interpolation...")
+	before := time.Now()
+	Li, Ri, Ei, Oi := r1cs.ER1CSToEAP()
+	fmt.Println("interpolation done in ", time.Since(before))
 	if len(Li) != len(Ri) || len(Ri) != len(Ei) || len(Ei) != len(Oi) {
 		panic("amount of polynimials  missmatch")
 	}
@@ -207,15 +152,13 @@ func GenerateTrustedSetup(publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup
 	var setup = new(Setup)
 	var err error
 	fields := utils.Field
-	gates := len(Li[0])
-	witnessLength := len(Li)
 	// generate random t value
 	setup.Toxic.x, err = fields.CurveOrderField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
 	//TODO this is why my scheme sucks. we can only have x in {0,..,len(gates)} and not from the entire field. This destroys security
-	setup.Toxic.x = big.NewInt(rand.Int63n(int64(gates)))
+	//setup.Toxic.x = big.NewInt(rand.Int63n(int64(gates)))
 
 	setup.Toxic.Kalpha, err = fields.CurveOrderField.Rand()
 	if err != nil {
@@ -235,15 +178,7 @@ func GenerateTrustedSetup(publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup
 	}
 
 	//generate the domain polynomial
-	Domain := []*big.Int{big.NewInt(int64(1))}
-
-	for i := 0; i < gates; i++ {
-		Domain = fields.PolynomialField.Mul(
-			Domain,
-			[]*big.Int{
-				fields.ArithmeticField.Neg(big.NewInt(int64(i))), big.NewInt(int64(1)),
-			})
-	}
+	Domain := fields.PolynomialField.DomainPolynomial(gates)
 
 	setup.Pk.Domain = Domain
 	//TODO other field maybe??
@@ -317,6 +252,123 @@ func GenerateTrustedSetup(publicinputs int, Li, Ri, Ei, Oi [][]*big.Int) (*Setup
 	return setup, nil
 }
 
+// GenerateTrustedSetup generates the Trusted Setup from a compiled function. The Setup.Toxic sub data structure must be destroyed
+func GenerateTrustedSetupSparse(publicinputs int, in *circuitcompiler.ER1CSsPARSETransposed) (*Setup, error) {
+	gates, witnessLength := in.NumberOfGates, in.WitnessLength
+	fmt.Println("start interpolation...")
+	before := time.Now()
+	Li, Ri, Ei, Oi := in.ER1CSToEAPSparse()
+	fmt.Println("interpolation done in ", time.Since(before))
+	if len(Li) != len(Ri) || len(Ri) != len(Ei) || len(Ei) != len(Oi) {
+		panic("amount of polynimials  missmatch")
+	}
+	if publicinputs >= len(Li) {
+		panic("to moany public parameters")
+	}
+
+	var setup = new(Setup)
+	var err error
+	fields := utils.Field
+	// generate random t value
+	setup.Toxic.x, err = fields.CurveOrderField.Rand()
+	if err != nil {
+		panic("random failed")
+	}
+	//TODO this is why my scheme sucks. we can only have x in {0,..,len(gates)} and not from the entire field. This destroys security
+	//setup.Toxic.x = big.NewInt(rand.Int63n(int64(gates)))
+
+	setup.Toxic.Kalpha, err = fields.CurveOrderField.Rand()
+	if err != nil {
+		panic("random failed")
+	}
+	setup.Toxic.Kbeta, err = fields.CurveOrderField.Rand()
+	if err != nil {
+		panic("random failed")
+	}
+	setup.Toxic.Kgamma, err = fields.CurveOrderField.Rand()
+	if err != nil {
+		panic("random failed")
+	}
+	setup.Toxic.Kdelta, err = fields.CurveOrderField.Rand()
+	if err != nil {
+		panic("random failed")
+	}
+
+	//generate the domain polynomial
+	Domain := fields.PolynomialField.DomainPolynomial(gates)
+
+	setup.Pk.Domain = Domain
+	//TODO other field maybe??
+	Dx := fields.CurveOrderField.EvalPoly(Domain, setup.Toxic.x)
+	invDelta := fields.CurveOrderField.Inverse(setup.Toxic.Kdelta)
+	invgamma := fields.CurveOrderField.Inverse(setup.Toxic.Kgamma)
+	Dx_div_delta := fields.CurveOrderField.Mul(invDelta, Dx)
+
+	// encrypt x values with curve generators
+	// x^i times D(x) divided by delta
+	var powersXDomaindivDelta = []*bn256.G1{g1ScalarBaseMultiply(Dx_div_delta)}
+	var powersX_onG = []*bn256.G1{g1ScalarBaseMultiply(big.NewInt(1))}
+	var powersX_onH = []*bn256.G2{g2ScalarBaseMultiply(big.NewInt(1))}
+
+	//G^{x^i}
+	tEncr := new(big.Int).Set(setup.Toxic.x)
+	for i := 1; i < gates; i++ {
+		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.CurveOrderField.Mul(tEncr, Dx_div_delta)))
+		powersX_onG = append(powersX_onG, g1ScalarBaseMultiply(tEncr))
+		powersX_onH = append(powersX_onH, g2ScalarBaseMultiply(tEncr))
+		// x^i -> x^{i+1}
+		tEncr = fields.CurveOrderField.Mul(tEncr, setup.Toxic.x)
+	}
+
+	setup.Pk.G1.PowersX = powersX_onG
+	setup.Pk.G2.PowersX = powersX_onH
+	setup.Pk.G1.PowersX_Domain_Delta = powersXDomaindivDelta
+
+	setup.Pk.G1.Alpha = g1ScalarBaseMultiply(setup.Toxic.Kalpha)
+	setup.Pk.G1.Beta = g1ScalarBaseMultiply(setup.Toxic.Kbeta)
+	setup.Pk.G1.Delta = g1ScalarBaseMultiply(setup.Toxic.Kdelta)
+
+	setup.Pk.G2.Beta = g2ScalarBaseMultiply(setup.Toxic.Kbeta)
+	setup.Pk.G2.Gamma = g2ScalarBaseMultiply(setup.Toxic.Kgamma)
+	setup.Pk.G2.Delta = g2ScalarBaseMultiply(setup.Toxic.Kdelta)
+
+	for i := 0; i < witnessLength; i++ {
+		// Li(x)
+		lix := fields.CurveOrderField.EvalSparsePoly(Li[i], setup.Toxic.x)
+		// Ri(x)
+		rix := fields.CurveOrderField.EvalSparsePoly(Ri[i], setup.Toxic.x)
+		// Oi(x)
+		oix := fields.CurveOrderField.EvalSparsePoly(Oi[i], setup.Toxic.x)
+
+		// Ei(x)
+		eix := fields.CurveOrderField.EvalSparsePoly(Ei[i], setup.Toxic.x)
+		setup.Pk.G1.Ex = append(setup.Pk.G1.Ex, g1ScalarBaseMultiply(eix))
+
+		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.CurveOrderField.Add(eix, lix)))
+
+		//H^Rix
+		hRix := g2ScalarBaseMultiply(fields.CurveOrderField.Copy(rix))
+		setup.Pk.G2.Rx = append(setup.Pk.G2.Rx, hRix)
+
+		ter := fields.CurveOrderField.Mul(setup.Toxic.Kalpha, rix)
+		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, lix))
+		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, eix))
+		ter = fields.CurveOrderField.Add(ter, oix)
+
+		if i < publicinputs {
+			ter = fields.CurveOrderField.Mul(invgamma, ter)
+			setup.Pk.G1.RLEO_Gamma = append(setup.Pk.G1.RLEO_Gamma, g1ScalarBaseMultiply(ter))
+		} else {
+			ter = fields.CurveOrderField.Mul(invDelta, ter)
+			setup.Pk.G1.RLEO_Delta = append(setup.Pk.G1.RLEO_Delta, g1ScalarBaseMultiply(ter))
+		}
+	}
+	setup.Pk.eGH = bn256.Pair(g1ScalarBaseMultiply(new(big.Int).SetInt64(1)), g2ScalarBaseMultiply(new(big.Int).SetInt64(1)))
+	//is a field multiplication under order g1 wrong?
+	setup.Pk.eGHalphaBeta = bn256.Pair(g1ScalarBaseMultiply(setup.Toxic.Kalpha), g2ScalarBaseMultiply(setup.Toxic.Kbeta))
+	return setup, nil
+}
+
 // GenerateProofs generates all the parameters to proof the zkSNARK from the function, Setup and the Witness
 func GenerateProofs(publicInputs int, provingKey *Pk, witnessTrace []*big.Int, Px []*big.Int) (*Proof, error) {
 	var proof = new(Proof)
@@ -336,6 +388,51 @@ func GenerateProofs(publicInputs int, provingKey *Pk, witnessTrace []*big.Int, P
 
 	for i := 1; i < len(Qx); i++ {
 		tmp := new(bn256.G1).ScalarMult(provingKey.G1.PowersX_Domain_Delta[i], Qx[i])
+		QxDx_div_delta.Add(QxDx_div_delta, tmp)
+	}
+
+	for i := 1; i < len(witnessTrace); i++ {
+		//proof element A
+		proof.PiA.Add(proof.PiA, new(bn256.G1).ScalarMult(provingKey.G1.Lx_plus_Ex[i], witnessTrace[i]))
+
+		//proof element B
+		proof.PiB.Add(proof.PiB, new(bn256.G2).ScalarMult(provingKey.G2.Rx[i], witnessTrace[i]))
+
+		if i > publicInputs {
+			//proof element C
+			proof.PiC.Add(proof.PiC, new(bn256.G1).ScalarMult(provingKey.G1.RLEO_Delta[i-publicInputs], witnessTrace[i]))
+		}
+		//proof element F
+		proof.PiF.Add(proof.PiF, new(bn256.G1).ScalarMult(provingKey.G1.Ex[i], witnessTrace[i]))
+	}
+	//add the alpha therm to proof element A
+	proof.PiA.Add(proof.PiA, provingKey.G1.Alpha)
+
+	//add the Q(x)D(x)/delta therm to the proof element C
+	proof.PiC.Add(proof.PiC, QxDx_div_delta)
+
+	return proof, nil
+}
+
+// GenerateProofs generates all the parameters to proof the zkSNARK from the function, Setup and the Witness
+func GenerateProof_Sparse(publicInputs int, provingKey *Pk, witnessTrace []*big.Int, Px *utils.AvlTree) (*Proof, error) {
+	var proof = new(Proof)
+	f := utils.Field
+
+	proof.PiA = new(bn256.G1).ScalarMult(provingKey.G1.Lx_plus_Ex[0], witnessTrace[0])
+	proof.PiB = new(bn256.G2).ScalarMult(provingKey.G2.Rx[0], witnessTrace[0])
+	proof.PiC = new(bn256.G1).ScalarMult(provingKey.G1.RLEO_Delta[0], witnessTrace[publicInputs])
+	proof.PiF = new(bn256.G1).ScalarMult(provingKey.G1.Ex[0], witnessTrace[0])
+	Qx, r := f.CurveOrderField.DivideSparse(Px, utils.NewSparseArrayFromArray(provingKey.Domain))
+
+	if r.Size() > 0 {
+		panic("remainder supposed to be 0")
+	}
+
+	var QxDx_div_delta = g1ScalarBaseMultiply(big.NewInt(0))
+
+	for L := range Qx.ChannelNodes(true) {
+		tmp := new(bn256.G1).ScalarMult(provingKey.G1.PowersX_Domain_Delta[L.Key], L.Value)
 		QxDx_div_delta.Add(QxDx_div_delta, tmp)
 	}
 

@@ -71,9 +71,11 @@ func (g *gateContainer) Add(gate *Gate) {
 	//	gate.leftIns = tmp
 	//}
 
-	if _, ex := g.computedFactors[gate.ID()]; !ex {
+	if !g.contains(gate.ID()) {
 		g.computedFactors[gate.ID()] = true
 		g.orderedmGates = append(g.orderedmGates, gate)
+	} else {
+		//fmt.Println("saved reuse of "+gate.String())
 	}
 
 	return
@@ -778,7 +780,7 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 		r1CS.O = append(r1CS.O, cConstraint)
 
 	}
-	r1CS.NumberOfGates = len(mGates)
+	r1CS.NumberOfGates = len(r1CS.L)
 	r1CS.WitnessLength = len(indexMap)
 	return
 }
@@ -812,9 +814,9 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		////we store where a variables bit representatives are
 		if v.gateType == zeroOrOneGate {
 			if _, ex := r1CS.splitmap[v.arithmeticRepresentatnt.Identifier]; !ex {
-				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = []uint{(indexMap[v.identifier])}
+				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = []uint{indexMap[v.identifier]}
 			} else {
-				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = append(r1CS.splitmap[v.arithmeticRepresentatnt.Identifier], (indexMap[v.identifier]))
+				r1CS.splitmap[v.arithmeticRepresentatnt.Identifier] = append(r1CS.splitmap[v.arithmeticRepresentatnt.Identifier], indexMap[v.identifier])
 			}
 		}
 	}
@@ -831,7 +833,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		}
 		value := val.multiplicative
 		//not that index is 0 if its a constant, since 0 is the map default if no entry was found
-		arr.Put(uint(indexMap[val.typ.Identifier]), value, utils.Field.ArithmeticField.Add)
+		arr.Put(indexMap[val.typ.Identifier], value, utils.Field.ArithmeticField.Add)
 	}
 
 	for _, g := range mGates {
@@ -971,7 +973,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		r1CS.E = append(r1CS.E, eConstraint)
 		r1CS.O = append(r1CS.O, cConstraint)
 	}
-	r1CS.NumberOfGates = len(mGates)
+	r1CS.NumberOfGates = len(r1CS.L)
 	r1CS.WitnessLength = len(indexMap)
 	return
 }

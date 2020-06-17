@@ -41,22 +41,24 @@ type ER1CSsPARSETransposed struct {
 	O                            []*utils.AvlTree
 }
 type ER1CSTransposed struct {
-	indexMap map[string]uint
-	L        [][]*big.Int
-	R        [][]*big.Int
-	E        [][]*big.Int
-	O        [][]*big.Int
+	indexMap                     map[string]uint
+	WitnessLength, NumberOfGates int
+	L                            [][]*big.Int
+	R                            [][]*big.Int
+	E                            [][]*big.Int
+	O                            [][]*big.Int
 }
 
-func (er1cs *ER1CSSparse) TransposeSparse() (transposed ER1CSsPARSETransposed) {
+func (er1cs *ER1CSSparse) TransposeSparse() (transposed *ER1CSsPARSETransposed) {
+	transposed = &ER1CSsPARSETransposed{}
 	transposed.indexMap = er1cs.indexMap
 	transposed.NumberOfGates = er1cs.NumberOfGates
 	transposed.WitnessLength = er1cs.WitnessLength
 
-	transposed.L = utils.TransposeSparse(er1cs.L)
-	transposed.R = utils.TransposeSparse(er1cs.R)
-	transposed.E = utils.TransposeSparse(er1cs.E)
-	transposed.O = utils.TransposeSparse(er1cs.O)
+	transposed.L = utils.TransposeSparse(er1cs.L, er1cs.WitnessLength)
+	transposed.R = utils.TransposeSparse(er1cs.R, er1cs.WitnessLength)
+	transposed.E = utils.TransposeSparse(er1cs.E, er1cs.WitnessLength)
+	transposed.O = utils.TransposeSparse(er1cs.O, er1cs.WitnessLength)
 
 	return
 }
@@ -76,8 +78,11 @@ func max(a, b int) int {
 	return b
 }
 
-func (er1cs *ER1CS) Transpose() (transposed ER1CSTransposed) {
+func (er1cs *ER1CS) Transpose() (transposed *ER1CSTransposed) {
+	transposed = &ER1CSTransposed{}
 	transposed.indexMap = er1cs.indexMap
+	transposed.NumberOfGates = er1cs.NumberOfGates
+	transposed.WitnessLength = er1cs.WitnessLength
 	transposed.L = utils.Transpose(er1cs.L)
 	transposed.R = utils.Transpose(er1cs.R)
 	transposed.E = utils.Transpose(er1cs.E)
@@ -106,7 +111,6 @@ func (er1cs *ER1CSTransposed) ER1CSToEAP() (lPoly, rPoly, ePoly, oPoly [][]*big.
 
 		oPoly = append(oPoly, utils.Field.PolynomialField.LagrangeInterpolation(oT[i]))
 	}
-
 	return
 }
 
@@ -116,20 +120,20 @@ func (er1cs *ER1CSTransposed) ER1CSToEAP() (lPoly, rPoly, ePoly, oPoly [][]*big.
 //within this process, the polynomial is evaluated at position 0
 //so an alpha/beta/gamma value is the polynomial evaluated at 0
 // the domain polynomial therefor is (-1+x)(-2+x)...(-n+x)
-func (er1cs *ER1CSsPARSETransposed) SparseER1CSToEAP() (lPoly, rPoly, ePoly, oPoly []*utils.AvlTree) {
+func (er1cs *ER1CSsPARSETransposed) ER1CSToEAPSparse() (lPoly, rPoly, ePoly, oPoly []*utils.AvlTree) {
 
 	lT := er1cs.L
 	rT := er1cs.R
 	eT := er1cs.E
 	oT := er1cs.O
 	for i := 0; i < len(lT); i++ {
-		lPoly = append(lPoly, utils.Field.ArithmeticField.InterpolateSparseArray(lT[i], er1cs.NumberOfGates))
+		lPoly = append(lPoly, utils.Field.ArithmeticField.InterpolateSparseArray(lT[i], er1cs.WitnessLength))
 
-		rPoly = append(rPoly, utils.Field.ArithmeticField.InterpolateSparseArray(rT[i], er1cs.NumberOfGates))
+		rPoly = append(rPoly, utils.Field.ArithmeticField.InterpolateSparseArray(rT[i], er1cs.WitnessLength))
 
-		ePoly = append(ePoly, utils.Field.ArithmeticField.InterpolateSparseArray(eT[i], er1cs.NumberOfGates))
+		ePoly = append(ePoly, utils.Field.ArithmeticField.InterpolateSparseArray(eT[i], er1cs.WitnessLength))
 
-		oPoly = append(oPoly, utils.Field.ArithmeticField.InterpolateSparseArray(oT[i], er1cs.NumberOfGates))
+		oPoly = append(oPoly, utils.Field.ArithmeticField.InterpolateSparseArray(oT[i], er1cs.WitnessLength))
 	}
 	return
 }
