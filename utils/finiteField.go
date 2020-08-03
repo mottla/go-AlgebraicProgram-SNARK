@@ -10,23 +10,22 @@ import (
 type Fields struct {
 	ArithmeticField Fq
 	PolynomialField PolynomialField
-	CurveOrderField Fq
 }
 
-var Field = PrepareFields(bn256.Order, bn256.Order)
+var Field = PrepareFields(bn256.Order)
 
 //var Field = PrepareFields(big.NewInt(601), big.NewInt(601))
 
-func PrepareFields(CurveOrder, FieldOrder *big.Int) Fields {
+//PrepareFields For prime r, in order to prove statements about F_r-arithmetic circuit
+//satisfiability, one instantiates (G, P, V ) using an elliptic curve E defined over some finite field F_q , where the
+//group E(F_q) of F_q-rational points has order r = #E(F q ) (or, more generally, r divides #E(F q )).
+func PrepareFields(r *big.Int) Fields {
 	// new Finite Field
-	fqR := NewFq(FieldOrder)
-	// new Polynomial Field
-	pf := NewPolynomialField(fqR)
+	fqR := NewFq(r)
 
 	return Fields{
 		ArithmeticField: fqR,
-		PolynomialField: *pf,
-		CurveOrderField: NewFq(CurveOrder),
+		PolynomialField: *NewPolynomialField(fqR),
 	}
 }
 
@@ -69,13 +68,11 @@ func (fq Fq) ScalarProduct(l, r []*big.Int) (sum *big.Int) {
 	if len(l) != len(r) {
 		panic("vector lengths missmatch")
 	}
-	return fq.scalarProduct(l, r)
-}
-func (fq Fq) scalarProduct(l, r []*big.Int) (sum *big.Int) {
-	if len(l) == 0 {
-		return bigZero
+	sum = new(big.Int)
+	for i := 0; i < len(r); i++ {
+		sum = fq.Add(sum, fq.Mul(l[i], r[i]))
 	}
-	return fq.Add(new(big.Int).Mul(l[0], r[0]), fq.ScalarProduct(l[1:], r[1:]))
+	return sum
 }
 
 // Add performs an addition on the Fq

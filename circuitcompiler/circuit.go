@@ -9,7 +9,9 @@ var variableIndicationSign = "@"
 
 // function is the data structure of the compiled circuit
 type function struct {
-	Name string
+	Name     string
+	isNumber bool
+	value    *big.Int
 
 	Inputs []string //the inputs of a circuit are circuits. Tis way we can pass functions as arguments
 
@@ -32,7 +34,9 @@ type watchstack struct {
 }
 
 func newCircuit(name string, context *function) *function {
+
 	c := &function{Context: context, Name: name, Inputs: []string{}, constraintMap: make(map[string]*Constraint), taskStack: newWatchstack(), functions: make(map[string]*function)}
+
 	return c
 }
 
@@ -43,9 +47,6 @@ func RegisterFunctionFromConstraint(constraint *Constraint, context *function) (
 
 	for _, arg := range constraint.Inputs {
 		c.Inputs = append(c.Inputs, arg.Output.Identifier)
-		if _, ex := c.functions[arg.Output.Identifier]; ex {
-			panic("argument must be unique ")
-		}
 
 		cl := arg.clone()
 		cl.Output.Type = FUNCTION_CALL
@@ -59,8 +60,10 @@ func RegisterFunctionFromConstraint(constraint *Constraint, context *function) (
 			},
 			Inputs: []*Constraint{arg},
 		})
-
-		c.functions[arg.Output.Identifier] = rmp
+		if _, ex := c.functions[rmp.Name]; ex {
+			panic(fmt.Sprintf("argument: %v , is not unique ", rmp.Name))
+		}
+		c.functions[rmp.Name] = rmp
 	}
 
 	return
@@ -73,6 +76,10 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 	currentConstraint := constraintStack[0]
 
 	switch currentConstraint.Output.Type {
+	case PUBLIC:
+		if currentCircuit.Name != "main" {
+			panic("public zkSNARK parameters need to be declared in main function")
+		}
 	case IF:
 		entireIfElse, outsideIfElse := splitAtIfEnd(constraintStack)
 
@@ -81,9 +88,10 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		newFunc := newCircuit(identifier, currentCircuit)
 
 		currentCircuit.functions[identifier] = newFunc
+
 		currentCircuit.taskStack.add(&Constraint{
 			Output: Token{
-				Type:       FUNCTION_CALL,
+				Type:       IF_FUNCTION_CALL,
 				Identifier: identifier,
 			},
 		})
@@ -170,13 +178,14 @@ func (currentCircuit *function) preCompile(constraintStack []*Constraint) {
 		},
 		)
 		currentCircuit.functions[currentConstraint.Output.Identifier] = rmp
+		//is this still necessary..
 		currentCircuit.constraintMap[currentConstraint.Output.Identifier] = &Constraint{
 			Output: Token{
 				Type:       FUNCTION_CALL,
 				Identifier: currentConstraint.Output.Identifier,
 			},
 		}
-		//we consider a variable declaration equal to a function declaration. hence a declaration add no task
+		//declarations exist only for static semantic check. from now on we treat it like overload
 		currentCircuit.taskStack.add(&Constraint{
 			Output: Token{
 				Type: VARIABLE_OVERLOAD,
@@ -334,9 +343,20 @@ func (currentCircuit *function) getCircuitContainingConstraintInBloodline(identi
 	return currentCircuit.Context.getCircuitContainingConstraintInBloodline(identifier)
 
 }
+func (currentCircuit *function) getCircuitContainingFunctionInBloodline(identifier string) (*function, bool) {
+	if currentCircuit == nil {
+		return nil, false
+	}
+	if _, ex := currentCircuit.functions[identifier]; ex {
+		return currentCircuit, true
+	}
+	return currentCircuit.Context.getCircuitContainingFunctionInBloodline(identifier)
+
+}
 
 func (circ *function) clone() (clone *function) {
 	clone = newCircuit(circ.Name, circ.Context)
+
 	clone.Inputs = circ.Inputs
 	for k, v := range circ.functions {
 		clone.functions[k] = v.clone()
@@ -456,38 +476,6 @@ func (w *watchstack) addPrimitiveReturn(tok Token) {
 func (from Token) primitiveReturnfunction() (gives *function) {
 	rmp := newCircuit(from.Identifier, nil)
 	rmp.taskStack.addPrimitiveReturn(from)
-	return rmp
-}
-func (from factor) primitiveReturnfunction() (gives *function) {
-
-	if from.typ.Type == NumberToken {
-		return from.typ.primitiveReturnfunction()
-	}
-	if from.multiplicative.Cmp(bigOne) == 0 {
-		return from.typ.primitiveReturnfunction()
-	}
-	rmp := newCircuit(from.typ.Identifier, nil)
-	rmp.taskStack.add(&Constraint{
-		Output: Token{
-			Type:       RETURN,
-			Identifier: "",
-		},
-		Inputs: []*Constraint{
-			&Constraint{
-				Output: Token{
-					Type:       ArithmeticOperatorToken,
-					Identifier: "*",
-				},
-			}, &Constraint{
-				Output: Token{
-					Type:       NumberToken,
-					Identifier: from.multiplicative.String(),
-				},
-			}, &Constraint{
-				Output: from.typ,
-			},
-		},
-	})
 	return rmp
 }
 

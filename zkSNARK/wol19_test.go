@@ -41,7 +41,7 @@ func TestGenerateAndVerifyProof_OldArray(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, io := range test.IO {
-			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.Inputs)
+			inputs := circuitcompiler.CombineInputs(program.GetMainCircuit().Inputs, io.Inputs)
 			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
 
 			assert.NoError(t, err)
@@ -112,7 +112,7 @@ func TestGenerateAndVerifyProof_sparse(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, io := range test.IO {
-			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.Inputs)
+			inputs := circuitcompiler.CombineInputs(program.PublicInputs, io.Inputs)
 			w, err := circuitcompiler.CalculateSparseWitness(r1cs, inputs)
 
 			assert.NoError(t, err)
@@ -192,7 +192,7 @@ func TestGenerateAndVerifyProof_both(t *testing.T) {
 		assert.NoError(t, erro)
 
 		for _, io := range test.IO {
-			inputs := circuitcompiler.CombineInputs(program.GlobalInputs, io.Inputs)
+			inputs := circuitcompiler.CombineInputs(program.PublicInputs, io.Inputs)
 			w, err := circuitcompiler.CalculateWitness(r1cs, inputs)
 			assert.NoError(t, err)
 			wsparse, werr := circuitcompiler.CalculateSparseWitness(r1csSparse, inputs)

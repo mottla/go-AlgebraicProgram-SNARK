@@ -7,14 +7,29 @@ import (
 	"testing"
 )
 
-func TestCombineInputs(t *testing.T) {
-	for i := 1; i < 10; i++ {
-		for j := 1; j < 10; j++ {
-			fmt.Printf("x%v%v,", i, j)
-		}
-		fmt.Println("")
+func iterate(fromX, toX int, call func(int)) {
+
+	if fromX == toX {
+
+		return
 	}
+	call(fromX)
+	iterate(fromX+1, toX, call)
+	return
 }
+func TestCombineInputs(t *testing.T) {
+	ctr := 0
+	var ff = func(k int) {
+		var EQ = func(i int) {
+			ctr++
+		}
+		iterate(0, 9, EQ)
+	}
+	iterate(0, 9, ff)
+	fmt.Print(ctr)
+	return
+}
+
 func TestCorrectness(t *testing.T) {
 
 	for _, test := range testPrograms.TestPrograms {
@@ -22,10 +37,9 @@ func TestCorrectness(t *testing.T) {
 			continue
 		}
 
-		program := Parse(test.Code, true)
-
 		fmt.Println("\n unreduced")
 		fmt.Println(test.Code)
+		program := Parse(test.Code, true)
 
 		gates := program.Execute()
 
@@ -38,12 +52,12 @@ func TestCorrectness(t *testing.T) {
 		//fmt.Println(r1cs.E)
 		//fmt.Println(r1cs.O)
 
-		fmt.Println(r1csSparse.L)
-		fmt.Println(r1csSparse.R)
-		fmt.Println(r1csSparse.E)
-		fmt.Println(r1csSparse.O)
+		//fmt.Println(r1csSparse.L)
+		//fmt.Println(r1csSparse.R)
+		//fmt.Println(r1csSparse.E)
+		//fmt.Println(r1csSparse.O)
 		for _, io := range test.IO {
-			inputs := CombineInputs(program.GlobalInputs, io.Inputs)
+			inputs := CombineInputs(program.GetMainCircuit().Inputs, io.Inputs)
 
 			fmt.Println("input")
 			fmt.Println(inputs)

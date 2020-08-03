@@ -24,7 +24,7 @@ func Transpose(matrix [][]*big.Int) [][]*big.Int {
 func ArrayOfBigZeros(num int) []*big.Int {
 
 	var r = make([]*big.Int, num, num)
-	for i := int(0); i < num; i++ {
+	for i := 0; i < num; i++ {
 		r[i] = bigZero
 	}
 	return r
@@ -67,18 +67,10 @@ func (pf PolynomialField) Mul(a, b []*big.Int) []*big.Int {
 	r := ArrayOfBigZeros(len(a) + len(b) - 1)
 	for i := 0; i < len(a); i++ {
 		for j := 0; j < len(b); j++ {
-			//if a[i].Cmp(bigZero)==0{
-			//	//r[i+j] = pf.F.Add(
-			//	//	r[i+j],
-			//	//	bigZero)
-			//	continue
-			//}
-			//if b[i].Cmp(bigZero)==0{
-			//	//r[i+j] = pf.F.Add(
-			//	//	r[i+j],
-			//	//	bigZero)
-			//	continue
-			//}
+			if a[i].Cmp(bigZero) == 0 || b[j].Cmp(bigZero) == 0 {
+				r[i+j] = new(big.Int).Set(r[i+j])
+				continue
+			}
 			r[i+j] = pf.F.Add(
 				r[i+j],
 				pf.F.Mul(a[i], b[j]))

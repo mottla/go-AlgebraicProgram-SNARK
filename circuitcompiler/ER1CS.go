@@ -148,7 +148,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 	set[0] = true
 
 	if r1cs.indexMap[randInput] != 0 {
-		rnd, rnderr := utils.Field.CurveOrderField.Rand()
+		rnd, rnderr := utils.Field.ArithmeticField.Rand()
 		if rnderr != nil {
 			panic(rnderr)
 		}
@@ -201,7 +201,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 	}
 
 	sum := func(array []*big.Int) *big.Int {
-		return utils.Field.ArithmeticField.ScalarProduct(array, witness)
+		return field.ScalarProduct(array, witness)
 	}
 
 	for i := 0; i < len(r1cs.L); i++ {
@@ -299,7 +299,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 	set[0] = true
 
 	if r1cs.indexMap[randInput] != 0 {
-		rnd, rnderr := utils.Field.CurveOrderField.Rand()
+		rnd, rnderr := utils.Field.ArithmeticField.Rand()
 		if rnderr != nil {
 			panic(rnderr)
 		}

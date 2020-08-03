@@ -153,26 +153,26 @@ func GenerateTrustedSetup(publicinputs int, r1cs *circuitcompiler.ER1CSTranspose
 	var err error
 	fields := utils.Field
 	// generate random t value
-	setup.Toxic.x, err = fields.CurveOrderField.Rand()
+	setup.Toxic.x, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
 	//TODO this is why my scheme sucks. we can only have x in {0,..,len(gates)} and not from the entire field. This destroys security
 	//setup.Toxic.x = big.NewInt(rand.Int63n(int64(gates)))
 
-	setup.Toxic.Kalpha, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kalpha, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kbeta, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kbeta, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kgamma, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kgamma, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kdelta, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kdelta, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
@@ -182,10 +182,10 @@ func GenerateTrustedSetup(publicinputs int, r1cs *circuitcompiler.ER1CSTranspose
 
 	setup.Pk.Domain = Domain
 	//TODO other field maybe??
-	Dx := fields.CurveOrderField.EvalPoly(Domain, setup.Toxic.x)
-	invDelta := fields.CurveOrderField.Inverse(setup.Toxic.Kdelta)
-	invgamma := fields.CurveOrderField.Inverse(setup.Toxic.Kgamma)
-	Dx_div_delta := fields.CurveOrderField.Mul(invDelta, Dx)
+	Dx := fields.ArithmeticField.EvalPoly(Domain, setup.Toxic.x)
+	invDelta := fields.ArithmeticField.Inverse(setup.Toxic.Kdelta)
+	invgamma := fields.ArithmeticField.Inverse(setup.Toxic.Kgamma)
+	Dx_div_delta := fields.ArithmeticField.Mul(invDelta, Dx)
 
 	// encrypt x values with curve generators
 	// x^i times D(x) divided by delta
@@ -196,11 +196,11 @@ func GenerateTrustedSetup(publicinputs int, r1cs *circuitcompiler.ER1CSTranspose
 	//G^{x^i}
 	tEncr := new(big.Int).Set(setup.Toxic.x)
 	for i := 1; i < gates; i++ {
-		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.CurveOrderField.Mul(tEncr, Dx_div_delta)))
+		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.ArithmeticField.Mul(tEncr, Dx_div_delta)))
 		powersX_onG = append(powersX_onG, g1ScalarBaseMultiply(tEncr))
 		powersX_onH = append(powersX_onH, g2ScalarBaseMultiply(tEncr))
 		// x^i -> x^{i+1}
-		tEncr = fields.CurveOrderField.Mul(tEncr, setup.Toxic.x)
+		tEncr = fields.ArithmeticField.Mul(tEncr, setup.Toxic.x)
 	}
 
 	setup.Pk.G1.PowersX = powersX_onG
@@ -217,32 +217,32 @@ func GenerateTrustedSetup(publicinputs int, r1cs *circuitcompiler.ER1CSTranspose
 
 	for i := 0; i < witnessLength; i++ {
 		// Li(x)
-		lix := fields.CurveOrderField.EvalPoly(Li[i], setup.Toxic.x)
+		lix := fields.ArithmeticField.EvalPoly(Li[i], setup.Toxic.x)
 		// Ri(x)
-		rix := fields.CurveOrderField.EvalPoly(Ri[i], setup.Toxic.x)
+		rix := fields.ArithmeticField.EvalPoly(Ri[i], setup.Toxic.x)
 		// Oi(x)
-		oix := fields.CurveOrderField.EvalPoly(Oi[i], setup.Toxic.x)
+		oix := fields.ArithmeticField.EvalPoly(Oi[i], setup.Toxic.x)
 
 		// Ei(x)
-		eix := fields.CurveOrderField.EvalPoly(Ei[i], setup.Toxic.x)
+		eix := fields.ArithmeticField.EvalPoly(Ei[i], setup.Toxic.x)
 		setup.Pk.G1.Ex = append(setup.Pk.G1.Ex, g1ScalarBaseMultiply(eix))
 
-		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.CurveOrderField.Add(eix, lix)))
+		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.ArithmeticField.Add(eix, lix)))
 
 		//H^Rix
-		hRix := g2ScalarBaseMultiply(fields.CurveOrderField.Copy(rix))
+		hRix := g2ScalarBaseMultiply(fields.ArithmeticField.Copy(rix))
 		setup.Pk.G2.Rx = append(setup.Pk.G2.Rx, hRix)
 
-		ter := fields.CurveOrderField.Mul(setup.Toxic.Kalpha, rix)
-		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, lix))
-		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, eix))
-		ter = fields.CurveOrderField.Add(ter, oix)
+		ter := fields.ArithmeticField.Mul(setup.Toxic.Kalpha, rix)
+		ter = fields.ArithmeticField.Add(ter, fields.ArithmeticField.Mul(setup.Toxic.Kbeta, lix))
+		ter = fields.ArithmeticField.Add(ter, fields.ArithmeticField.Mul(setup.Toxic.Kbeta, eix))
+		ter = fields.ArithmeticField.Add(ter, oix)
 
 		if i < publicinputs {
-			ter = fields.CurveOrderField.Mul(invgamma, ter)
+			ter = fields.ArithmeticField.Mul(invgamma, ter)
 			setup.Pk.G1.RLEO_Gamma = append(setup.Pk.G1.RLEO_Gamma, g1ScalarBaseMultiply(ter))
 		} else {
-			ter = fields.CurveOrderField.Mul(invDelta, ter)
+			ter = fields.ArithmeticField.Mul(invDelta, ter)
 			setup.Pk.G1.RLEO_Delta = append(setup.Pk.G1.RLEO_Delta, g1ScalarBaseMultiply(ter))
 		}
 	}
@@ -270,26 +270,26 @@ func GenerateTrustedSetupSparse(publicinputs int, in *circuitcompiler.ER1CSsPARS
 	var err error
 	fields := utils.Field
 	// generate random t value
-	setup.Toxic.x, err = fields.CurveOrderField.Rand()
+	setup.Toxic.x, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
 	//TODO this is why my scheme sucks. we can only have x in {0,..,len(gates)} and not from the entire field. This destroys security
 	//setup.Toxic.x = big.NewInt(rand.Int63n(int64(gates)))
 
-	setup.Toxic.Kalpha, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kalpha, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kbeta, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kbeta, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kgamma, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kgamma, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
-	setup.Toxic.Kdelta, err = fields.CurveOrderField.Rand()
+	setup.Toxic.Kdelta, err = fields.ArithmeticField.Rand()
 	if err != nil {
 		panic("random failed")
 	}
@@ -299,10 +299,10 @@ func GenerateTrustedSetupSparse(publicinputs int, in *circuitcompiler.ER1CSsPARS
 
 	setup.Pk.Domain = Domain
 	//TODO other field maybe??
-	Dx := fields.CurveOrderField.EvalPoly(Domain, setup.Toxic.x)
-	invDelta := fields.CurveOrderField.Inverse(setup.Toxic.Kdelta)
-	invgamma := fields.CurveOrderField.Inverse(setup.Toxic.Kgamma)
-	Dx_div_delta := fields.CurveOrderField.Mul(invDelta, Dx)
+	Dx := fields.ArithmeticField.EvalPoly(Domain, setup.Toxic.x)
+	invDelta := fields.ArithmeticField.Inverse(setup.Toxic.Kdelta)
+	invgamma := fields.ArithmeticField.Inverse(setup.Toxic.Kgamma)
+	Dx_div_delta := fields.ArithmeticField.Mul(invDelta, Dx)
 
 	// encrypt x values with curve generators
 	// x^i times D(x) divided by delta
@@ -313,11 +313,11 @@ func GenerateTrustedSetupSparse(publicinputs int, in *circuitcompiler.ER1CSsPARS
 	//G^{x^i}
 	tEncr := new(big.Int).Set(setup.Toxic.x)
 	for i := 1; i < gates; i++ {
-		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.CurveOrderField.Mul(tEncr, Dx_div_delta)))
+		powersXDomaindivDelta = append(powersXDomaindivDelta, g1ScalarBaseMultiply(fields.ArithmeticField.Mul(tEncr, Dx_div_delta)))
 		powersX_onG = append(powersX_onG, g1ScalarBaseMultiply(tEncr))
 		powersX_onH = append(powersX_onH, g2ScalarBaseMultiply(tEncr))
 		// x^i -> x^{i+1}
-		tEncr = fields.CurveOrderField.Mul(tEncr, setup.Toxic.x)
+		tEncr = fields.ArithmeticField.Mul(tEncr, setup.Toxic.x)
 	}
 
 	setup.Pk.G1.PowersX = powersX_onG
@@ -334,32 +334,32 @@ func GenerateTrustedSetupSparse(publicinputs int, in *circuitcompiler.ER1CSsPARS
 
 	for i := 0; i < witnessLength; i++ {
 		// Li(x)
-		lix := fields.CurveOrderField.EvalSparsePoly(Li[i], setup.Toxic.x)
+		lix := fields.ArithmeticField.EvalSparsePoly(Li[i], setup.Toxic.x)
 		// Ri(x)
-		rix := fields.CurveOrderField.EvalSparsePoly(Ri[i], setup.Toxic.x)
+		rix := fields.ArithmeticField.EvalSparsePoly(Ri[i], setup.Toxic.x)
 		// Oi(x)
-		oix := fields.CurveOrderField.EvalSparsePoly(Oi[i], setup.Toxic.x)
+		oix := fields.ArithmeticField.EvalSparsePoly(Oi[i], setup.Toxic.x)
 
 		// Ei(x)
-		eix := fields.CurveOrderField.EvalSparsePoly(Ei[i], setup.Toxic.x)
+		eix := fields.ArithmeticField.EvalSparsePoly(Ei[i], setup.Toxic.x)
 		setup.Pk.G1.Ex = append(setup.Pk.G1.Ex, g1ScalarBaseMultiply(eix))
 
-		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.CurveOrderField.Add(eix, lix)))
+		setup.Pk.G1.Lx_plus_Ex = append(setup.Pk.G1.Lx_plus_Ex, g1ScalarBaseMultiply(fields.ArithmeticField.Add(eix, lix)))
 
 		//H^Rix
-		hRix := g2ScalarBaseMultiply(fields.CurveOrderField.Copy(rix))
+		hRix := g2ScalarBaseMultiply(fields.ArithmeticField.Copy(rix))
 		setup.Pk.G2.Rx = append(setup.Pk.G2.Rx, hRix)
 
-		ter := fields.CurveOrderField.Mul(setup.Toxic.Kalpha, rix)
-		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, lix))
-		ter = fields.CurveOrderField.Add(ter, fields.CurveOrderField.Mul(setup.Toxic.Kbeta, eix))
-		ter = fields.CurveOrderField.Add(ter, oix)
+		ter := fields.ArithmeticField.Mul(setup.Toxic.Kalpha, rix)
+		ter = fields.ArithmeticField.Add(ter, fields.ArithmeticField.Mul(setup.Toxic.Kbeta, lix))
+		ter = fields.ArithmeticField.Add(ter, fields.ArithmeticField.Mul(setup.Toxic.Kbeta, eix))
+		ter = fields.ArithmeticField.Add(ter, oix)
 
 		if i < publicinputs {
-			ter = fields.CurveOrderField.Mul(invgamma, ter)
+			ter = fields.ArithmeticField.Mul(invgamma, ter)
 			setup.Pk.G1.RLEO_Gamma = append(setup.Pk.G1.RLEO_Gamma, g1ScalarBaseMultiply(ter))
 		} else {
-			ter = fields.CurveOrderField.Mul(invDelta, ter)
+			ter = fields.ArithmeticField.Mul(invDelta, ter)
 			setup.Pk.G1.RLEO_Delta = append(setup.Pk.G1.RLEO_Delta, g1ScalarBaseMultiply(ter))
 		}
 	}
@@ -423,7 +423,7 @@ func GenerateProof_Sparse(publicInputs int, provingKey *Pk, witnessTrace []*big.
 	proof.PiB = new(bn256.G2).ScalarMult(provingKey.G2.Rx[0], witnessTrace[0])
 	proof.PiC = new(bn256.G1).ScalarMult(provingKey.G1.RLEO_Delta[0], witnessTrace[publicInputs])
 	proof.PiF = new(bn256.G1).ScalarMult(provingKey.G1.Ex[0], witnessTrace[0])
-	Qx, r := f.CurveOrderField.DivideSparse(Px, utils.NewSparseArrayFromArray(provingKey.Domain))
+	Qx, r := f.ArithmeticField.DivideSparse(Px, utils.NewSparseArrayFromArray(provingKey.Domain))
 
 	if r.Size() > 0 {
 		panic("remainder supposed to be 0")

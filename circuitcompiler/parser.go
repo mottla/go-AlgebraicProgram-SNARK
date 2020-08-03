@@ -73,12 +73,17 @@ func Parse(code string, checkSemantics bool) (p *Program) {
 	toks := parser.stackAllTokens()
 	go parser.statementMode(toks)
 	//go parser.statementMode(parser.stackAllTokens())
+	p = newProgram()
 out:
 	for {
 		select {
 		case constraint := <-parser.constraintChan:
 			//fmt.Println("#############")
 			//fmt.Println(constraint)
+			if constraint.Output.Type == PUBLIC {
+				a := p.GetMainCircuit().resolveArrayName(constraint)
+				p.PublicInputs = append(p.PublicInputs, a)
+			}
 			if checkSemantics {
 				constraintStack = append(constraintStack, constraint)
 			}
@@ -86,7 +91,7 @@ out:
 			break out
 		}
 	}
-	p = newProgram()
+
 	//p = newProgram(big.NewInt(1993), big.NewInt(1993))
 	p.globalFunction.preCompile(constraintStack)
 	return p
@@ -105,6 +110,21 @@ func (p *Parser) statementMode(tokens []Token) {
 	}
 
 	switch tokens[0].Type {
+	case PUBLIC:
+		toks := Tokens{toks: tokens[1:]}
+		tok := toks.next()
+		if tok.Identifier != "{" {
+			p.error("Function expected, got %v ", tok)
+		}
+		//NOTE THAT WE GOT ERROR WHEN USING &Constraint{} instead of Constraint{}, dont understand why
+		buffer := Constraint{}
+
+		rest := p.argumentParse(toks.toks, splitAtClosingSwingBrackets, &buffer)
+		for _, publicInput := range buffer.Inputs {
+			publicInput.Output.Type = PUBLIC
+			p.constraintChan <- publicInput
+		}
+		p.statementMode(rest)
 	case IMPORT:
 		if len(tokens) == 1 || tokens[1].Type != IDENTIFIER_VARIABLE {
 			p.error("import failed")
@@ -525,6 +545,7 @@ func (p *Parser) parseExpression(stack []Token, constraint *Constraint) {
 func (p *Parser) argumentParse(stack []Token, bracketSplitFunction func(in []Token) (cutLeft, cutRight []Token, success bool), constraint *Constraint) (rest []Token) {
 
 	functionInput, rem, success := bracketSplitFunction(stack)
+
 	if !success {
 		p.error("closing brackets missing")
 	}
@@ -533,6 +554,7 @@ func (p *Parser) argumentParse(stack []Token, bracketSplitFunction func(in []Tok
 	}
 	//arguments can be expressions, so we need to parse them
 	for arguments, remm := splitAtFirstHighestStringType(functionInput, ","); ; arguments, remm = splitAtFirstHighestStringType(remm, ",") {
+		arguments = removeLeadingAndTrailingBreaks(arguments)
 		p.parseExpression(arguments, constraint)
 		if remm == nil {
 			break

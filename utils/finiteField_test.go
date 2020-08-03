@@ -23,7 +23,6 @@ func TestBigIsOdd(t *testing.T) {
 	assert.True(t, BigIsOdd(big.NewInt(int64(7))))
 	assert.True(t, BigIsOdd(big.NewInt(int64(57356245))))
 	assert.False(t, BigIsOdd(big.NewInt(int64(3264356723562))), true)
-
 }
 func TestFq1(t *testing.T) {
 	fq1 := NewFq(iToBig(7))

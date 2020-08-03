@@ -45,6 +45,79 @@ var TestPrograms = []TraceCorrectnessTest{
 		}},
 		Code: `
 
+func main(sudoku[9][9]){	
+	public{
+	sudoku[3][4]
+	}	
+	# we check if all inputs are in the range 1 to 9	
+	func iterate(fromX,toX,stepSize, call){       
+		if fromX==toX{           
+			return
+		}			
+		call(fromX)
+		iterate(fromX+stepSize,toX,stepSize,call)
+		return
+	}	
+
+    var product  = 2*3*4*5*6*7*8*9	
+	
+	#we check if all columns  	
+	var checkRange = func(x){		
+		var EQ = func(y){			
+			equal(constraint(sudoku[x][y]),0)
+		}
+		iterate(0,9,1,EQ)
+	}
+    var col = func(x){
+		var prod = 1
+		var EQ = func(y){	
+			prod = prod * sudoku[x][y]			
+		}
+		iterate(0,9,1,EQ)
+		equal(prod,product)
+	}
+    var row = func(x){
+		var prod = 1
+		var EQ = func(y){	
+			prod = prod * sudoku[y][x]			
+		}
+		iterate(0,9,1,EQ)
+		equal(prod,product)
+	}
+
+	iterate(0,9,1,checkRange)
+    iterate(0,9,1,col)
+    iterate(0,9,1,row)	
+	var i = 0
+	for (i<9;i=i+3){			
+		var j = 0
+		for (j<9;j=j+3){
+			var colProduct = 1	
+			var k = 0
+			for (k<3;k=k+1){
+				var l = 0
+					for (l<3;l=l+1){
+						colProduct = colProduct * sudoku[i+k][j+l]	
+				}
+			}
+			equal(colProduct,product)		
+		}
+		
+	}
+	return
+}
+func constraint(x){
+	return (x-1)*(x-2)*(x-3)*(x-4)*(x-5)*(x-6)*(x-7)*(x-8)*(x-9)
+}
+
+`},
+	{
+		Skip: false,
+		IO: []InOut{{
+			Inputs: sudoku(),
+		}},
+		Code: `
+
 func main(x[9][9]){		
 	# we check if all inputs are in the range 1 to 9
 	var i = 0
@@ -100,12 +173,13 @@ func constraint(x){
 
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(4))},
 		}},
 		Code: `
 func main(x,y){	
+	var a = [4][5]{}
 	SPLIT(2*x)	
 	var a = (3)*x*x
 	var c= (a+4)/(y*(1/4))
@@ -138,14 +212,14 @@ func fubunaci(a,v){
 }
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
 
 		Code: `
 func main(x){
-	return (x*x*fubunaci(8,x))*(x*x)
+	return (x*fubunaci(8,x))
 }
 
 func fubunaci(a,v){

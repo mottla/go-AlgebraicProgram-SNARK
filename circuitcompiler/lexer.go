@@ -84,6 +84,7 @@ func init() {
 		"for":    FOR,
 		"func":   FUNCTION_DEFINE,
 		"import": IMPORT,
+		"public": PUBLIC,
 	}
 
 }
@@ -103,9 +104,11 @@ const (
 	//UnaryOperatorToken
 	EOF
 	IMPORT
+	PUBLIC
 	IDENTIFIER_VARIABLE
 	FUNCTION_DEFINE
 	FUNCTION_CALL
+	IF_FUNCTION_CALL
 	VARIABLE_DECLARE
 	VARIABLE_OVERLOAD
 	ARRAY_DECLARE
@@ -151,6 +154,8 @@ func (ch TokenType) String() string {
 		return "def"
 	case FUNCTION_CALL:
 		return "call"
+	case IF_FUNCTION_CALL:
+		return "if_function_call"
 	case VARIABLE_DECLARE:
 		return "var"
 	case VARIABLE_OVERLOAD:
@@ -169,6 +174,8 @@ func (ch TokenType) String() string {
 		return "arrayAccess"
 	case ARRAY_DECLARE:
 		return "arrayDefine"
+	case PUBLIC:
+		return "public"
 
 	default:
 		panic("unknown TOken")

@@ -44,7 +44,7 @@ func (g *gateContainer) completeFunction(f factors) {
 		gateType:   additionGate,
 		identifier: f.factorSignature(),
 		leftIns:    f,
-		outIns: factors{&factor{
+		outIns: factors{factor{
 			typ: Token{
 				Type:       ARGUMENT,
 				Identifier: f.factorSignature(),
@@ -62,14 +62,6 @@ func (g *gateContainer) contains(tok string) bool {
 }
 
 func (g *gateContainer) Add(gate *Gate) {
-
-	//we want to reduce the number of exponentiations in the slower group G2
-	//since a*b = b*a, we swap in case
-	//if len(gate.rightIns) > len(gate.leftIns) {
-	//	tmp := gate.rightIns
-	//	gate.rightIns = gate.leftIns
-	//	gate.leftIns = tmp
-	//}
 
 	if !g.contains(gate.ID()) {
 		g.computedFactors[gate.ID()] = true
@@ -92,13 +84,13 @@ func (m MultiplicationGateSignature) String() string {
 
 type Program struct {
 	globalFunction *function
-	GlobalInputs   []string
+	PublicInputs   []string
 }
 
 func newProgram() (program *Program) {
 	program = &Program{
 		globalFunction: newCircuit("global", nil),
-		GlobalInputs:   []string{"1"},
+		PublicInputs:   []string{"1"},
 	}
 	return
 }
@@ -114,7 +106,7 @@ func (in InputArgument) String() string {
 
 func CombineInputs(abstract []string, concrete []*big.Int) (res []InputArgument) {
 	//we add the neutral element here
-	concrete = append([]*big.Int{big.NewInt(1)}, concrete...)
+
 	if len(abstract) != len(concrete) {
 		panic(fmt.Sprintf("argument missmatch, programm requires %v inputs, you provided %v", len(abstract), len(concrete)))
 	}
@@ -128,11 +120,11 @@ func CombineInputs(abstract []string, concrete []*big.Int) (res []InputArgument)
 	return res
 }
 
-//returns the cardinality of all main inputs + 1 for the "one" signal
+//returns the cardinality of all public inputs (+ 1 for the "one" signal)
 func (p *Program) GlobalInputCount() int {
-	return len(p.GlobalInputs)
+	return len(p.PublicInputs)
 }
-func (p *Program) getMainCircuit() *function {
+func (p *Program) GetMainCircuit() *function {
 	return p.globalFunction.functions["main"]
 }
 
@@ -140,9 +132,7 @@ func (p *Program) getMainCircuit() *function {
 func (p *Program) Execute() (orderedmGates []*Gate) {
 
 	container := newGateContainer()
-	mainCircuit := p.getMainCircuit()
-
-	p.GlobalInputs = append(p.GlobalInputs, mainCircuit.Inputs...)
+	mainCircuit := p.GetMainCircuit()
 
 	for i := 0; i < mainCircuit.taskStack.len(); i++ {
 		f, _, returns := mainCircuit.compile(mainCircuit.taskStack.data[i], container)
@@ -156,7 +146,7 @@ func (p *Program) Execute() (orderedmGates []*Gate) {
 
 func (currentCircuit *function) rereferenceFunctionInputs(newInputs []*function) (oldInputs []*function) {
 	if len(currentCircuit.Inputs) != len(newInputs) {
-		panic("argument size missmatch")
+		panic(fmt.Sprintf("%v takes %v arguments, got %v", currentCircuit.Name, len(currentCircuit.Inputs), len(newInputs)))
 	}
 	for i, name := range currentCircuit.Inputs {
 		oldInputs = append(oldInputs, currentCircuit.functions[name])
@@ -166,9 +156,33 @@ func (currentCircuit *function) rereferenceFunctionInputs(newInputs []*function)
 
 }
 
+//helper function
+func (currentCircuit *function) resolveArrayName(c *Constraint) string {
+	var arrayIdentifier = c.Output.Identifier
+	//if len(c.Inputs) < 1 {
+	//	panic("accessing array index failed")
+	//}
+	for _, in := range c.Inputs {
+		indexFactors, variable, _ := currentCircuit.compile(in, newGateContainer())
+		if variable {
+			panic("cannot access array dynamically in an arithmetic circuit currently")
+		}
+		if len(indexFactors) > 1 {
+			panic("unexpected")
+		}
+		tmp, err := strconv.ParseInt(indexFactors[0].typ.Identifier, 10, 64)
+		if err != nil || tmp < 0 {
+			panic(err.Error())
+		}
+		arrayIdentifier += fmt.Sprintf("[%v]", tmp)
+	}
+	return arrayIdentifier
+}
+
 //recursively walks through the parse tree to create a list of all
 //multiplication gates needed for the QAP construction
 //Takes into account, that multiplication with constants and addition (= substraction) can be reduced, and does so
+//TODO i would like to get rid of the factors concept. its unelegant
 func (currentCircuit *function) compile(currentConstraint *Constraint, gateCollector *gateContainer) (facs factors, variableEnd bool, reachedReturn bool) {
 
 	switch currentConstraint.Output.Type {
@@ -177,28 +191,31 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		if !success {
 			panic("not a constant")
 		}
-		return factors{{typ: Token{Type: NumberToken, Identifier: currentConstraint.Output.Identifier}, multiplicative: value}}, false, false
+		f := factor{typ: Token{Type: NumberToken, Identifier: currentConstraint.Output.Identifier}, multiplicative: value}
+		return factors{f}, false, false
 	case IDENTIFIER_VARIABLE:
 		// an identifier is always a lone indentifier. If such one is reached. we are at a leaf and either can resolve him as argument or declared function/variable
-		if con, ex := currentCircuit.findConstraintInBloodline(currentConstraint.Output.Identifier); ex {
-			return currentCircuit.compile(con, gateCollector)
-		} else if _, ex := currentCircuit.findFunctionInBloodline(currentConstraint.Output.Identifier); ex {
+
+		if f, ex := currentCircuit.findFunctionInBloodline(currentConstraint.Output.Identifier); ex {
+			if f.isNumber {
+				fac := factor{typ: Token{Type: NumberToken, Identifier: f.Name}, multiplicative: f.value}
+				return factors{fac}, false, false
+			}
+			if len(f.Inputs) == 0 {
+				if con, ex := currentCircuit.findConstraintInBloodline(currentConstraint.Output.Identifier); ex {
+					return currentCircuit.compile(con, gateCollector)
+				}
+				panic(fmt.Sprintf("variable %s not declared", currentConstraint.Output.Identifier))
+			}
+
 			return nil, false, false
-		} else {
-			panic(fmt.Sprintf("variable %s not declared", currentConstraint.Output.Identifier))
+
 		}
-	case IF:
-		if len(currentConstraint.Inputs) == 0 || currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
-			return currentCircuit.compile(&Constraint{
-				Output: Token{
-					Type:       FUNCTION_CALL,
-					Identifier: currentConstraint.Output.Identifier,
-				},
-			}, gateCollector)
-		} else {
-			return nil, false, false
-		}
+
+		panic(fmt.Sprintf("variable %s not declared", currentConstraint.Output.Identifier))
+
 	case FOR:
+		//we check the condition each time we rerun the loop
 		for currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
 			content := &Constraint{
 				Output: Token{
@@ -228,7 +245,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 	case RETURN:
 		switch len(currentConstraint.Inputs) {
 		case 0:
-			fac := &factor{typ: Token{
+			fac := factor{typ: Token{
 				Type: NumberToken,
 			}, multiplicative: big.NewInt(1)}
 			return factors{fac}, false, true
@@ -239,7 +256,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 
 		}
 	case ARGUMENT:
-		fac := &factor{typ: Token{
+		fac := factor{typ: Token{
 			Type:       ARGUMENT,
 			Identifier: currentConstraint.Output.Identifier,
 		}, multiplicative: big.NewInt(1)}
@@ -251,78 +268,82 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 		}
 
 		var toOverloadIdentifier = currentConstraint.Inputs[0].Output.Identifier
+
 		if currentConstraint.Inputs[0].Output.Type == ARRAY_CALL {
-			array := currentConstraint.Inputs[0]
-			if len(array.Inputs) != 1 {
-				panic("accessing array index failed")
-			}
-			//ar[?]
-			indexFactors, variable, _ := currentCircuit.compile(array.Inputs[0], gateCollector)
-			if variable {
-				panic("cannot access array dynamically in an arithmetic circuit currently")
-			}
-			if len(facs) > 1 {
-				panic("unexpected")
-			}
-			toOverloadIdentifier = fmt.Sprintf("%s[%v]", array.Output.Identifier, indexFactors[0].multiplicative.String())
+			// myArray[7*3] = expression
+			toOverloadIdentifier = currentCircuit.resolveArrayName(currentConstraint.Inputs[0])
+			//myArray[21] = expression
 		}
-		context, ex := currentCircuit.getCircuitContainingConstraintInBloodline(toOverloadIdentifier)
+
+		//resolve the expression
+		facs, _, _ := currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
+
+		//overwrite
+		context, ex := currentCircuit.getCircuitContainingFunctionInBloodline(toOverloadIdentifier)
 		if !ex {
-			panic("unexpected reach")
+			panic("does not exist")
 		}
+		context.functions[toOverloadIdentifier] = facs.primitiveReturnfunction()
 
-		if cn, ex := currentCircuit.findFunctionInBloodline(currentConstraint.Inputs[1].Output.Identifier); ex && currentConstraint.Inputs[1].Output.Type != FUNCTION_CALL {
-			context.functions[toOverloadIdentifier] = cn
-			return nil, false, false
-		}
-
-		//TODO
-		f2, _, _ := currentCircuit.compile(currentConstraint.Inputs[1], gateCollector)
-
-		if f2.Len() != 1 {
-			panic("later dude")
-		}
-
-		if ex {
-			context.functions[toOverloadIdentifier] = f2[0].primitiveReturnfunction()
-		} else {
-			panic("unexpected reach")
-		}
 		return nil, false, false
+
 	case ARRAY_CALL:
 
-		if len(currentConstraint.Inputs) < 1 {
-			panic("accessing array index failed")
-		}
-		var arrayIdentifier = currentConstraint.Output.Identifier
-
-		for _, in := range currentConstraint.Inputs {
-			indexFactors, variable, _ := currentCircuit.compile(in, gateCollector)
-			if variable {
-				panic("cannot access array dynamically in an arithmetic circuit currently")
-			}
-			if len(indexFactors) > 1 {
-				panic("unexpected")
-			}
-			tmp, err := strconv.ParseInt(indexFactors[0].typ.Identifier, 10, 64)
-			if err != nil || tmp < 0 {
-				panic(err.Error())
-			}
-			arrayIdentifier += fmt.Sprintf("[%v]", tmp)
-		}
-
-		if con, ex := currentCircuit.findConstraintInBloodline(arrayIdentifier); ex {
-			return currentCircuit.compile(con, gateCollector)
+		if con, ex := currentCircuit.findConstraintInBloodline(currentCircuit.resolveArrayName(currentConstraint)); ex {
+			a, c, _ := currentCircuit.compile(con, gateCollector)
+			return a, c, false
 		} else {
 			panic(fmt.Sprintf("array %s not declared", currentConstraint.Output.Identifier))
 		}
+	case IF:
+		if len(currentConstraint.Inputs) == 0 || currentCircuit.checkStaticCondition(currentConstraint.Inputs[0]) {
+			return currentCircuit.compile(&Constraint{
+				Output: Token{
+					Type:       IF_FUNCTION_CALL,
+					Identifier: currentConstraint.Output.Identifier,
+				},
+			}, gateCollector)
+		} else {
+			return nil, false, false
+		}
+	case IF_FUNCTION_CALL:
+		var nextCircuit *function
+		var ex bool
+		if nextCircuit, ex = currentCircuit.findFunctionInBloodline(currentConstraint.Output.Identifier); !ex {
+			panic(fmt.Sprintf("function %s not declared", currentConstraint.Output.Identifier))
+		}
+		len := nextCircuit.taskStack.len()
+		for i := 0; i < len; i++ {
+			//nextCircuit = nextCircuit.clone()
+			//a := fmt.Sprintf(nextCircuit.taskStack.data[i].String())
+			//a = a
+			f, varend, returs := nextCircuit.compile(nextCircuit.taskStack.data[i], gateCollector)
+			if returs {
+				//note that if function calls are equivalent to normal function calls, except that
+				//we pass on true, if a subtask terminated, since a return within an if
+				//is a return for the entire function containing the if, not just the if
+				return f, varend, true
+			}
+
+			gateCollector.completeFunction(f)
+		}
+		return nil, false, false
 	case FUNCTION_CALL:
 		switch currentConstraint.Output.Identifier {
+		case "BREAK":
+			// DEBUG function. Set a break point somewhere and read all arguments that were passed to BREAK(args...)
+			for _, v := range currentConstraint.Inputs {
+				in, _, _ := currentCircuit.compile(v.clone(), gateCollector)
+
+				st := fmt.Sprintf("%v , %v", v.String(), in)
+				fmt.Println(st)
+			}
+			//break point
+			return nil, false, false
 		case "SPLIT":
 			if len(currentConstraint.Inputs) != 1 {
 				panic("split")
 			}
-
 			//prepare input number Z
 			arg := currentConstraint.Inputs[0].clone()
 			in, _, _ := currentCircuit.compile(arg, gateCollector)
@@ -339,7 +360,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			//each represents a bit of Z
 			//each Z_i is introduced by a constraint  (Z_i - 1 ) * Z_i = 0, to ensure its either 0 or 1
 			// Z_0 is the lsb
-			sum := make([]*factor, N)
+			sum := make([]factor, N)
 
 			for i := 0; i < N; i++ {
 				nTok := Token{
@@ -354,7 +375,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				}
 				gateCollector.Add(zeroOrOneGate)
 
-				sum[i] = &factor{
+				sum[i] = factor{
 					typ:            nTok,
 					multiplicative: new(big.Int).Lsh(bigOne, uint(i)),
 				}
@@ -403,14 +424,15 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				Identifier: rootGate.setAndGetID(),
 			}
 			gateCollector.Add(rootGate)
-			rootGate.outIns = factors{&factor{
+			rootGate.outIns = factors{factor{
 				typ:            nTok,
 				multiplicative: bigOne,
 			}}
-			return factors{&factor{
+			fres := factor{
 				typ:            nTok,
 				multiplicative: commonExtracted,
-			}}, true, false
+			}
+			return factors{fres}, true, false
 		case "scalarBaseMultiply":
 			if len(currentConstraint.Inputs) != 1 {
 				panic("scalarBaseMultiply argument missmatch")
@@ -423,11 +445,11 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			}
 
 			gateCollector.Add(rootGate)
-
-			return factors{&factor{
+			fres := factor{
 				typ:            Token{Identifier: rootGate.ID(), Type: ARGUMENT},
 				multiplicative: bigOne,
-			}}, true, false
+			}
+			return factors{fres}, true, false
 		case "equal":
 			if len(currentConstraint.Inputs) != 2 {
 				panic("equality constraint requires 2 arguments")
@@ -457,44 +479,30 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 			//if the argument is a function, but not a call, we pass it on
 			for i, v := range currentConstraint.Inputs {
 
-				//TODO the order may matter.. check that.. the code here is troublesome I feel
-				if cn, ex := currentCircuit.findFunctionInBloodline(v.Output.Identifier); ex && v.Output.Type != FUNCTION_CALL {
-					inputs[i] = cn
+				fkts, _, _ := currentCircuit.compile(v, gateCollector)
+				if fkts == nil {
+					fkt, bo := currentCircuit.findFunctionInBloodline(v.Output.Identifier)
+					if !bo {
+						panic(fmt.Sprintf("variable %s not declared", v))
+					}
+					inputs[i] = fkt
 					continue
 				}
-
-				f, varEnd, _ := currentCircuit.compile(v, gateCollector)
-
-				if !varEnd {
-					inputs[i] = f[0].primitiveReturnfunction()
-					continue
-				}
-
-				//if i add them as functions, then they later can be replaced by functions.
-				rmp := newCircuit(v.Output.Identifier, currentCircuit)
-				rmp.taskStack.add(&Constraint{
-					Output: Token{
-						Type:       RETURN,
-						Identifier: "",
-					},
-					Inputs: []*Constraint{v},
-				})
-				inputs[i] = rmp
-
+				inputs[i] = fkts.primitiveReturnfunction()
 			}
 			//nextCircuit = nextCircuit.clone()
 			old := nextCircuit.rereferenceFunctionInputs(inputs)
-
-			for i := 0; i < nextCircuit.taskStack.len(); i++ {
-				f, varend, returns := nextCircuit.compile(nextCircuit.taskStack.data[i], gateCollector)
-				if returns {
-					//gateCollector.appendFactors(f)
-					nextCircuit.rereferenceFunctionInputs(old)
-					return f, varend, true
+			defer nextCircuit.rereferenceFunctionInputs(old)
+			len := nextCircuit.taskStack.len()
+			for i := 0; i < len; i++ {
+				//nextCircuit = nextCircuit.clone()
+				f, varend, returs := nextCircuit.compile(nextCircuit.taskStack.data[i], gateCollector)
+				if returs {
+					return f, varend, false
 				}
+
 				gateCollector.completeFunction(f)
 			}
-			nextCircuit.rereferenceFunctionInputs(old)
 			return nil, false, false
 		}
 	default:
@@ -522,7 +530,7 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
 
-				if !(variableAtLeftEnd && variableAtRightEnd) {
+				if !variableAtLeftEnd || !variableAtRightEnd {
 					return mulFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
 				}
 				commonFactor, newLeft, newRight := extractConstant(leftFactors, rightFactors)
@@ -534,21 +542,17 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				gateCollector.Add(mGate)
 
 				nTok := Token{Type: ARGUMENT, Identifier: mGate.ID()}
-				mGate.outIns = factors{&factor{
+				mGate.outIns = factors{factor{
 					typ:            nTok,
 					multiplicative: bigOne,
 				}}
-				return factors{{typ: nTok, multiplicative: commonFactor}}, true, currentConstraint.Output.Type == RETURN
-			case "+":
-				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
-				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
-				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
+				f := factor{typ: nTok, multiplicative: commonFactor}
+				return factors{f}, true, currentConstraint.Output.Type == RETURN
 			case "/":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
 
 				if !variableAtRightEnd { // (x1+x2..)/6
-
 					return mulFactors(leftFactors, invertFactors(rightFactors)), variableAtRightEnd || variableAtLeftEnd, currentConstraint.Output.Type == RETURN
 				}
 
@@ -562,17 +566,24 @@ func (currentCircuit *function) compile(currentConstraint *Constraint, gateColle
 				}
 				gateCollector.Add(mGate)
 				nTok := Token{Type: ARGUMENT, Identifier: mGate.ID()}
-				mGate.leftIns = factors{&factor{
+				mGate.leftIns = factors{factor{
 					typ:            nTok,
 					multiplicative: bigOne,
 				}}
-				return factors{{typ: nTok, multiplicative: commonF}}, true, currentConstraint.Output.Type == RETURN
+				f := factor{typ: nTok, multiplicative: commonF}
+				return factors{f}, true, currentConstraint.Output.Type == RETURN
+			case "+":
+				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
+				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
+				addedFactors := addFactors(leftFactors, rightFactors)
+				return addedFactors, variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
 
 			case "-":
 				leftFactors, variableAtLeftEnd, _ = currentCircuit.compile(left, gateCollector)
 				rightFactors, variableAtRightEnd, _ = currentCircuit.compile(right, gateCollector)
 				rightFactors = negateFactors(rightFactors)
-				return addFactors(leftFactors, rightFactors), variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
+				addedFactors := addFactors(leftFactors, rightFactors)
+				return addedFactors, variableAtLeftEnd || variableAtRightEnd, currentConstraint.Output.Type == RETURN
 			}
 			break
 		case AssignmentOperatorToken:
@@ -591,13 +602,20 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 	r1CS = &ER1CS{}
 	r1CS.splitmap = make(map[string][]uint)
 
-	//offset := len(p.GlobalInputs) + 2
+	//offset := len(p.PublicInputs) + 2
 	//  one + in1 +in2+... + gate1 + gate2 .. + randIn + randOut
 	//size := offset + len(mGates)
 	indexMap := make(map[string]uint)
 	r1CS.indexMap = indexMap
 
-	for _, v := range p.GlobalInputs {
+	//first we add the public inputs
+	for _, v := range p.PublicInputs {
+		indexMap[v] = uint(len(indexMap))
+	}
+	for _, v := range p.GetMainCircuit().Inputs {
+		if _, ex := indexMap[v]; ex {
+			continue
+		}
 		indexMap[v] = uint(len(indexMap))
 	}
 
@@ -628,7 +646,7 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 		indexMap[randOutput] = uint(len(indexMap))
 	}
 
-	insertValue := func(val *factor, arr []*big.Int) {
+	insertValue := func(val factor, arr []*big.Int) {
 		if val.typ.Type != NumberToken {
 			if _, ex := indexMap[val.typ.Identifier]; !ex {
 				panic(fmt.Sprintf("%v index not found!!!", val))
@@ -641,6 +659,13 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 	}
 	size := len(indexMap)
 	for _, g := range mGates {
+		//we want to reduce the number of exponentiations in the slower group G2
+		//since a*b = b*a, we swap in case
+		if len(g.rightIns) > len(g.leftIns) {
+			tmp := g.rightIns
+			g.rightIns = g.leftIns
+			g.leftIns = tmp
+		}
 
 		switch g.gateType {
 		case multiplicationGate:
@@ -769,10 +794,10 @@ func (p *Program) GatesToR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS) {
 		eConstraint := utils.ArrayOfBigZeros(size)
 		cConstraint := utils.ArrayOfBigZeros(size)
 
-		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
-		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
-		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
-		insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
+		insertValue(factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
+		insertValue(factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
+		insertValue(factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
+		insertValue(factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
 
 		r1CS.L = append(r1CS.L, aConstraint)
 		r1CS.R = append(r1CS.R, bConstraint)
@@ -790,13 +815,19 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 	// from flat code to ER1CS
 	r1CS = &ER1CSSparse{}
 	r1CS.splitmap = make(map[string][]uint)
-	//offset := len(p.GlobalInputs) + 2
+	//offset := len(p.PublicInputs) + 2
 	//  one + in1 +in2+... + gate1 + gate2 .. + randIn + randOut
 	//size := offset + len(mGates)
 	indexMap := make(map[string]uint)
 	r1CS.indexMap = indexMap
 
-	for _, v := range p.GlobalInputs {
+	for _, v := range p.PublicInputs {
+		indexMap[v] = uint(len(indexMap))
+	}
+	for _, v := range p.GetMainCircuit().Inputs {
+		if _, ex := indexMap[v]; ex {
+			continue
+		}
 		indexMap[v] = uint(len(indexMap))
 	}
 
@@ -825,7 +856,7 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		indexMap[randOutput] = uint(len(indexMap))
 	}
 
-	insertValue := func(val *factor, arr *utils.AvlTree) {
+	insertValue := func(val factor, arr *utils.AvlTree) {
 		if val.typ.Type != NumberToken {
 			if _, ex := indexMap[val.typ.Identifier]; !ex {
 				panic(fmt.Sprintf("%v index not found!!!", val))
@@ -837,6 +868,14 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 	}
 
 	for _, g := range mGates {
+		//we want to reduce the number of exponentiations in the slower group G2
+		//since a*b = b*a, we swap in case
+		if len(g.rightIns) > len(g.leftIns) {
+			tmp := g.rightIns
+			g.rightIns = g.leftIns
+			g.leftIns = tmp
+		}
+
 		switch g.gateType {
 		case multiplicationGate:
 			aConstraint := utils.NewAvlTree()
@@ -963,10 +1002,10 @@ func (p *Program) GatesToSparseR1CS(mGates []*Gate, randomize bool) (r1CS *ER1CS
 		eConstraint := utils.NewAvlTree()
 		cConstraint := utils.NewAvlTree()
 
-		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
-		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
-		insertValue(&factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
-		insertValue(&factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
+		insertValue(factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, aConstraint)
+		insertValue(factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, bConstraint)
+		insertValue(factor{typ: Token{Identifier: randInput}, multiplicative: bigOne}, eConstraint)
+		insertValue(factor{typ: Token{Identifier: randOutput}, multiplicative: bigOne}, cConstraint)
 
 		r1CS.L = append(r1CS.L, aConstraint)
 		r1CS.R = append(r1CS.R, bConstraint)
