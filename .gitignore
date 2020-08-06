@@ -7,3 +7,4 @@ cli/test.circuit
 cli/trustedsetup.json
 tmp
 tmpBackup
+/utils/.idea/

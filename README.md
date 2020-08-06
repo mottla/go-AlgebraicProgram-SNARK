@@ -250,7 +250,7 @@ func main(publicKey, privateKey){
     return
 }
 ```
-The EAP then has the form:
+The EAP then has the form :
 ```
 [[0 0 0 0] [0 0 0 1]]
 [[0 0 0 0] [1 0 0 0]]
