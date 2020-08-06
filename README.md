@@ -23,9 +23,9 @@ Due to the nature of zkSNARKs (only programs of static size) some things such as
 
 This language then gets compiled into a R1CS form, with focus on gate reduction.
 We reuse gates whenever possible, exploit commutative properties of the gates, extract constant factors as long as possible etc.
-#Language
+# Language
 
-##main
+## main
 every program starts with the function 'main' 
 ```
 func main(){
@@ -37,7 +37,7 @@ main can be fed with an arbitrary amount of single arguments and n-dimensional s
 func main(a,b[2],c[3][42],d){
 }
 ```
-##Declare public inputs
+## Declare public inputs
 in order to declare, which of the main inputs will be part of the public statement of the SNARK, write
 ```
 func main(a,b[2],c[3][42],d){
@@ -46,7 +46,7 @@ func main(a,b[2],c[3][42],d){
     }
 }
 ```
-##variables
+## variables
 expressions need to be assigned, passed as arguments or returned. They cannot be unasigned (as in Golang)
 ```
 func main(x){
@@ -80,7 +80,7 @@ func main(x){
     return 
 }
 ```
-##Declare Functions
+## Declare Functions
 functions can be declared outside the scope of main
 ```
 func main(x){
@@ -106,7 +106,7 @@ func asdf(...){
     }    
 }
 ```
-##Functions as arguments
+## Functions as arguments
 functions can be passed as arguments
 ```
 func main(x){
@@ -118,7 +118,7 @@ func executeFkt(fkt,input){
     return fkt(input)
 }
 ```
-##Function preloading
+## Function preloading
 functions can be partially executed
 ```
 func main(x){
@@ -129,7 +129,7 @@ func main(x){
 ```
 functions return functions, as long as they are not completely filled with all required inputs
 (constants are also functions, but the empty () can be omitted. everything is a function. even the universe)
-##Loop
+## Loop
 for those who like loops write
 ```
 for ( staticBooleanComparisonExpression ; incrementStatement){
@@ -143,7 +143,7 @@ func main(x){
     }
 }
 ```
-##if-else if-else
+## if-else if-else
 in order to create braching conditions, write:
 ```
 if expression1{ 
@@ -158,7 +158,7 @@ if expression1{
 ```
 note that we currently only support static decidable branching conditions
 
-##arrays
+## arrays
 declare an array with
 ```
 var myArray[] = {a,b,3}
@@ -169,8 +169,8 @@ myArray[x]
 ```
 where x can be 0,1,2 in this example.
 
-#SNARK stuff
-##euquality assertion gate
+# SNARK stuff
+## euquality assertion gate
 in order to create an equality assertion constraint write
 ```
 equal(expression1,expression2)
@@ -181,7 +181,7 @@ func main(x,y){
    equal(x,5y)
 }
 ```
-##split 
+## split 
 to split a value into its bit representatives write
 ```
 SPLIT(x)
@@ -189,7 +189,7 @@ SPLIT(x)
 now the i'th bit of x can be accessed with x[i], where x[0] is the least significant bit
 
 
-##Example of classic SNARK
+## Example of classic SNARK
 
 
 ```
@@ -233,7 +233,7 @@ witness
 [1 3 9 27 81 243 729 2187 762656546057117603562592534677953835837922104544112694902376452493930609611 812283518468366721095433750743019157728318690555355044294444169641986292 15488755034149214877756480202726987801042521325895567363610570018460600916982]
 
 
-#Example of extended algebraic program SNARK
+# Example of extended algebraic program SNARK
 (see ![PDF](algebraicProgramSNARK.pdf) for the mathematical background.)
 **note that this extension is not sound and should not be used in production**
 the predefined function *scalarBaseMultiply(a)* performs a point multiplication on

@@ -19,17 +19,8 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="support seperation of public and private witness.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="1c4a048a-9050-4177-9131-f6cc542a2e6c" name="Default Changelist" comment="support of partial funktion argument preloading; updating readme">
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/ER1CS.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/Programm_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/circuit.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/circuit.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/factorHandling.go" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/factorHandling.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circuitcompiler/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/circuitcompiler/test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/testPrograms/codes.go" beforeDir="false" afterPath="$PROJECT_DIR$/testPrograms/codes.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/finiteField.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils/finiteField.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -209,7 +200,14 @@
       <option name="project" value="LOCAL" />
       <updated>1596484131769</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="support of partial funktion argument preloading; updating readme">
+      <created>1596728394293</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1596728394293</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -261,7 +259,6 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="supporting minus and division" />
     <MESSAGE value="adding support for arrays&#10;var john[] = {1,2,3*4,foo()}&#10;&#10;access with: john[i] where 0&lt;=i&lt;4" />
     <MESSAGE value="advanced compilation; intermediate commit" />
     <MESSAGE value="now supporting alone standing function calls" />
@@ -286,7 +283,8 @@
     <MESSAGE value="Adding Sudoku proof" />
     <MESSAGE value="Adding Sudoku proof; CRS setup 10min for 960 gates. proof 1min. verify 50ms" />
     <MESSAGE value="support seperation of public and private witness." />
-    <option name="LAST_COMMIT_MESSAGE" value="support seperation of public and private witness." />
+    <MESSAGE value="support of partial funktion argument preloading; updating readme" />
+    <option name="LAST_COMMIT_MESSAGE" value="support of partial funktion argument preloading; updating readme" />
   </component>
   <component name="WindowStateProjectService">
     <state x="3234" y="227" width="451" height="582" key="#com.intellij.ide.util.MemberChooser" timestamp="1596454791498">
@@ -404,10 +402,10 @@
       <screen x="67" y="27" width="1853" height="1053" />
     </state>
     <state x="568" y="127" key="SettingsEditor/67.27.1853.1053@67.27.1853.1053" timestamp="1591362263257" />
-    <state x="2034" y="178" width="497" height="542" key="Vcs.Push.Dialog.v2" timestamp="1596484134057">
+    <state x="2034" y="178" width="497" height="542" key="Vcs.Push.Dialog.v2" timestamp="1596728400967">
       <screen x="1920" y="0" width="1920" height="1080" />
     </state>
-    <state x="2034" y="178" width="497" height="542" key="Vcs.Push.Dialog.v2/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1596484134057" />
+    <state x="2034" y="178" width="497" height="542" key="Vcs.Push.Dialog.v2/67.27.1853.1053/1920.0.1920.1080@1920.0.1920.1080" timestamp="1596728400967" />
     <state x="542" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.1853.1053@67.27.1853.1053" timestamp="1592036801483" />
     <state x="291" y="201" width="800" height="528" key="Vcs.Push.Dialog.v2/67.27.3773.1053@67.27.3773.1053" timestamp="1592238219769" />
     <state width="960" height="541" key="XDebugger.FullValuePopup" timestamp="1592314340606">
@@ -470,7 +468,7 @@
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
-          <line>447</line>
+          <line>446</line>
           <option name="timeStamp" value="766" />
         </line-breakpoint>
         <line-breakpoint type="DlvLineBreakpoint">
@@ -530,7 +528,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>617</line>
+          <line>624</line>
           <option name="timeStamp" value="1312" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
@@ -645,12 +643,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>358</line>
+          <line>359</line>
           <option name="timeStamp" value="1542" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>608</line>
+          <line>615</line>
           <option name="timeStamp" value="1636" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
@@ -660,27 +658,27 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>167</line>
+          <line>183</line>
           <option name="timeStamp" value="1693" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
-          <line>359</line>
+          <line>358</line>
           <option name="timeStamp" value="1716" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>329</line>
+          <line>315</line>
           <option name="timeStamp" value="1740" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/Programm.go</url>
-          <line>149</line>
+          <line>165</line>
           <option name="timeStamp" value="1761" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/circuitcompiler/circuit.go</url>
-          <line>406</line>
+          <line>405</line>
           <option name="timeStamp" value="1778" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
