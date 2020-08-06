@@ -69,8 +69,11 @@ func (fq Fq) ScalarProduct(l, r []*big.Int) (sum *big.Int) {
 		panic("vector lengths missmatch")
 	}
 	sum = new(big.Int)
+	b := new(big.Int)
 	for i := 0; i < len(r); i++ {
-		sum = fq.Add(sum, fq.Mul(l[i], r[i]))
+		sum.Add(sum, (b.Mul(l[i], r[i])))
+		sum.Mod(sum, fq.Q)
+		//sum = fq.Add(sum, fq.Mul(l[i], r[i]))
 	}
 	return sum
 }

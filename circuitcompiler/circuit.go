@@ -354,12 +354,20 @@ func (currentCircuit *function) getCircuitContainingFunctionInBloodline(identifi
 
 }
 
-func (circ *function) clone() (clone *function) {
+func (circ *function) flatCopy() (clone *function) {
+	if circ == nil {
+		panic("")
+	}
 	clone = newCircuit(circ.Name, circ.Context)
-
-	clone.Inputs = circ.Inputs
+	inputs := make([]string, len(circ.Inputs))
+	copy(inputs, circ.Inputs)
+	clone.Inputs = inputs
+	//clone.functions = circ.functions
+	//clone.constraintMap = circ.constraintMap
 	for k, v := range circ.functions {
-		clone.functions[k] = v.clone()
+		f := v.flatCopy()
+		f.Context = clone
+		clone.functions[k] = f
 	}
 	for k, v := range circ.constraintMap {
 		clone.constraintMap[k] = v.clone()
@@ -386,16 +394,15 @@ func (currentCircuit *function) checkStaticCondition(c *Constraint) (isSatisfied
 	//unelegant...
 
 	var factorsA, factorsB factors
-	var varEndA, varEndB bool
 	var A, B *big.Int
 
-	factorsA, varEndA, _ = currentCircuit.compile(c.Inputs[1], newGateContainer())
-	factorsB, varEndB, _ = currentCircuit.compile(c.Inputs[2], newGateContainer())
+	factorsA, _, _ = currentCircuit.compile(c.Inputs[1], newGateContainer())
+	factorsB, _, _ = currentCircuit.compile(c.Inputs[2], newGateContainer())
 
 	A = factorsA[0].multiplicative
 	B = factorsB[0].multiplicative
 
-	if varEndA || varEndB {
+	if !factorsA.isSingleNumber() || !factorsB.isSingleNumber() {
 		panic("no dynamic looping supported")
 	}
 	switch c.Inputs[0].Output.Identifier {

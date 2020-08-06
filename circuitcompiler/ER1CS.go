@@ -13,19 +13,19 @@ var randInput, randOutput = "1@randomIn", "1@randomOut"
 
 type ER1CS struct {
 	//indexMap maps each variable to its position in the witness trace
-	indexMap                     map[string]uint
+	indexMap                     map[string]int
 	WitnessLength, NumberOfGates int
 	//splitMap maps each variable (which is split into its bit represants at some point in the code) onto the positions
 	//of the its bits in the indexMap
-	splitmap map[string][]uint
+	splitmap map[string][]int
 	L        [][]*big.Int
 	R        [][]*big.Int
 	E        [][]*big.Int
 	O        [][]*big.Int
 }
 type ER1CSSparse struct {
-	indexMap                     map[string]uint
-	splitmap                     map[string][]uint
+	indexMap                     map[string]int
+	splitmap                     map[string][]int
 	WitnessLength, NumberOfGates int
 	L                            []*utils.AvlTree
 	R                            []*utils.AvlTree
@@ -33,7 +33,7 @@ type ER1CSSparse struct {
 	O                            []*utils.AvlTree
 }
 type ER1CSsPARSETransposed struct {
-	indexMap                     map[string]uint
+	indexMap                     map[string]int
 	WitnessLength, NumberOfGates int
 	L                            []*utils.AvlTree
 	R                            []*utils.AvlTree
@@ -41,7 +41,7 @@ type ER1CSsPARSETransposed struct {
 	O                            []*utils.AvlTree
 }
 type ER1CSTransposed struct {
-	indexMap                     map[string]uint
+	indexMap                     map[string]int
 	WitnessLength, NumberOfGates int
 	L                            [][]*big.Int
 	R                            [][]*big.Int
@@ -144,7 +144,12 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 
 	witness = utils.ArrayOfBigZeros(len(r1cs.indexMap))
 	set := make([]bool, len(witness))
-	witness[0] = big.NewInt(int64(1))
+
+	var setWitness = func(index int, value *big.Int) {
+		witness[index] = value
+	}
+	setWitness(0, big.NewInt(int64(1)))
+
 	set[0] = true
 
 	if r1cs.indexMap[randInput] != 0 {
@@ -152,27 +157,27 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 		if rnderr != nil {
 			panic(rnderr)
 		}
-		witness[r1cs.indexMap[randInput]] = rnd
+		setWitness(r1cs.indexMap[randInput], rnd)
 		set[r1cs.indexMap[randInput]] = true
 	}
 
 	for _, v := range input {
-		witness[r1cs.indexMap[v.identifier]] = v.value
+		setWitness(r1cs.indexMap[v.identifier], v.value)
 		set[r1cs.indexMap[v.identifier]] = true
 	}
 
 	//inverseSplitmap maps each bit index onto (bitposition,positionOfFather)
-	inverseSplitmap := make(map[uint][]uint)
+	inverseSplitmap := make(map[int][]int)
 	// all inputs, which get split into bits at some point, are now added to the witnesstrace
 	for k, v := range r1cs.splitmap {
 		if set[r1cs.indexMap[k]] {
 			for bitPos, zGateIndex := range v {
-				witness[zGateIndex] = big.NewInt(int64(witness[r1cs.indexMap[k]].Bit(bitPos)))
+				setWitness(zGateIndex, big.NewInt(int64(witness[r1cs.indexMap[k]].Bit(bitPos))))
 				set[zGateIndex] = true
 			}
 		}
 		for bitpos, zGateIndex := range v {
-			inverseSplitmap[zGateIndex] = []uint{uint(bitpos), r1cs.indexMap[k]}
+			inverseSplitmap[zGateIndex] = []int{bitpos, r1cs.indexMap[k]}
 		}
 
 	}
@@ -182,11 +187,12 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 	getKnownsAndUnknowns := func(array []*big.Int) (knowns []*big.Int, unknownsAtIndices []int) {
 		knowns = utils.ArrayOfBigZeros(len(array))
 		for j, val := range array {
+
 			if val.Cmp(zero) != 0 {
 				if !set[j] {
-					if bitPosAndFather, exists := inverseSplitmap[uint(j)]; exists {
+					if bitPosAndFather, exists := inverseSplitmap[j]; exists {
 						bit := big.NewInt(int64(witness[bitPosAndFather[1]].Bit(int(bitPosAndFather[0]))))
-						witness[j] = bit
+						setWitness(j, bit)
 						set[j] = true
 						knowns[j] = bit
 						continue
@@ -238,7 +244,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 			result = utils.Field.ArithmeticField.Sub(result, sum(leftKnowns))
 			result = utils.Field.ArithmeticField.Div(result, gatesLeftInputs[leftUnknowns[0]]) //divide by a
 			set[leftUnknowns[0]] = true
-			witness[leftUnknowns[0]] = result
+			setWitness(leftUnknowns[0], result)
 			continue
 		}
 		// (a + b + c..) (d+e*x+..) + (G^(k+v..)) = (F+g+..)   we solve for x
@@ -252,7 +258,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 			result = utils.Field.ArithmeticField.Sub(result, sum(rightKnowns))
 			result = utils.Field.ArithmeticField.Div(result, gatesRightInputs[rightUnknowns[0]]) //divide by a
 			set[rightUnknowns[0]] = true
-			witness[rightUnknowns[0]] = result
+			setWitness(rightUnknowns[0], result)
 			continue
 		}
 
@@ -264,7 +270,7 @@ func CalculateWitness(r1cs *ER1CS, input []InputArgument) (witness []*big.Int, e
 			result = utils.Field.ArithmeticField.Sub(result, sum(outKnowns))
 			result = utils.Field.ArithmeticField.Div(result, gatesOutputs[outUnknowns[0]]) //divide by a
 			set[outUnknowns[0]] = true
-			witness[outUnknowns[0]] = result
+			setWitness(outUnknowns[0], result)
 			continue
 		}
 		//we computed the unkown and now check if the ER1C is satisfied
@@ -313,7 +319,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 	}
 
 	//inverseSplitmap maps each bit index onto (bitposition,positionOfFather)
-	inverseSplitmap := make(map[uint][]uint)
+	inverseSplitmap := make(map[int][]int)
 	// all inputs, which get split into bits at some point, are now added to the witnesstrace
 	for k, v := range r1cs.splitmap {
 		if set[r1cs.indexMap[k]] {
@@ -323,7 +329,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 			}
 		}
 		for bitpos, zGateIndex := range v {
-			inverseSplitmap[zGateIndex] = []uint{uint(bitpos), r1cs.indexMap[k]}
+			inverseSplitmap[zGateIndex] = []int{bitpos, r1cs.indexMap[k]}
 		}
 
 	}
@@ -334,7 +340,7 @@ func CalculateSparseWitness(r1cs *ER1CSSparse, input []InputArgument) (witness [
 		knowns = utils.NewAvlTree()
 		for val := range array.ChannelNodes(true) {
 			if !set[val.Key] {
-				if bitPosAndFather, exists := inverseSplitmap[val.Key]; exists {
+				if bitPosAndFather, exists := inverseSplitmap[int(val.Key)]; exists {
 					bit := big.NewInt(int64(witness[bitPosAndFather[1]].Bit(int(bitPosAndFather[0]))))
 					witness[val.Key] = bit
 					set[val.Key] = true

@@ -38,13 +38,67 @@ var sudoku = func() []*big.Int {
 }
 
 var TestPrograms = []TraceCorrectnessTest{
+
 	{
 		Skip: false,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
+			Result: big.NewInt(int64(1729500084900343)),
+		}, {
+			Inputs: []*big.Int{big.NewInt(int64(365235)), big.NewInt(int64(11876525))},
+
+			Result: bigNumberResult1,
+		}},
+		Code: `
+	func main( x  ,  z ) {
+		return do(z) + add(x,x)
+	}		
+
+	func do(x){
+		var e = x * 5
+		var b = e * 6
+		var c = b * 7
+		var F = c * 1
+		var d = c * F
+		var ll = d * mul(d,e)
+		return ll
+	}
+	
+	func add(x ,k){
+		var z = k * x
+		return do(x) + mul(x,z)
+	}
+
+	func mul(a,b){
+		return a * b
+	}`,
+	},
+	{
+		Skip: false,
+		IO: []InOut{{
+			Inputs: []*big.Int{big.NewInt(int64(3))},
+		}},
+
+		Code: `
+func main(x){
+	return (x*fubunaci(7))
+}
+func fubunaci(a){
+	if a==0{
+		return 1
+	}
+	if a==1{
+		return 1
+	}
+	return addGateConstraint(fubunaci(a-1),fubunaci(a-2))
+}
+`},
+	{
+		Skip: true,
 		IO: []InOut{{
 			Inputs: sudoku(),
 		}},
 		Code: `
-
 func main(sudoku[9][9]){	
 	public{
 	sudoku[3][4]
@@ -56,7 +110,6 @@ func main(sudoku[9][9]){
 		}			
 		call(fromX)
 		iterate(fromX+stepSize,toX,stepSize,call)
-		return
 	}	
 
     var product  = 2*3*4*5*6*7*8*9	
@@ -68,6 +121,7 @@ func main(sudoku[9][9]){
 		}
 		iterate(0,9,1,EQ)
 	}
+	
     var col = func(x){
 		var prod = 1
 		var EQ = func(y){	
@@ -88,6 +142,9 @@ func main(sudoku[9][9]){
 	iterate(0,9,1,checkRange)
     iterate(0,9,1,col)
     iterate(0,9,1,row)	
+	
+	
+	
 	var i = 0
 	for (i<9;i=i+3){			
 		var j = 0
@@ -112,7 +169,7 @@ func constraint(x){
 
 `},
 	{
-		Skip: false,
+		Skip: true,
 		IO: []InOut{{
 			Inputs: sudoku(),
 		}},
@@ -173,22 +230,33 @@ func constraint(x){
 
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
-			Inputs: []*big.Int{pubkeyOf42OnBn256_G1, big.NewInt(int64(4))},
+			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(4))},
 		}},
 		Code: `
 func main(x,y){	
-	var a = [4][5]{}
-	SPLIT(2*x)	
-	var a = (3)*x*x
-	var c= (a+4)/(y*(1/4))
-	return a+c
+	var multiply = func(b,h){
+		return b*h*6
+	}
+	var execute = func(j,m){
+		return j(m)
+	}
+	#var kk = x*7	
+	var k = execute(multiply,x) 
+	iterate(2,4,1,k)
+	return k(x)
 }
-
+	func iterate(fromX,toX,stepSize, call){       
+		if fromX==toX{           
+			return
+		}			
+		call(fromX)
+		iterate(fromX+stepSize,toX,stepSize,call)
+	}	
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(1))},
 		}},
@@ -197,6 +265,7 @@ func main(x,y){
 #import "/github.com/mottla/go-AlgebraicProgram-SNARK/utils/basicOperations"
 
 func main(x){
+	public{x}
 	return (1*fubunaci(8,x))
 }
 
@@ -214,7 +283,7 @@ func fubunaci(a,v){
 	{
 		Skip: false,
 		IO: []InOut{{
-			Inputs: []*big.Int{big.NewInt(int64(3))},
+			Inputs: []*big.Int{big.NewInt(int64(1))},
 		}},
 
 		Code: `
@@ -234,7 +303,7 @@ func fubunaci(a,v){
 }
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3)), big.NewInt(int64(5)), big.NewInt(int64(7))},
 		}},
@@ -253,14 +322,14 @@ func add(a,b){
 
 `},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
 
 		Code: `
 func main(x){
-	return (1/fubunaci(8))*(x*x)
+	return (1*fubunaci(8))*(x*x)
 }
 var dyn[] = {1,1}
 func fubunaci(a){
@@ -273,35 +342,16 @@ func fubunaci(a){
     return dyn[1]
 }
 `},
-	{
-		Skip: true,
-		IO: []InOut{{
-			Inputs: []*big.Int{},
-		}},
 
-		Code: `
-func main(){
-	return (fubunaci(7))
-}
-func fubunaci(a){
-	if a==0{
-		return 1
-	}
-	if a==1{
-		return 1
-	}
-	return addGateConstraint(fubunaci(a-1),fubunaci(a-2))
-}
-`},
 	{
-		Skip: true,
+		Skip: false,
 		IO: []InOut{{
 			Inputs: []*big.Int{big.NewInt(int64(3))},
 		}},
 
 		Code: `
 func main(x){
-	return (1/fubunaci(8))*(x*x)
+	return (1*fubunaci(8))*(x*x)
 }
 var dyn[] = {1,1,0,0,0,0,0,0,0}
 func fubunaci(a){
@@ -467,39 +517,6 @@ func mul(a,b){
 	
 	func fooX(x,y){
 		return x/y
-	}`,
-	},
-	{
-		Skip: false,
-		IO: []InOut{{
-			Inputs: []*big.Int{big.NewInt(int64(7)), big.NewInt(int64(11))},
-			Result: big.NewInt(int64(1729500084900343)),
-		}, {
-			Inputs: []*big.Int{big.NewInt(int64(365235)), big.NewInt(int64(11876525))},
-
-			Result: bigNumberResult1,
-		}},
-		Code: `
-	func main( x  ,  z ) {
-		return do(z) + add(x,x)
-	}		
-
-	func do(x){
-		var e = x * 5
-		var b = e * 6
-		var c = b * 7
-		var F = c * 1
-		var d = c * F
-		return d * mul(d,e)
-	}
-	
-	func add(x ,k){
-		var z = k * x
-		return do(x) + mul(x,z)
-	}
-
-	func mul(a,b){
-		return a * b
 	}`,
 	},
 }

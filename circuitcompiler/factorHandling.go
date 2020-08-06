@@ -50,6 +50,10 @@ func (f factors) clone() (res factors) {
 	}
 	return
 }
+func (f factors) isSingleNumber() bool {
+	return len(f) == 1 && f[0].typ.Type == NumberToken
+
+}
 
 func extractGCD(f factors) (factors, *big.Int) {
 
